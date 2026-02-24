@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { parseOFX, OFXTransaction } from '@/lib/ofxParser';
 import { getStoredTransactions, importTransactions, clearTransactions, ImportResult } from '@/lib/transactionStore';
+import { clearAllAttachments } from '@/lib/attachmentStore';
 import FileDropzone from '@/components/FileDropzone';
 import TransactionTable from '@/components/TransactionTable';
 import { Trash2, FileText, CheckCircle2, AlertCircle } from 'lucide-react';
@@ -56,6 +57,7 @@ const Index = () => {
 
   const handleClear = () => {
     clearTransactions();
+    clearAllAttachments();
     setTransactions([]);
     setNotification({ type: 'success', message: 'Todas as transações foram removidas.' });
   };
