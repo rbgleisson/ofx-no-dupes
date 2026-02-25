@@ -19,12 +19,14 @@ import CategoriesManager, { Category } from '@/components/CategoriesManager';
 import AccountsManager, { Account } from '@/components/AccountsManager';
 import { Trash2, FileText, CheckCircle2, AlertCircle, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const Index = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [filters, setFilters] = useState<TransactionFilters>({});
+  const [activeTab, setActiveTab] = useState<'payable' | 'receivable'>('payable');
   const [notification, setNotification] = useState<{ type: 'success' | 'warning'; message: string } | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
@@ -186,28 +188,43 @@ const Index = () => {
           <FileDropzone onFileSelect={handleFileSelect} />
         </div>
 
-        {/* Filters */}
-        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-          <p className="text-sm text-muted-foreground">
-            {transactions.length} transaç{transactions.length === 1 ? 'ão' : 'ões'}
-          </p>
-          <TransactionFiltersComponent filters={filters} onChange={setFilters} categories={categories} accounts={accounts} />
-        </div>
-
-        {/* Transactions */}
-        {transactions.length > 0 ? (
-          <TransactionTable
-            transactions={transactions}
-            categories={categories}
-            accounts={accounts}
-            onTransactionsChange={loadTransactions}
-            onEditTransaction={handleEditTransaction}
-          />
-        ) : (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground">Nenhuma transação encontrada.</p>
+        {/* Tabs + Filters */}
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'payable' | 'receivable')} className="space-y-4">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <TabsList>
+              <TabsTrigger value="payable">A Pagar</TabsTrigger>
+              <TabsTrigger value="receivable">A Receber</TabsTrigger>
+            </TabsList>
+            <TransactionFiltersComponent filters={filters} onChange={setFilters} categories={categories} accounts={accounts} />
           </div>
-        )}
+
+          {(['payable', 'receivable'] as const).map((tab) => {
+            const filtered = transactions.filter(t =>
+              tab === 'payable' ? Number(t.amount) < 0 : Number(t.amount) >= 0
+            );
+            return (
+              <TabsContent key={tab} value={tab}>
+                <p className="text-sm text-muted-foreground mb-4">
+                  {filtered.length} transaç{filtered.length === 1 ? 'ão' : 'ões'}
+                </p>
+                {filtered.length > 0 ? (
+                  <TransactionTable
+                    transactions={filtered}
+                    categories={categories}
+                    accounts={accounts}
+                    onTransactionsChange={loadTransactions}
+                    onEditTransaction={handleEditTransaction}
+                  />
+                ) : (
+                  <div className="text-center py-12">
+                    <p className="text-muted-foreground">Nenhuma transação encontrada.</p>
+                  </div>
+                )}
+              </TabsContent>
+            );
+          })}
+
+        </Tabs>
 
         {/* Form Dialog */}
         <TransactionFormDialog
