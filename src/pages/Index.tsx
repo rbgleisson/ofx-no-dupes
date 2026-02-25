@@ -146,8 +146,13 @@ const Index = () => {
       } else {
         setNotification({ type: 'success', message: `${result.imported} transações importadas de "${fileName}".` });
       }
-    } catch {
-      setNotification({ type: 'warning', message: 'Erro ao ler o arquivo OFX. Verifique o formato.' });
+    } catch (err: any) {
+      const msg = err?.message || '';
+      if (msg.includes('duplicate') || msg.includes('violates')) {
+        setNotification({ type: 'warning', message: 'Erro de duplicidade ao importar. Tente novamente.' });
+      } else {
+        setNotification({ type: 'warning', message: 'Erro ao ler o arquivo OFX. Verifique o formato.' });
+      }
     }
   };
 
