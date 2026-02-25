@@ -38,7 +38,9 @@ const CategoriesManager = ({ categories, onCategoriesChange }: CategoriesManager
 
   const handleAdd = async () => {
     if (!newName.trim()) return;
-    const { error } = await supabase.from('categories').insert({ name: newName.trim(), color: newColor });
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { error } = await supabase.from('categories').insert({ name: newName.trim(), color: newColor, user_id: user.id });
     if (!error) {
       setNewName('');
       setNewColor(PRESET_COLORS[0]);

@@ -30,6 +30,12 @@ export interface TransactionFilters {
   account_id?: string;
 }
 
+async function getUserId(): Promise<string> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+  return user.id;
+}
+
 export async function fetchTransactions(filters?: TransactionFilters): Promise<Transaction[]> {
   let query = supabase.from('transactions').select('*').order('date', { ascending: false });
 
@@ -65,14 +71,15 @@ export async function fetchTransactions(filters?: TransactionFilters): Promise<T
 export async function importTransactions(
   newTransactions: { fit_id: string; type: string; date: string; amount: number; description: string; memo?: string; account_id?: string | null }[]
 ): Promise<ImportResult> {
-  // Get existing fit_ids
+  const userId = await getUserId();
   const { data: existing } = await supabase.from('transactions').select('fit_id');
   const existingIds = new Set((existing || []).map(t => t.fit_id).filter(Boolean));
 
   const unique = newTransactions.filter(t => !existingIds.has(t.fit_id));
 
   if (unique.length > 0) {
-    const { error } = await supabase.from('transactions').insert(unique);
+    const withUserId = unique.map(t => ({ ...t, user_id: userId }));
+    const { error } = await supabase.from('transactions').insert(withUserId);
     if (error) throw error;
   }
 
@@ -84,7 +91,8 @@ export async function importTransactions(
 }
 
 export async function addTransaction(tx: Omit<Transaction, 'id' | 'created_at' | 'updated_at'>): Promise<Transaction> {
-  const { data, error } = await supabase.from('transactions').insert(tx).select().single();
+  const userId = await getUserId();
+  const { data, error } = await supabase.from('transactions').insert({ ...tx, user_id: userId }).select().single();
   if (error) throw error;
   return data as Transaction;
 }
