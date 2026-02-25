@@ -71,6 +71,32 @@ const Index = () => {
         return;
       }
 
+      // Auto-create or find account from OFX bank info
+      let accountId: string | null = null;
+      if (data.bankId || data.accountId) {
+        const accountName = [data.bankId, data.accountId].filter(Boolean).join(' - ');
+        // Check if account already exists
+        const { data: existing } = await supabase
+          .from('accounts')
+          .select('id')
+          .eq('name', accountName)
+          .maybeSingle();
+
+        if (existing) {
+          accountId = existing.id;
+        } else {
+          const { data: created } = await supabase
+            .from('accounts')
+            .insert({ name: accountName })
+            .select('id')
+            .single();
+          if (created) {
+            accountId = created.id;
+            await fetchAccounts();
+          }
+        }
+      }
+
       const mapped = data.transactions.map(t => ({
         fit_id: t.id,
         type: t.type,
@@ -78,6 +104,7 @@ const Index = () => {
         amount: t.amount,
         description: t.description,
         memo: t.memo,
+        account_id: accountId,
       }));
 
       const result: ImportResult = await importTransactions(mapped);

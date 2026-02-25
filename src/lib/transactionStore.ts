@@ -62,7 +62,7 @@ export async function fetchTransactions(filters?: TransactionFilters): Promise<T
 }
 
 export async function importTransactions(
-  newTransactions: { fit_id: string; type: string; date: string; amount: number; description: string; memo?: string }[]
+  newTransactions: { fit_id: string; type: string; date: string; amount: number; description: string; memo?: string; account_id?: string | null }[]
 ): Promise<ImportResult> {
   // Get existing fit_ids
   const { data: existing } = await supabase.from('transactions').select('fit_id');
