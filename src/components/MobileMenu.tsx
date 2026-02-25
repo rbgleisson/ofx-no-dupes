@@ -68,10 +68,10 @@ const MobileMenu = ({
 
           <div className="border-t my-2" />
 
-          <div onClick={() => setOpen(false)}>{accountsManager}</div>
-          <div onClick={() => setOpen(false)}>{categoriesManager}</div>
-          <div onClick={() => setOpen(false)}>{chartAccountsManager}</div>
-          <div onClick={() => setOpen(false)}>{exportDialog}</div>
+          <div onClick={() => setOpen(false)} className="[&>button]:w-full [&>button]:justify-start">{accountsManager}</div>
+          <div onClick={() => setOpen(false)} className="[&>button]:w-full [&>button]:justify-start">{categoriesManager}</div>
+          <div onClick={() => setOpen(false)} className="[&>button]:w-full [&>button]:justify-start">{chartAccountsManager}</div>
+          <div onClick={() => setOpen(false)} className="[&>button]:w-full [&>button]:justify-start">{exportDialog}</div>
 
           {showClear && (
             <>
