@@ -59,12 +59,13 @@ export async function exportDemonstrativo(
   // --- Sheet 1: Demonstrativo ---
   buildDemonstrativoSheet(wb, transactions, chartAccounts, companyName, periodoStart, periodoEnd);
 
-  // --- Sheet 2 & 3: Listagem Entradas & Saídas ---
+  // --- Sheet 2 & 3: Listagem Entradas & Saídas (all columns) ---
+  const allColKeys = new Set(ALL_COLUMNS.map(c => c.key));
   const entradas = transactions.filter(t => Number(t.amount) >= 0);
   const saidas = transactions.filter(t => Number(t.amount) < 0);
 
-  buildListagemSheet(wb, 'Entradas', entradas, categories, accounts, chartAccounts, selectedColumns);
-  buildListagemSheet(wb, 'Saídas', saidas, categories, accounts, chartAccounts, selectedColumns);
+  buildListagemSheet(wb, 'Entradas', entradas, categories, accounts, chartAccounts, allColKeys);
+  buildListagemSheet(wb, 'Saídas', saidas, categories, accounts, chartAccounts, allColKeys);
 
   // Generate and download
   const buffer = await wb.xlsx.writeBuffer();
@@ -276,6 +277,9 @@ function buildListagemSheet(
   });
 
   // Data rows
+  let totalAmount = 0;
+  const amountColIdx = cols.findIndex(c => c.key === 'amount');
+
   for (const tx of transactions) {
     const values: (string | number)[] = [];
     for (const col of cols) {
@@ -283,7 +287,12 @@ function buildListagemSheet(
         case 'date': values.push(formatDate(tx.date)); break;
         case 'description': values.push(tx.description); break;
         case 'memo': values.push(tx.memo || ''); break;
-        case 'amount': values.push(Number(tx.amount)); break;
+        case 'amount': {
+          const amt = Number(tx.amount);
+          totalAmount += amt;
+          values.push(amt);
+          break;
+        }
         case 'category': {
           const cat = categories.find(c => c.id === tx.category_id);
           values.push(cat?.name || '');
@@ -306,6 +315,27 @@ function buildListagemSheet(
     r.font = { size: 10 };
     r.eachCell((cell, colNumber) => {
       cell.border = thinBorder;
+      const colDef = cols[colNumber - 1];
+      if (colDef?.key === 'amount') {
+        cell.numFmt = '#,##0.00';
+        cell.alignment = { horizontal: 'right' };
+      }
+    });
+  }
+
+  // Totals row
+  if (amountColIdx >= 0 && transactions.length > 0) {
+    const totalValues: (string | number)[] = cols.map((col, idx) => {
+      if (idx === 0) return `TOTAL (${transactions.length} lançamentos)`;
+      if (col.key === 'amount') return totalAmount;
+      return '';
+    });
+
+    const totalRow = ws.addRow(totalValues);
+    totalRow.font = { bold: true, size: 11 };
+    totalRow.eachCell((cell, colNumber) => {
+      cell.border = thinBorder;
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2EFDA' } };
       const colDef = cols[colNumber - 1];
       if (colDef?.key === 'amount') {
         cell.numFmt = '#,##0.00';
