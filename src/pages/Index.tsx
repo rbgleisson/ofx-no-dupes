@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { parseOFX } from '@/lib/ofxParser';
+import logoImg from '@/assets/logo.png';
 import {
   Transaction,
   TransactionFilters,
@@ -186,12 +187,10 @@ const Index = () => {
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-3">
-            <div className="rounded-xl bg-primary p-2.5">
-              <FileText className="w-5 h-5 text-primary-foreground" />
-            </div>
+            <img src={logoImg} alt="Sistema Financeiro" className="w-10 h-10 rounded-xl" />
             <div>
-              <h1 className="text-xl font-bold text-foreground tracking-tight">Importador OFX</h1>
-              <p className="text-sm text-muted-foreground">Importe extratos sem duplicatas</p>
+              <h1 className="text-xl font-bold text-foreground tracking-tight">Sistema Financeiro</h1>
+              <p className="text-sm text-muted-foreground">Gestão de lançamentos e relatórios</p>
             </div>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
