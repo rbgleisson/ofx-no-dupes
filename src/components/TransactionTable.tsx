@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { Transaction, updateTransaction, deleteTransaction } from '@/lib/transactionStore';
 import { Category } from '@/components/CategoriesManager';
 import { Account } from '@/components/AccountsManager';
+import { ChartAccount } from '@/components/ChartAccountsManager';
 import { ArrowDownLeft, ArrowUpRight, Paperclip, X, FileText, Loader2, Pencil, Trash2, Check, ChevronsUpDown } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import {
@@ -30,15 +31,17 @@ interface TransactionTableProps {
   transactions: Transaction[];
   categories: Category[];
   accounts: Account[];
+  chartAccounts: ChartAccount[];
   onTransactionsChange: () => void;
   onEditTransaction: (tx: Transaction) => void;
 }
 
-const TransactionTable = ({ transactions, categories, accounts, onTransactionsChange, onEditTransaction }: TransactionTableProps) => {
+const TransactionTable = ({ transactions, categories, accounts, chartAccounts, onTransactionsChange, onEditTransaction }: TransactionTableProps) => {
   const [uploading, setUploading] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [activeTransactionId, setActiveTransactionId] = useState<string | null>(null);
   const [openCategoryPopover, setOpenCategoryPopover] = useState<string | null>(null);
+  const [openChartAccountPopover, setOpenChartAccountPopover] = useState<string | null>(null);
 
   const total = transactions.reduce((sum, t) => sum + Number(t.amount), 0);
   const credits = transactions.filter(t => Number(t.amount) > 0).reduce((s, t) => s + Number(t.amount), 0);
@@ -132,6 +135,7 @@ const TransactionTable = ({ transactions, categories, accounts, onTransactionsCh
                 <th className="text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Descrição</th>
                 <th className="text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Categoria</th>
                 <th className="text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Conta</th>
+                <th className="text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Conta Contábil</th>
                 <th className="text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Valor</th>
                 <th className="text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Anexo</th>
                 <th className="text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Ações</th>
@@ -141,6 +145,7 @@ const TransactionTable = ({ transactions, categories, accounts, onTransactionsCh
               {transactions.map((tx) => {
                 const cat = categories.find(c => c.id === tx.category_id);
                 const acc = accounts.find(a => a.id === tx.account_id);
+                const ca = chartAccounts.find(c => c.id === (tx as any).chart_account_id);
                 const amt = Number(tx.amount);
                 return (
                   <tr key={tx.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
@@ -240,6 +245,49 @@ const TransactionTable = ({ transactions, categories, accounts, onTransactionsCh
                           ))}
                         </SelectContent>
                       </Select>
+                    </td>
+                    <td className="px-4 py-3">
+                      <Popover open={openChartAccountPopover === tx.id} onOpenChange={(open) => setOpenChartAccountPopover(open ? tx.id : null)}>
+                        <PopoverTrigger asChild>
+                          <button className="flex items-center gap-1.5 h-8 w-44 px-2 text-xs border rounded-md bg-background hover:bg-muted/50 transition-colors text-left">
+                            {ca ? (
+                              <span className="truncate"><span className="font-mono text-muted-foreground">{ca.code}</span> {ca.name}</span>
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
+                            <ChevronsUpDown className="ml-auto h-3 w-3 shrink-0 opacity-50" />
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-56 p-0" align="start">
+                          <Command>
+                            <CommandInput placeholder="Buscar conta contábil..." className="h-8 text-xs" />
+                            <CommandList>
+                              <CommandEmpty className="py-2 text-center text-xs text-muted-foreground">Nenhuma encontrada.</CommandEmpty>
+                              <CommandGroup>
+                                <CommandItem
+                                  value="__none__"
+                                  onSelect={() => { handleFieldChange(tx.id, 'chart_account_id', null); setOpenChartAccountPopover(null); }}
+                                  className="text-xs"
+                                >
+                                  <span className="text-muted-foreground">Sem conta contábil</span>
+                                  {!(tx as any).chart_account_id && <Check className="ml-auto h-3 w-3" />}
+                                </CommandItem>
+                                {chartAccounts.map(c => (
+                                  <CommandItem
+                                    key={c.id}
+                                    value={`${c.code} ${c.name}`}
+                                    onSelect={() => { handleFieldChange(tx.id, 'chart_account_id', c.id); setOpenChartAccountPopover(null); }}
+                                    className="text-xs"
+                                  >
+                                    <span className="font-mono text-muted-foreground mr-1">{c.code}</span> {c.name}
+                                    {(tx as any).chart_account_id === c.id && <Check className="ml-auto h-3 w-3" />}
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
                     </td>
                     <td className={`px-4 py-3 text-sm font-mono font-semibold text-right whitespace-nowrap ${
                       amt >= 0 ? 'text-[hsl(var(--success))]' : 'text-destructive'

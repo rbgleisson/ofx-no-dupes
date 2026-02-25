@@ -10,6 +10,7 @@ export interface Transaction {
   memo?: string | null;
   category_id?: string | null;
   account_id?: string | null;
+  chart_account_id?: string | null;
   attachment_url?: string | null;
   created_at?: string;
   updated_at?: string;

@@ -17,6 +17,7 @@ import TransactionFiltersComponent from '@/components/TransactionFilters';
 import TransactionFormDialog from '@/components/TransactionFormDialog';
 import CategoriesManager, { Category } from '@/components/CategoriesManager';
 import AccountsManager, { Account } from '@/components/AccountsManager';
+import ChartAccountsManager, { ChartAccount } from '@/components/ChartAccountsManager';
 import { Trash2, FileText, CheckCircle2, AlertCircle, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -25,6 +26,7 @@ const Index = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [chartAccounts, setChartAccounts] = useState<ChartAccount[]>([]);
   const [filters, setFilters] = useState<TransactionFilters>({});
   const [activeTab, setActiveTab] = useState<'payable' | 'receivable'>('payable');
   const [notification, setNotification] = useState<{ type: 'success' | 'warning'; message: string } | null>(null);
@@ -50,11 +52,17 @@ const Index = () => {
     if (data) setAccounts(data as Account[]);
   }, []);
 
+  const fetchChartAccounts = useCallback(async () => {
+    const { data } = await supabase.from('chart_accounts').select('*').order('code');
+    if (data) setChartAccounts(data as ChartAccount[]);
+  }, []);
+
   useEffect(() => {
     loadTransactions();
     fetchCategories();
     fetchAccounts();
-  }, [loadTransactions, fetchCategories, fetchAccounts]);
+    fetchChartAccounts();
+  }, [loadTransactions, fetchCategories, fetchAccounts, fetchChartAccounts]);
 
   useEffect(() => {
     if (notification) {
@@ -136,6 +144,7 @@ const Index = () => {
     memo?: string;
     category_id?: string | null;
     account_id?: string | null;
+    chart_account_id?: string | null;
   }) => {
     try {
       if (editingTransaction) {
@@ -174,6 +183,7 @@ const Index = () => {
           <div className="flex items-center gap-2 flex-wrap">
             <AccountsManager accounts={accounts} onAccountsChange={fetchAccounts} />
             <CategoriesManager categories={categories} onCategoriesChange={fetchCategories} />
+            <ChartAccountsManager chartAccounts={chartAccounts} onChartAccountsChange={fetchChartAccounts} />
             <Button variant="outline" size="sm" onClick={() => { setEditingTransaction(null); setFormOpen(true); }}>
               <Plus className="w-4 h-4 mr-1.5" />
               Lançamento
@@ -239,6 +249,7 @@ const Index = () => {
                     transactions={filtered}
                     categories={categories}
                     accounts={accounts}
+                    chartAccounts={chartAccounts}
                     onTransactionsChange={loadTransactions}
                     onEditTransaction={handleEditTransaction}
                   />
@@ -260,6 +271,7 @@ const Index = () => {
           transaction={editingTransaction}
           categories={categories}
           accounts={accounts}
+          chartAccounts={chartAccounts}
           onSave={handleSaveTransaction}
         />
       </div>
