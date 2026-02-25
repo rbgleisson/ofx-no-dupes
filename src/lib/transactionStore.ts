@@ -25,6 +25,8 @@ export interface TransactionFilters {
   day?: number;
   month?: number;
   year?: number;
+  category_id?: string;
+  account_id?: string;
 }
 
 export async function fetchTransactions(filters?: TransactionFilters): Promise<Transaction[]> {
@@ -44,6 +46,14 @@ export async function fetchTransactions(filters?: TransactionFilters): Promise<T
 
     query = query.gte('date', startDate.toISOString().split('T')[0])
                  .lt('date', endDate.toISOString().split('T')[0]);
+  }
+
+  if (filters?.category_id) {
+    query = query.eq('category_id', filters.category_id);
+  }
+
+  if (filters?.account_id) {
+    query = query.eq('account_id', filters.account_id);
   }
 
   const { data, error } = await query;
