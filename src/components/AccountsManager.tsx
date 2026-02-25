@@ -69,7 +69,7 @@ const AccountsManager = ({ accounts, onAccountsChange }: AccountsManagerProps) =
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm">
+        <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white border-0">
           <Building2 className="w-4 h-4 mr-1.5" />
           Contas
         </Button>

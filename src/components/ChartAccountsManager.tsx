@@ -73,7 +73,7 @@ const ChartAccountsManager = ({ chartAccounts, onChartAccountsChange }: ChartAcc
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm">
+        <Button size="sm" className="bg-amber-600 hover:bg-amber-700 text-white border-0">
           <BookOpen className="w-4 h-4 mr-1.5" />
           Plano de Contas
         </Button>

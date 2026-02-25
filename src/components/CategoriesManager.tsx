@@ -69,7 +69,7 @@ const CategoriesManager = ({ categories, onCategoriesChange }: CategoriesManager
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm">
+        <Button size="sm" className="bg-violet-600 hover:bg-violet-700 text-white border-0">
           <Tag className="w-4 h-4 mr-1.5" />
           Categorias
         </Button>
