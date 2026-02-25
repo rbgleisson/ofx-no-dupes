@@ -146,7 +146,12 @@ const Index = () => {
   };
 
   const handleClear = async () => {
-    if (!confirm('Tem certeza que deseja remover todos os lançamentos?')) return;
+    if (!confirm('⚠️ ATENÇÃO: Isso vai remover TODOS os lançamentos permanentemente. Deseja continuar?')) return;
+    const typed = prompt('Para confirmar, digite a palavra "APAGAR" abaixo:');
+    if (typed?.trim().toUpperCase() !== 'APAGAR') {
+      setNotification({ type: 'warning', message: 'Operação cancelada. A palavra digitada não confere.' });
+      return;
+    }
     await clearTransactions();
     setTransactions([]);
     setNotification({ type: 'success', message: 'Todos os lançamentos foram removidos.' });
