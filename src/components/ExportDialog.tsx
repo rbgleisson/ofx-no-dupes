@@ -304,6 +304,18 @@ const ExportDialog = ({ transactions, categories, accounts, chartAccounts }: Exp
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Demonstrativo');
 
+    // Add Listagem sheets (Entradas & Saídas)
+    const entradas = filtered.filter(t => Number(t.amount) >= 0);
+    const saidas = filtered.filter(t => Number(t.amount) < 0);
+
+    const entradasRows = buildListagemRows(entradas);
+    const wsEntradas = styleListagemSheet(XLSX.utils.json_to_sheet(entradasRows.length > 0 ? entradasRows : [{}]), entradasRows.length);
+    XLSX.utils.book_append_sheet(wb, wsEntradas, 'Entradas');
+
+    const saidasRows = buildListagemRows(saidas);
+    const wsSaidas = styleListagemSheet(XLSX.utils.json_to_sheet(saidasRows.length > 0 ? saidasRows : [{}]), saidasRows.length);
+    XLSX.utils.book_append_sheet(wb, wsSaidas, 'Saídas');
+
     const monthLabel = exportMonth !== '__all__' ? MONTHS[Number(exportMonth) - 1] : 'Todos';
     const yearLabel = exportYear !== '__all__' ? exportYear : 'Todos';
     XLSX.writeFile(wb, `demonstrativo_${yearLabel}_${monthLabel}.xlsx`);
