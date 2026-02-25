@@ -21,6 +21,7 @@ import AccountsManager, { Account } from '@/components/AccountsManager';
 import ChartAccountsManager, { ChartAccount } from '@/components/ChartAccountsManager';
 import ExportDialog from '@/components/ExportDialog';
 import { Trash2, FileText, CheckCircle2, AlertCircle, Plus, Upload, LogOut } from 'lucide-react';
+import MobileMenu from '@/components/MobileMenu';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
@@ -209,7 +210,8 @@ const Index = () => {
               <p className="text-sm text-muted-foreground">Gestão de lançamentos e relatórios</p>
             </div>
           </div>
-          <div className="flex items-center gap-2 flex-wrap">
+          {/* Desktop buttons */}
+          <div className="hidden lg:flex items-center gap-2 flex-wrap">
             <Button size="sm" onClick={() => { setEditingTransaction(null); setFormOpen(true); }} className="bg-emerald-600 hover:bg-emerald-700 text-white border-0">
               <Plus className="w-4 h-4 mr-1.5" />
               Lançamento
@@ -244,6 +246,20 @@ const Index = () => {
               <LogOut className="w-4 h-4" />
             </Button>
           </div>
+
+          {/* Mobile hamburger menu */}
+          <input ref={ofxInputRef} type="file" accept=".ofx,.qfx" onChange={handleOfxFileChange} className="hidden" />
+          <MobileMenu
+            onNewTransaction={() => { setEditingTransaction(null); setFormOpen(true); }}
+            onImportOFX={() => ofxInputRef.current?.click()}
+            onClear={handleClear}
+            onLogout={async () => { await supabase.auth.signOut(); }}
+            showClear={transactions.length > 0}
+            accountsManager={<AccountsManager accounts={accounts} onAccountsChange={fetchAccounts} />}
+            categoriesManager={<CategoriesManager categories={categories} onCategoriesChange={fetchCategories} />}
+            chartAccountsManager={<ChartAccountsManager chartAccounts={chartAccounts} onChartAccountsChange={fetchChartAccounts} />}
+            exportDialog={<ExportDialog transactions={transactions} categories={categories} accounts={accounts} chartAccounts={chartAccounts} />}
+          />
         </div>
 
         {/* Notification */}
