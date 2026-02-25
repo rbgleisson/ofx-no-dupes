@@ -1,9 +1,9 @@
-import { useState, useRef, useEffect } from 'react';
-import { OFXTransaction } from '@/lib/ofxParser';
-import { ArrowDownLeft, ArrowUpRight, Paperclip, X, FileText, Loader2 } from 'lucide-react';
-import { uploadAttachment, removeAttachment, getAllAttachments } from '@/lib/attachmentStore';
-import { getAllTransactionCategories, setTransactionCategory, removeTransactionCategory } from '@/lib/categoryStore';
+import { useState, useRef } from 'react';
+import { Transaction, updateTransaction, deleteTransaction } from '@/lib/transactionStore';
 import { Category } from '@/components/CategoriesManager';
+import { Account } from '@/components/AccountsManager';
+import { ArrowDownLeft, ArrowUpRight, Paperclip, X, FileText, Loader2, Pencil, Trash2 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 import {
   Select,
   SelectContent,
@@ -13,26 +13,21 @@ import {
 } from '@/components/ui/select';
 
 interface TransactionTableProps {
-  transactions: OFXTransaction[];
+  transactions: Transaction[];
   categories: Category[];
+  accounts: Account[];
+  onTransactionsChange: () => void;
+  onEditTransaction: (tx: Transaction) => void;
 }
 
-const TransactionTable = ({ transactions, categories }: TransactionTableProps) => {
-  const sorted = [...transactions].sort((a, b) => b.date.localeCompare(a.date));
-  const [attachments, setAttachments] = useState<Record<string, string>>({});
-  const [categoryMap, setCategoryMap] = useState<Record<string, string>>({});
+const TransactionTable = ({ transactions, categories, accounts, onTransactionsChange, onEditTransaction }: TransactionTableProps) => {
   const [uploading, setUploading] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [activeTransactionId, setActiveTransactionId] = useState<string | null>(null);
 
-  useEffect(() => {
-    setAttachments(getAllAttachments());
-    setCategoryMap(getAllTransactionCategories());
-  }, []);
-
-  const total = transactions.reduce((sum, t) => sum + t.amount, 0);
-  const credits = transactions.filter(t => t.amount > 0).reduce((s, t) => s + t.amount, 0);
-  const debits = transactions.filter(t => t.amount < 0).reduce((s, t) => s + t.amount, 0);
+  const total = transactions.reduce((sum, t) => sum + Number(t.amount), 0);
+  const credits = transactions.filter(t => Number(t.amount) > 0).reduce((s, t) => s + Number(t.amount), 0);
+  const debits = transactions.filter(t => Number(t.amount) < 0).reduce((s, t) => s + Number(t.amount), 0);
 
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -53,8 +48,13 @@ const TransactionTable = ({ transactions, categories }: TransactionTableProps) =
 
     setUploading(activeTransactionId);
     try {
-      const url = await uploadAttachment(activeTransactionId, file);
-      setAttachments(prev => ({ ...prev, [activeTransactionId]: url }));
+      const ext = file.name.split('.').pop() || 'bin';
+      const path = `${activeTransactionId}/${Date.now()}.${ext}`;
+      const { error } = await supabase.storage.from('transaction-docs').upload(path, file, { upsert: true });
+      if (error) throw error;
+      const { data } = supabase.storage.from('transaction-docs').getPublicUrl(path);
+      await updateTransaction(activeTransactionId, { attachment_url: data.publicUrl });
+      onTransactionsChange();
     } catch (err) {
       console.error('Upload failed:', err);
     } finally {
@@ -67,40 +67,27 @@ const TransactionTable = ({ transactions, categories }: TransactionTableProps) =
   const handleRemoveAttachment = async (txId: string) => {
     setUploading(txId);
     try {
-      await removeAttachment(txId);
-      setAttachments(prev => {
-        const next = { ...prev };
-        delete next[txId];
-        return next;
-      });
+      await updateTransaction(txId, { attachment_url: null });
+      onTransactionsChange();
     } finally {
       setUploading(null);
     }
   };
 
-  const handleCategoryChange = (txId: string, categoryId: string) => {
-    if (categoryId === '__none__') {
-      removeTransactionCategory(txId);
-      setCategoryMap(prev => {
-        const next = { ...prev };
-        delete next[txId];
-        return next;
-      });
-    } else {
-      setTransactionCategory(txId, categoryId);
-      setCategoryMap(prev => ({ ...prev, [txId]: categoryId }));
-    }
+  const handleFieldChange = async (txId: string, field: string, value: string | null) => {
+    await updateTransaction(txId, { [field]: value === '__none__' ? null : value });
+    onTransactionsChange();
+  };
+
+  const handleDelete = async (txId: string) => {
+    if (!confirm('Tem certeza que deseja excluir este lançamento?')) return;
+    await deleteTransaction(txId);
+    onTransactionsChange();
   };
 
   return (
     <div className="space-y-6">
-      <input
-        ref={fileInputRef}
-        type="file"
-        className="hidden"
-        onChange={handleFileChange}
-        accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx"
-      />
+      <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileChange} accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx" />
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -129,23 +116,26 @@ const TransactionTable = ({ transactions, categories }: TransactionTableProps) =
                 <th className="text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Data</th>
                 <th className="text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Descrição</th>
                 <th className="text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Categoria</th>
+                <th className="text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Conta</th>
                 <th className="text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Valor</th>
                 <th className="text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Anexo</th>
+                <th className="text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Ações</th>
               </tr>
             </thead>
             <tbody>
-              {sorted.map((tx, i) => {
-                const catId = categoryMap[tx.id];
-                const cat = categories.find(c => c.id === catId);
+              {transactions.map((tx) => {
+                const cat = categories.find(c => c.id === tx.category_id);
+                const acc = accounts.find(a => a.id === tx.account_id);
+                const amt = Number(tx.amount);
                 return (
-                  <tr key={tx.id + i} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
+                  <tr key={tx.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
                     <td className="px-4 py-3 text-sm font-mono text-muted-foreground whitespace-nowrap">
                       {formatDate(tx.date)}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
-                        <div className={`rounded-lg p-1.5 ${tx.amount >= 0 ? 'bg-[hsl(var(--success))]/10' : 'bg-destructive/10'}`}>
-                          {tx.amount >= 0 ? (
+                        <div className={`rounded-lg p-1.5 ${amt >= 0 ? 'bg-[hsl(var(--success))]/10' : 'bg-destructive/10'}`}>
+                          {amt >= 0 ? (
                             <ArrowDownLeft className="w-3.5 h-3.5 text-[hsl(var(--success))]" />
                           ) : (
                             <ArrowUpRight className="w-3.5 h-3.5 text-destructive" />
@@ -159,11 +149,11 @@ const TransactionTable = ({ transactions, categories }: TransactionTableProps) =
                     </td>
                     <td className="px-4 py-3">
                       <Select
-                        value={catId || '__none__'}
-                        onValueChange={(val) => handleCategoryChange(tx.id, val)}
+                        value={tx.category_id || '__none__'}
+                        onValueChange={val => handleFieldChange(tx.id, 'category_id', val)}
                       >
                         <SelectTrigger className="h-8 w-36 text-xs">
-                          <SelectValue placeholder="Sem categoria">
+                          <SelectValue>
                             {cat ? (
                               <span className="flex items-center gap-1.5">
                                 <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: cat.color }} />
@@ -175,9 +165,7 @@ const TransactionTable = ({ transactions, categories }: TransactionTableProps) =
                           </SelectValue>
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="__none__">
-                            <span className="text-muted-foreground">Sem categoria</span>
-                          </SelectItem>
+                          <SelectItem value="__none__"><span className="text-muted-foreground">Sem categoria</span></SelectItem>
                           {categories.map(c => (
                             <SelectItem key={c.id} value={c.id}>
                               <span className="flex items-center gap-1.5">
@@ -189,42 +177,68 @@ const TransactionTable = ({ transactions, categories }: TransactionTableProps) =
                         </SelectContent>
                       </Select>
                     </td>
+                    <td className="px-4 py-3">
+                      <Select
+                        value={tx.account_id || '__none__'}
+                        onValueChange={val => handleFieldChange(tx.id, 'account_id', val)}
+                      >
+                        <SelectTrigger className="h-8 w-36 text-xs">
+                          <SelectValue>
+                            {acc ? (
+                              <span className="flex items-center gap-1.5">
+                                <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: acc.color }} />
+                                {acc.name}
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__"><span className="text-muted-foreground">Sem conta</span></SelectItem>
+                          {accounts.map(a => (
+                            <SelectItem key={a.id} value={a.id}>
+                              <span className="flex items-center gap-1.5">
+                                <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: a.color }} />
+                                {a.name}
+                              </span>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </td>
                     <td className={`px-4 py-3 text-sm font-mono font-semibold text-right whitespace-nowrap ${
-                      tx.amount >= 0 ? 'text-[hsl(var(--success))]' : 'text-destructive'
+                      amt >= 0 ? 'text-[hsl(var(--success))]' : 'text-destructive'
                     }`}>
-                      {formatCurrency(tx.amount)}
+                      {formatCurrency(amt)}
                     </td>
                     <td className="px-4 py-3 text-center">
                       {uploading === tx.id ? (
                         <Loader2 className="w-4 h-4 animate-spin text-muted-foreground mx-auto" />
-                      ) : attachments[tx.id] ? (
+                      ) : tx.attachment_url ? (
                         <div className="flex items-center justify-center gap-1">
-                          <a
-                            href={attachments[tx.id]}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-primary hover:text-primary/80 transition-colors"
-                            title="Ver documento"
-                          >
+                          <a href={tx.attachment_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:text-primary/80 transition-colors" title="Ver documento">
                             <FileText className="w-4 h-4" />
                           </a>
-                          <button
-                            onClick={() => handleRemoveAttachment(tx.id)}
-                            className="text-muted-foreground hover:text-destructive transition-colors"
-                            title="Remover anexo"
-                          >
+                          <button onClick={() => handleRemoveAttachment(tx.id)} className="text-muted-foreground hover:text-destructive transition-colors" title="Remover anexo">
                             <X className="w-3.5 h-3.5" />
                           </button>
                         </div>
                       ) : (
-                        <button
-                          onClick={() => handleAttachClick(tx.id)}
-                          className="text-muted-foreground hover:text-primary transition-colors"
-                          title="Anexar documento"
-                        >
+                        <button onClick={() => handleAttachClick(tx.id)} className="text-muted-foreground hover:text-primary transition-colors" title="Anexar documento">
                           <Paperclip className="w-4 h-4 mx-auto" />
                         </button>
                       )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-center gap-1">
+                        <button onClick={() => onEditTransaction(tx)} className="text-muted-foreground hover:text-foreground transition-colors" title="Editar">
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <button onClick={() => handleDelete(tx.id)} className="text-muted-foreground hover:text-destructive transition-colors" title="Excluir">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
