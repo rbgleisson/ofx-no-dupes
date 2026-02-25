@@ -20,18 +20,21 @@ export type Database = {
           created_at: string
           id: string
           name: string
+          user_id: string | null
         }
         Insert: {
           color?: string
           created_at?: string
           id?: string
           name: string
+          user_id?: string | null
         }
         Update: {
           color?: string
           created_at?: string
           id?: string
           name?: string
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -41,18 +44,21 @@ export type Database = {
           created_at: string
           id: string
           name: string
+          user_id: string | null
         }
         Insert: {
           color?: string
           created_at?: string
           id?: string
           name: string
+          user_id?: string | null
         }
         Update: {
           color?: string
           created_at?: string
           id?: string
           name?: string
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -62,18 +68,21 @@ export type Database = {
           created_at: string
           id: string
           name: string
+          user_id: string | null
         }
         Insert: {
           code: string
           created_at?: string
           id?: string
           name: string
+          user_id?: string | null
         }
         Update: {
           code?: string
           created_at?: string
           id?: string
           name?: string
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -92,6 +101,7 @@ export type Database = {
           memo: string | null
           type: string | null
           updated_at: string
+          user_id: string | null
         }
         Insert: {
           account_id?: string | null
@@ -107,6 +117,7 @@ export type Database = {
           memo?: string | null
           type?: string | null
           updated_at?: string
+          user_id?: string | null
         }
         Update: {
           account_id?: string | null
@@ -122,6 +133,7 @@ export type Database = {
           memo?: string | null
           type?: string | null
           updated_at?: string
+          user_id?: string | null
         }
         Relationships: [
           {

@@ -33,7 +33,9 @@ const ChartAccountsManager = ({ chartAccounts, onChartAccountsChange }: ChartAcc
 
   const handleAdd = async () => {
     if (!code.trim() || !name.trim()) return;
-    await supabase.from('chart_accounts').insert({ code: code.trim(), name: name.trim() });
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    await supabase.from('chart_accounts').insert({ code: code.trim(), name: name.trim(), user_id: user.id });
     setCode('');
     setName('');
     onChartAccountsChange();

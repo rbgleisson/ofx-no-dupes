@@ -20,7 +20,7 @@ import CategoriesManager, { Category } from '@/components/CategoriesManager';
 import AccountsManager, { Account } from '@/components/AccountsManager';
 import ChartAccountsManager, { ChartAccount } from '@/components/ChartAccountsManager';
 import ExportDialog from '@/components/ExportDialog';
-import { Trash2, FileText, CheckCircle2, AlertCircle, Plus, Upload } from 'lucide-react';
+import { Trash2, FileText, CheckCircle2, AlertCircle, Plus, Upload, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
@@ -108,9 +108,10 @@ const Index = () => {
         if (existing) {
           accountId = existing.id;
         } else {
+          const { data: { user } } = await supabase.auth.getUser();
           const { data: created } = await supabase
             .from('accounts')
-            .insert({ name: accountName })
+            .insert({ name: accountName, user_id: user?.id })
             .select('id')
             .single();
           if (created) {
@@ -223,6 +224,15 @@ const Index = () => {
                 Limpar
               </Button>
             )}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={async () => { await supabase.auth.signOut(); }}
+              className="text-muted-foreground hover:text-destructive"
+              title="Sair"
+            >
+              <LogOut className="w-4 h-4" />
+            </Button>
           </div>
         </div>
 
