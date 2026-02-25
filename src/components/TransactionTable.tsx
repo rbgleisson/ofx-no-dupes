@@ -4,6 +4,8 @@ import { Category } from '@/components/CategoriesManager';
 import { Account } from '@/components/AccountsManager';
 import { ChartAccount } from '@/components/ChartAccountsManager';
 import { ArrowDownLeft, ArrowUpRight, Paperclip, X, FileText, Loader2, Pencil, Trash2, Check, ChevronsUpDown } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import {
   Select,
@@ -42,6 +44,33 @@ const TransactionTable = ({ transactions, categories, accounts, chartAccounts, o
   const [activeTransactionId, setActiveTransactionId] = useState<string | null>(null);
   const [openCategoryPopover, setOpenCategoryPopover] = useState<string | null>(null);
   const [openChartAccountPopover, setOpenChartAccountPopover] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleAll = () => {
+    if (selectedIds.size === transactions.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(transactions.map(t => t.id)));
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    if (!confirm(`Tem certeza que deseja excluir ${selectedIds.size} lançamento(s)?`)) return;
+    for (const id of selectedIds) {
+      await deleteTransaction(id);
+    }
+    setSelectedIds(new Set());
+    onTransactionsChange();
+  };
 
   const total = transactions.reduce((sum, t) => sum + Number(t.amount), 0);
   const credits = transactions.filter(t => Number(t.amount) > 0).reduce((s, t) => s + Number(t.amount), 0);
@@ -125,12 +154,30 @@ const TransactionTable = ({ transactions, categories, accounts, chartAccounts, o
         </div>
       </div>
 
+      {/* Bulk actions */}
+      {selectedIds.size > 0 && (
+        <div className="flex items-center gap-3 rounded-xl bg-muted/50 border px-4 py-2">
+          <span className="text-sm text-muted-foreground">{selectedIds.size} selecionado(s)</span>
+          <Button variant="destructive" size="sm" onClick={handleBulkDelete}>
+            <Trash2 className="w-4 h-4 mr-1.5" />
+            Excluir selecionados
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => setSelectedIds(new Set())}>Cancelar</Button>
+        </div>
+      )}
+
       {/* Table */}
       <div className="rounded-xl bg-card border overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="border-b bg-muted/50">
+                <th className="px-4 py-3 w-10">
+                  <Checkbox
+                    checked={selectedIds.size === transactions.length && transactions.length > 0}
+                    onCheckedChange={toggleAll}
+                  />
+                </th>
                 <th className="text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Data</th>
                 <th className="text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Descrição</th>
                 <th className="text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Categoria</th>
@@ -148,7 +195,13 @@ const TransactionTable = ({ transactions, categories, accounts, chartAccounts, o
                 const ca = chartAccounts.find(c => c.id === (tx as any).chart_account_id);
                 const amt = Number(tx.amount);
                 return (
-                  <tr key={tx.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
+                  <tr key={tx.id} className={`border-b last:border-0 hover:bg-muted/30 transition-colors ${selectedIds.has(tx.id) ? 'bg-primary/5' : ''}`}>
+                    <td className="px-4 py-3">
+                      <Checkbox
+                        checked={selectedIds.has(tx.id)}
+                        onCheckedChange={() => toggleSelect(tx.id)}
+                      />
+                    </td>
                     <td className="px-4 py-3 text-sm font-mono text-muted-foreground whitespace-nowrap">
                       {formatDate(tx.date)}
                     </td>
