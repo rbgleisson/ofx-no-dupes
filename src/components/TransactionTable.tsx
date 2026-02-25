@@ -136,23 +136,6 @@ const TransactionTable = ({ transactions, categories, accounts, chartAccounts, o
     <div className="space-y-6">
       <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileChange} accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx" capture="environment" />
 
-      {/* Summary Cards */}
-      <div className="hidden sm:grid grid-cols-3 gap-4">
-        <div className="rounded-xl bg-card border p-4">
-          <p className="text-sm text-muted-foreground font-medium">Entradas</p>
-          <p className="text-xl font-bold text-[hsl(var(--success))] mt-1 font-mono">{formatCurrency(credits)}</p>
-        </div>
-        <div className="rounded-xl bg-card border p-4">
-          <p className="text-sm text-muted-foreground font-medium">Saídas</p>
-          <p className="text-xl font-bold text-destructive mt-1 font-mono">{formatCurrency(debits)}</p>
-        </div>
-        <div className="rounded-xl bg-card border p-4">
-          <p className="text-sm text-muted-foreground font-medium">Saldo</p>
-          <p className={`text-xl font-bold mt-1 font-mono ${total >= 0 ? 'text-[hsl(var(--success))]' : 'text-destructive'}`}>
-            {formatCurrency(total)}
-          </p>
-        </div>
-      </div>
 
       {/* Bulk actions */}
       {selectedIds.size > 0 && (
