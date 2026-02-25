@@ -191,7 +191,7 @@ const Index = () => {
           <p className="text-sm text-muted-foreground">
             {transactions.length} transaç{transactions.length === 1 ? 'ão' : 'ões'}
           </p>
-          <TransactionFiltersComponent filters={filters} onChange={setFilters} />
+          <TransactionFiltersComponent filters={filters} onChange={setFilters} categories={categories} accounts={accounts} />
         </div>
 
         {/* Transactions */}
