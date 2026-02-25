@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Pencil, Trash2, Check, X, BookOpen } from 'lucide-react';
@@ -40,14 +41,27 @@ const ChartAccountsManager = ({ chartAccounts, onChartAccountsChange }: ChartAcc
 
   const handleUpdate = async (id: string) => {
     if (!editCode.trim() || !editName.trim()) return;
-    await supabase.from('chart_accounts').update({ code: editCode.trim(), name: editName.trim() }).eq('id', id);
+    const { error } = await supabase.from('chart_accounts').update({ code: editCode.trim(), name: editName.trim() }).eq('id', id);
+    if (error) {
+      toast.error('Erro ao atualizar: ' + error.message);
+      return;
+    }
     setEditingId(null);
     onChartAccountsChange();
+    toast.success('Conta atualizada!');
   };
 
   const handleDelete = async (id: string) => {
-    await supabase.from('chart_accounts').delete().eq('id', id);
+    // First, unlink any transactions using this chart account
+    await supabase.from('transactions').update({ chart_account_id: null }).eq('chart_account_id', id);
+    
+    const { error } = await supabase.from('chart_accounts').delete().eq('id', id);
+    if (error) {
+      toast.error('Erro ao excluir: ' + error.message);
+      return;
+    }
     onChartAccountsChange();
+    toast.success('Conta excluída!');
   };
 
   const startEdit = (ca: ChartAccount) => {
