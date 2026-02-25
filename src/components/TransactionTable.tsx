@@ -2,7 +2,7 @@ import { useState, useRef } from 'react';
 import { Transaction, updateTransaction, deleteTransaction } from '@/lib/transactionStore';
 import { Category } from '@/components/CategoriesManager';
 import { Account } from '@/components/AccountsManager';
-import { ArrowDownLeft, ArrowUpRight, Paperclip, X, FileText, Loader2, Pencil, Trash2 } from 'lucide-react';
+import { ArrowDownLeft, ArrowUpRight, Paperclip, X, FileText, Loader2, Pencil, Trash2, Check, ChevronsUpDown } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import {
   Select,
@@ -11,6 +11,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
+import { cn } from '@/lib/utils';
 
 interface TransactionTableProps {
   transactions: Transaction[];
@@ -24,6 +38,7 @@ const TransactionTable = ({ transactions, categories, accounts, onTransactionsCh
   const [uploading, setUploading] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [activeTransactionId, setActiveTransactionId] = useState<string | null>(null);
+  const [openCategoryPopover, setOpenCategoryPopover] = useState<string | null>(null);
 
   const total = transactions.reduce((sum, t) => sum + Number(t.amount), 0);
   const credits = transactions.filter(t => Number(t.amount) > 0).reduce((s, t) => s + Number(t.amount), 0);
@@ -148,34 +163,53 @@ const TransactionTable = ({ transactions, categories, accounts, onTransactionsCh
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <Select
-                        value={tx.category_id || '__none__'}
-                        onValueChange={val => handleFieldChange(tx.id, 'category_id', val)}
-                      >
-                        <SelectTrigger className="h-8 w-36 text-xs">
-                          <SelectValue>
+                      <Popover open={openCategoryPopover === tx.id} onOpenChange={(open) => setOpenCategoryPopover(open ? tx.id : null)}>
+                        <PopoverTrigger asChild>
+                          <button className="flex items-center gap-1.5 h-8 w-36 px-2 text-xs border rounded-md bg-background hover:bg-muted/50 transition-colors text-left">
                             {cat ? (
-                              <span className="flex items-center gap-1.5">
+                              <>
                                 <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: cat.color }} />
-                                {cat.name}
-                              </span>
+                                <span className="truncate">{cat.name}</span>
+                              </>
                             ) : (
                               <span className="text-muted-foreground">—</span>
                             )}
-                          </SelectValue>
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="__none__"><span className="text-muted-foreground">Sem categoria</span></SelectItem>
-                          {categories.map(c => (
-                            <SelectItem key={c.id} value={c.id}>
-                              <span className="flex items-center gap-1.5">
-                                <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: c.color }} />
-                                {c.name}
-                              </span>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                            <ChevronsUpDown className="ml-auto h-3 w-3 shrink-0 opacity-50" />
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-48 p-0" align="start">
+                          <Command>
+                            <CommandInput placeholder="Buscar categoria..." className="h-8 text-xs" />
+                            <CommandList>
+                              <CommandEmpty className="py-2 text-center text-xs text-muted-foreground">Nenhuma encontrada.</CommandEmpty>
+                              <CommandGroup>
+                                <CommandItem
+                                  value="__none__"
+                                  onSelect={() => { handleFieldChange(tx.id, 'category_id', null); setOpenCategoryPopover(null); }}
+                                  className="text-xs"
+                                >
+                                  <span className="text-muted-foreground">Sem categoria</span>
+                                  {!tx.category_id && <Check className="ml-auto h-3 w-3" />}
+                                </CommandItem>
+                                {categories.map(c => (
+                                  <CommandItem
+                                    key={c.id}
+                                    value={c.name}
+                                    onSelect={() => { handleFieldChange(tx.id, 'category_id', c.id); setOpenCategoryPopover(null); }}
+                                    className="text-xs"
+                                  >
+                                    <span className="flex items-center gap-1.5">
+                                      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: c.color }} />
+                                      {c.name}
+                                    </span>
+                                    {tx.category_id === c.id && <Check className="ml-auto h-3 w-3" />}
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
                     </td>
                     <td className="px-4 py-3">
                       <Select
