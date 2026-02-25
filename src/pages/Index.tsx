@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { parseOFX } from '@/lib/ofxParser';
 import {
   Transaction,
@@ -19,7 +19,7 @@ import CategoriesManager, { Category } from '@/components/CategoriesManager';
 import AccountsManager, { Account } from '@/components/AccountsManager';
 import ChartAccountsManager, { ChartAccount } from '@/components/ChartAccountsManager';
 import ExportDialog from '@/components/ExportDialog';
-import { Trash2, FileText, CheckCircle2, AlertCircle, Plus } from 'lucide-react';
+import { Trash2, FileText, CheckCircle2, AlertCircle, Plus, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
@@ -33,6 +33,19 @@ const Index = () => {
   const [notification, setNotification] = useState<{ type: 'success' | 'warning'; message: string } | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+  const ofxInputRef = useRef<HTMLInputElement>(null);
+
+  const handleOfxFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const content = ev.target?.result as string;
+      handleFileSelect(content, file.name);
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
 
   const loadTransactions = useCallback(async () => {
     try {
@@ -182,6 +195,11 @@ const Index = () => {
             </div>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
+            <input ref={ofxInputRef} type="file" accept=".ofx,.qfx" onChange={handleOfxFileChange} className="hidden" />
+            <Button variant="outline" size="sm" onClick={() => ofxInputRef.current?.click()}>
+              <Upload className="w-4 h-4 mr-1.5" />
+              Importar OFX
+            </Button>
             <AccountsManager accounts={accounts} onAccountsChange={fetchAccounts} />
             <CategoriesManager categories={categories} onCategoriesChange={fetchCategories} />
             <ChartAccountsManager chartAccounts={chartAccounts} onChartAccountsChange={fetchChartAccounts} />
