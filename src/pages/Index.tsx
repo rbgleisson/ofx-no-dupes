@@ -18,6 +18,7 @@ import TransactionFormDialog from '@/components/TransactionFormDialog';
 import CategoriesManager, { Category } from '@/components/CategoriesManager';
 import AccountsManager, { Account } from '@/components/AccountsManager';
 import ChartAccountsManager, { ChartAccount } from '@/components/ChartAccountsManager';
+import ExportDialog from '@/components/ExportDialog';
 import { Trash2, FileText, CheckCircle2, AlertCircle, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -184,6 +185,7 @@ const Index = () => {
             <AccountsManager accounts={accounts} onAccountsChange={fetchAccounts} />
             <CategoriesManager categories={categories} onCategoriesChange={fetchCategories} />
             <ChartAccountsManager chartAccounts={chartAccounts} onChartAccountsChange={fetchChartAccounts} />
+            <ExportDialog transactions={transactions} categories={categories} accounts={accounts} chartAccounts={chartAccounts} />
             <Button variant="outline" size="sm" onClick={() => { setEditingTransaction(null); setFormOpen(true); }}>
               <Plus className="w-4 h-4 mr-1.5" />
               Lançamento
