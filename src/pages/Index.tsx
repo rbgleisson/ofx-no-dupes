@@ -246,29 +246,8 @@ const Index = () => {
 
 
         {/* Tabs + Filters */}
-        {/* Summary Cards */}
-        {transactions.length > 0 && (() => {
-          const totalReceber = transactions.filter(t => Number(t.amount) >= 0).reduce((s, t) => s + Number(t.amount), 0);
-          const totalPagar = transactions.filter(t => Number(t.amount) < 0).reduce((s, t) => s + Math.abs(Number(t.amount)), 0);
-          const saldo = totalReceber - totalPagar;
-          const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-          return (
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-              <div className="rounded-xl border p-4 bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800">
-                <p className="text-xs font-medium text-muted-foreground mb-1">Total a Receber</p>
-                <p className="text-lg font-bold text-emerald-600">{fmt(totalReceber)}</p>
-              </div>
-              <div className="rounded-xl border p-4 bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800">
-                <p className="text-xs font-medium text-muted-foreground mb-1">Total a Pagar</p>
-                <p className="text-lg font-bold text-red-600">{fmt(totalPagar)}</p>
-              </div>
-              <div className={`rounded-xl border p-4 ${saldo >= 0 ? 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800' : 'bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-800'}`}>
-                <p className="text-xs font-medium text-muted-foreground mb-1">Saldo Final</p>
-                <p className={`text-lg font-bold ${saldo >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>{fmt(saldo)}</p>
-              </div>
-            </div>
-          );
-        })()}
+
+
 
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'payable' | 'receivable')} className="space-y-4">
           <div className="flex items-center justify-between flex-wrap gap-2">
