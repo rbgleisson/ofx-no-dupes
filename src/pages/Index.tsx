@@ -11,7 +11,7 @@ import {
   ImportResult,
 } from '@/lib/transactionStore';
 import { supabase } from '@/integrations/supabase/client';
-import FileDropzone from '@/components/FileDropzone';
+
 import TransactionTable from '@/components/TransactionTable';
 import TransactionFiltersComponent from '@/components/TransactionFilters';
 import TransactionFormDialog from '@/components/TransactionFormDialog';
@@ -240,10 +240,6 @@ const Index = () => {
           </div>
         )}
 
-        {/* Dropzone */}
-        <div className="mb-8">
-          <FileDropzone onFileSelect={handleFileSelect} />
-        </div>
 
         {/* Tabs + Filters */}
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'payable' | 'receivable')} className="space-y-4">
