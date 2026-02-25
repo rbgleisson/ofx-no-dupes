@@ -139,7 +139,7 @@ const ExportDialog = ({ transactions, categories, accounts, chartAccounts }: Exp
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm">
+        <Button size="sm" className="bg-teal-700 hover:bg-teal-800 text-white border-0">
           <Download className="w-4 h-4 mr-1.5" />
           Exportar
         </Button>

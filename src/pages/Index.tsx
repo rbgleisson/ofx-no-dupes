@@ -194,7 +194,7 @@ const Index = () => {
             </div>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-            <Button variant="outline" size="sm" onClick={() => { setEditingTransaction(null); setFormOpen(true); }}>
+            <Button size="sm" onClick={() => { setEditingTransaction(null); setFormOpen(true); }} className="bg-emerald-600 hover:bg-emerald-700 text-white border-0">
               <Plus className="w-4 h-4 mr-1.5" />
               Lançamento
             </Button>
@@ -203,7 +203,7 @@ const Index = () => {
             <ChartAccountsManager chartAccounts={chartAccounts} onChartAccountsChange={fetchChartAccounts} />
             <ExportDialog transactions={transactions} categories={categories} accounts={accounts} chartAccounts={chartAccounts} />
             <input ref={ofxInputRef} type="file" accept=".ofx,.qfx" onChange={handleOfxFileChange} className="hidden" />
-            <Button variant="outline" size="sm" onClick={() => ofxInputRef.current?.click()}>
+            <Button size="sm" onClick={() => ofxInputRef.current?.click()} className="bg-slate-700 hover:bg-slate-800 text-white border-0">
               <Upload className="w-4 h-4 mr-1.5" />
               Importar OFX
             </Button>
