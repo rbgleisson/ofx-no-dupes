@@ -194,18 +194,18 @@ const Index = () => {
             </div>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-            <input ref={ofxInputRef} type="file" accept=".ofx,.qfx" onChange={handleOfxFileChange} className="hidden" />
-            <Button variant="outline" size="sm" onClick={() => ofxInputRef.current?.click()}>
-              <Upload className="w-4 h-4 mr-1.5" />
-              Importar OFX
+            <Button variant="outline" size="sm" onClick={() => { setEditingTransaction(null); setFormOpen(true); }}>
+              <Plus className="w-4 h-4 mr-1.5" />
+              Lançamento
             </Button>
             <AccountsManager accounts={accounts} onAccountsChange={fetchAccounts} />
             <CategoriesManager categories={categories} onCategoriesChange={fetchCategories} />
             <ChartAccountsManager chartAccounts={chartAccounts} onChartAccountsChange={fetchChartAccounts} />
             <ExportDialog transactions={transactions} categories={categories} accounts={accounts} chartAccounts={chartAccounts} />
-            <Button variant="outline" size="sm" onClick={() => { setEditingTransaction(null); setFormOpen(true); }}>
-              <Plus className="w-4 h-4 mr-1.5" />
-              Lançamento
+            <input ref={ofxInputRef} type="file" accept=".ofx,.qfx" onChange={handleOfxFileChange} className="hidden" />
+            <Button variant="outline" size="sm" onClick={() => ofxInputRef.current?.click()}>
+              <Upload className="w-4 h-4 mr-1.5" />
+              Importar OFX
             </Button>
             {transactions.length > 0 && (
               <Button
