@@ -301,9 +301,16 @@ const Index = () => {
           </div>
 
           {(['payable', 'receivable'] as const).map((tab) => {
-            const filtered = transactions.filter(t =>
+            let filtered = transactions.filter(t =>
               tab === 'payable' ? Number(t.amount) < 0 : Number(t.amount) >= 0
             );
+            if (filters.search) {
+              const term = filters.search.toLowerCase();
+              filtered = filtered.filter(t => t.description.toLowerCase().includes(term) || (t.memo && t.memo.toLowerCase().includes(term)));
+            }
+            if (filters.amount !== undefined) {
+              filtered = filtered.filter(t => Math.abs(Number(t.amount)) === Math.abs(filters.amount!));
+            }
             return (
               <TabsContent key={tab} value={tab}>
                 <p className="text-sm text-muted-foreground mb-4">

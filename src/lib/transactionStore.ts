@@ -28,6 +28,8 @@ export interface TransactionFilters {
   year?: number;
   category_id?: string;
   account_id?: string;
+  search?: string;
+  amount?: number;
 }
 
 async function getUserId(): Promise<string> {
