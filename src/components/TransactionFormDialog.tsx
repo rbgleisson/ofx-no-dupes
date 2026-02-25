@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Transaction } from '@/lib/transactionStore';
 import { Category } from '@/components/CategoriesManager';
 import { Account } from '@/components/AccountsManager';
+import { ChartAccount } from '@/components/ChartAccountsManager';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -17,6 +18,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
+import { Check, ChevronsUpDown } from 'lucide-react';
 
 interface TransactionFormDialogProps {
   open: boolean;
@@ -24,6 +39,7 @@ interface TransactionFormDialogProps {
   transaction?: Transaction | null;
   categories: Category[];
   accounts: Account[];
+  chartAccounts: ChartAccount[];
   onSave: (data: {
     date: string;
     amount: number;
@@ -31,6 +47,7 @@ interface TransactionFormDialogProps {
     memo?: string;
     category_id?: string | null;
     account_id?: string | null;
+    chart_account_id?: string | null;
   }) => void;
 }
 
@@ -40,6 +57,7 @@ const TransactionFormDialog = ({
   transaction,
   categories,
   accounts,
+  chartAccounts,
   onSave,
 }: TransactionFormDialogProps) => {
   const [date, setDate] = useState('');
@@ -48,6 +66,8 @@ const TransactionFormDialog = ({
   const [memo, setMemo] = useState('');
   const [categoryId, setCategoryId] = useState('__none__');
   const [accountId, setAccountId] = useState('__none__');
+  const [chartAccountId, setChartAccountId] = useState('__none__');
+  const [chartAccountOpen, setChartAccountOpen] = useState(false);
 
   useEffect(() => {
     if (transaction) {
@@ -57,6 +77,7 @@ const TransactionFormDialog = ({
       setMemo(transaction.memo || '');
       setCategoryId(transaction.category_id || '__none__');
       setAccountId(transaction.account_id || '__none__');
+      setChartAccountId((transaction as any).chart_account_id || '__none__');
     } else {
       setDate(new Date().toISOString().split('T')[0]);
       setAmount('');
@@ -64,6 +85,7 @@ const TransactionFormDialog = ({
       setMemo('');
       setCategoryId('__none__');
       setAccountId('__none__');
+      setChartAccountId('__none__');
     }
   }, [transaction, open]);
 
@@ -77,6 +99,7 @@ const TransactionFormDialog = ({
       memo: memo.trim() || undefined,
       category_id: categoryId === '__none__' ? null : categoryId,
       account_id: accountId === '__none__' ? null : accountId,
+      chart_account_id: chartAccountId === '__none__' ? null : chartAccountId,
     });
     onOpenChange(false);
   };
@@ -152,6 +175,41 @@ const TransactionFormDialog = ({
                 </SelectContent>
               </Select>
             </div>
+          </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground mb-1 block">Conta Contábil</label>
+            <Popover open={chartAccountOpen} onOpenChange={setChartAccountOpen}>
+              <PopoverTrigger asChild>
+                <button type="button" className="flex items-center gap-1.5 h-9 w-full px-3 text-xs border rounded-md bg-background hover:bg-muted/50 transition-colors text-left">
+                  {chartAccountId !== '__none__' ? (
+                    (() => { const ca = chartAccounts.find(c => c.id === chartAccountId); return ca ? <span className="truncate"><span className="font-mono text-muted-foreground">{ca.code}</span> {ca.name}</span> : <span className="text-muted-foreground">Sem conta contábil</span>; })()
+                  ) : (
+                    <span className="text-muted-foreground">Sem conta contábil</span>
+                  )}
+                  <ChevronsUpDown className="ml-auto h-3 w-3 shrink-0 opacity-50" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-64 p-0" align="start">
+                <Command>
+                  <CommandInput placeholder="Buscar conta contábil..." className="h-8 text-xs" />
+                  <CommandList>
+                    <CommandEmpty className="py-2 text-center text-xs text-muted-foreground">Nenhuma encontrada.</CommandEmpty>
+                    <CommandGroup>
+                      <CommandItem value="__none__" onSelect={() => { setChartAccountId('__none__'); setChartAccountOpen(false); }} className="text-xs">
+                        <span className="text-muted-foreground">Sem conta contábil</span>
+                        {chartAccountId === '__none__' && <Check className="ml-auto h-3 w-3" />}
+                      </CommandItem>
+                      {chartAccounts.map(c => (
+                        <CommandItem key={c.id} value={`${c.code} ${c.name}`} onSelect={() => { setChartAccountId(c.id); setChartAccountOpen(false); }} className="text-xs">
+                          <span className="font-mono text-muted-foreground mr-1">{c.code}</span> {c.name}
+                          {chartAccountId === c.id && <Check className="ml-auto h-3 w-3" />}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="outline" size="sm" onClick={() => onOpenChange(false)}>Cancelar</Button>
