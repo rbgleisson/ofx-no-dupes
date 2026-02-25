@@ -306,10 +306,12 @@ const Index = () => {
             );
             if (filters.search) {
               const term = filters.search.toLowerCase();
-              filtered = filtered.filter(t => t.description.toLowerCase().includes(term) || (t.memo && t.memo.toLowerCase().includes(term)));
-            }
-            if (filters.amount !== undefined) {
-              filtered = filtered.filter(t => Math.abs(Number(t.amount)) === Math.abs(filters.amount!));
+              filtered = filtered.filter(t => {
+                const matchDesc = t.description.toLowerCase().includes(term);
+                const matchMemo = t.memo && t.memo.toLowerCase().includes(term);
+                const matchAmount = Math.abs(Number(t.amount)).toString().includes(term);
+                return matchDesc || matchMemo || matchAmount;
+              });
             }
             return (
               <TabsContent key={tab} value={tab}>

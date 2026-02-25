@@ -32,26 +32,19 @@ const TransactionFiltersComponent = ({ filters, onChange, categories, accounts }
     ? Array.from({ length: new Date(filters.year, filters.month, 0).getDate() }, (_, i) => i + 1)
     : Array.from({ length: 31 }, (_, i) => i + 1);
 
-  const hasFilters = filters.year || filters.month || filters.day || filters.category_id || filters.account_id || filters.search || filters.amount;
+  const hasFilters = filters.year || filters.month || filters.day || filters.category_id || filters.account_id || filters.search;
 
   return (
     <div className="flex items-center gap-2 flex-wrap">
       <div className="relative">
         <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
         <Input
-          placeholder="Buscar descrição..."
+          placeholder="Buscar descrição ou valor..."
           value={filters.search || ''}
           onChange={e => onChange({ ...filters, search: e.target.value || undefined })}
-          className="h-8 w-40 text-xs pl-7"
+          className="h-8 w-48 text-xs pl-7"
         />
       </div>
-      <Input
-        type="number"
-        placeholder="Valor..."
-        value={filters.amount ?? ''}
-        onChange={e => onChange({ ...filters, amount: e.target.value ? Number(e.target.value) : undefined })}
-        className="h-8 w-28 text-xs"
-      />
       <Select
         value={filters.year?.toString() || '__all__'}
         onValueChange={v => onChange({ ...filters, year: v === '__all__' ? undefined : Number(v), month: v === '__all__' ? undefined : filters.month, day: v === '__all__' ? undefined : filters.day })}
