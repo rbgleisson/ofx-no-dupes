@@ -137,7 +137,7 @@ const TransactionTable = ({ transactions, categories, accounts, chartAccounts, o
       <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileChange} accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx" capture="environment" />
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="hidden sm:grid grid-cols-3 gap-4">
         <div className="rounded-xl bg-card border p-4">
           <p className="text-sm text-muted-foreground font-medium">Entradas</p>
           <p className="text-xl font-bold text-[hsl(var(--success))] mt-1 font-mono">{formatCurrency(credits)}</p>
