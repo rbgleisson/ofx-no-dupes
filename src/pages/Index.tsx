@@ -88,6 +88,12 @@ const Index = () => {
 
   const handleFileSelect = async (content: string, fileName: string) => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setNotification({ type: 'warning', message: 'Usuário não autenticado.' });
+        return;
+      }
+
       const data = parseOFX(content);
       if (data.transactions.length === 0) {
         setNotification({ type: 'warning', message: 'Nenhuma transação encontrada no arquivo.' });
@@ -108,10 +114,9 @@ const Index = () => {
         if (existing) {
           accountId = existing.id;
         } else {
-          const { data: { user } } = await supabase.auth.getUser();
           const { data: created } = await supabase
             .from('accounts')
-            .insert({ name: accountName, user_id: user?.id })
+            .insert({ name: accountName, user_id: user.id })
             .select('id')
             .single();
           if (created) {
