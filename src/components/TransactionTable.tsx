@@ -205,18 +205,18 @@ const TransactionTable = ({ transactions, categories, accounts, chartAccounts, o
                     <td className="px-4 py-3 text-sm font-mono text-muted-foreground whitespace-nowrap">
                       {formatDate(tx.date)}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 max-w-xs">
                       <div className="flex items-center gap-3">
-                        <div className={`rounded-lg p-1.5 ${amt >= 0 ? 'bg-[hsl(var(--success))]/10' : 'bg-destructive/10'}`}>
+                        <div className={`rounded-lg p-1.5 flex-shrink-0 ${amt >= 0 ? 'bg-[hsl(var(--success))]/10' : 'bg-destructive/10'}`}>
                           {amt >= 0 ? (
                             <ArrowDownLeft className="w-3.5 h-3.5 text-[hsl(var(--success))]" />
                           ) : (
                             <ArrowUpRight className="w-3.5 h-3.5 text-destructive" />
                           )}
                         </div>
-                        <div>
-                          <p className="text-sm font-medium text-foreground">{tx.description}</p>
-                          {tx.memo && <p className="text-xs text-muted-foreground mt-0.5">{tx.memo}</p>}
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-foreground truncate">{tx.description}</p>
+                          {tx.memo && <p className="text-xs text-muted-foreground mt-0.5 truncate">{tx.memo}</p>}
                         </div>
                       </div>
                     </td>
