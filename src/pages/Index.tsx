@@ -379,11 +379,12 @@ const Index = () => {
               tab === 'payable' ? Number(t.amount) < 0 : Number(t.amount) >= 0
             );
             if (filters.search) {
-              const term = filters.search.toLowerCase();
+              const term = filters.search.toLowerCase().replace(',', '.');
               filtered = filtered.filter(t => {
-                const matchDesc = t.description.toLowerCase().includes(term);
-                const matchMemo = t.memo && t.memo.toLowerCase().includes(term);
-                const matchAmount = Math.abs(Number(t.amount)).toString().includes(term);
+                const matchDesc = t.description.toLowerCase().includes(filters.search!.toLowerCase());
+                const matchMemo = t.memo && t.memo.toLowerCase().includes(filters.search!.toLowerCase());
+                const amountStr = Math.abs(Number(t.amount)).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+                const matchAmount = amountStr.includes(filters.search!.toLowerCase()) || Math.abs(Number(t.amount)).toString().includes(term);
                 return matchDesc || matchMemo || matchAmount;
               });
             }
