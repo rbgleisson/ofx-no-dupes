@@ -5,6 +5,7 @@ import { Account } from '@/components/AccountsManager';
 import { ChartAccount } from '@/components/ChartAccountsManager';
 import { ArrowDownLeft, ArrowUpRight, Paperclip, X, FileText, Loader2, Pencil, Trash2, Check, ChevronsUpDown, ScanLine } from 'lucide-react';
 import QrScannerDialog from '@/components/QrScannerDialog';
+import TransactionDetailSheet from '@/components/TransactionDetailSheet';
 import { toast } from 'sonner';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
@@ -50,6 +51,7 @@ const TransactionTable = ({ transactions, categories, accounts, chartAccounts, o
   const [scannerOpen, setScannerOpen] = useState(false);
   const [scanTargetTxId, setScanTargetTxId] = useState<string | null>(null);
   const [fetchingDanfe, setFetchingDanfe] = useState<string | null>(null);
+  const [detailTransaction, setDetailTransaction] = useState<Transaction | null>(null);
 
   const toggleSelect = (id: string) => {
     setSelectedIds(prev => {
@@ -169,6 +171,15 @@ const TransactionTable = ({ transactions, categories, accounts, chartAccounts, o
     <div className="space-y-6">
       <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileChange} accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx" capture="environment" />
       <QrScannerDialog open={scannerOpen} onClose={() => setScannerOpen(false)} onAccessKey={handleAccessKey} />
+      <TransactionDetailSheet
+        transaction={detailTransaction}
+        open={!!detailTransaction}
+        onClose={() => setDetailTransaction(null)}
+        categories={categories}
+        accounts={accounts}
+        chartAccounts={chartAccounts}
+        onEdit={onEditTransaction}
+      />
 
 
       {/* Bulk actions */}
@@ -212,8 +223,8 @@ const TransactionTable = ({ transactions, categories, accounts, chartAccounts, o
                 const ca = chartAccounts.find(c => c.id === (tx as any).chart_account_id);
                 const amt = Number(tx.amount);
                 return (
-                  <tr key={tx.id} className={`border-b last:border-0 hover:bg-muted/30 transition-colors ${selectedIds.has(tx.id) ? 'bg-primary/5' : ''}`}>
-                    <td className="px-4 py-3">
+                  <tr key={tx.id} className={`border-b last:border-0 hover:bg-muted/30 transition-colors cursor-pointer ${selectedIds.has(tx.id) ? 'bg-primary/5' : ''}`} onClick={() => setDetailTransaction(tx)}>
+                    <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
                       <Checkbox
                         checked={selectedIds.has(tx.id)}
                         onCheckedChange={() => toggleSelect(tx.id)}
@@ -237,7 +248,7 @@ const TransactionTable = ({ transactions, categories, accounts, chartAccounts, o
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
                       <Popover open={openCategoryPopover === tx.id} onOpenChange={(open) => setOpenCategoryPopover(open ? tx.id : null)}>
                         <PopoverTrigger asChild>
                           <button className="flex items-center gap-1.5 h-8 w-36 px-2 text-xs border rounded-md bg-background hover:bg-muted/50 transition-colors text-left">
@@ -286,7 +297,7 @@ const TransactionTable = ({ transactions, categories, accounts, chartAccounts, o
                         </PopoverContent>
                       </Popover>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
                       <Select
                         value={tx.account_id || '__none__'}
                         onValueChange={val => handleFieldChange(tx.id, 'account_id', val)}
@@ -316,7 +327,7 @@ const TransactionTable = ({ transactions, categories, accounts, chartAccounts, o
                         </SelectContent>
                       </Select>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
                       <Popover open={openChartAccountPopover === tx.id} onOpenChange={(open) => setOpenChartAccountPopover(open ? tx.id : null)}>
                         <PopoverTrigger asChild>
                           <button className="flex items-center gap-1.5 h-8 w-44 px-2 text-xs border rounded-md bg-background hover:bg-muted/50 transition-colors text-left">
@@ -364,7 +375,7 @@ const TransactionTable = ({ transactions, categories, accounts, chartAccounts, o
                     }`}>
                       {formatCurrency(amt)}
                     </td>
-                    <td className="px-4 py-3 text-center">
+                    <td className="px-4 py-3 text-center" onClick={e => e.stopPropagation()}>
                       {uploading === tx.id ? (
                         <Loader2 className="w-4 h-4 animate-spin text-muted-foreground mx-auto" />
                       ) : tx.attachment_url ? (
@@ -382,7 +393,7 @@ const TransactionTable = ({ transactions, categories, accounts, chartAccounts, o
                         </button>
                       )}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
                       <div className="flex items-center justify-center gap-1">
                         <button onClick={() => handleScanClick(tx.id)} className="text-muted-foreground hover:text-primary transition-colors" title="Escanear NF-e" disabled={fetchingDanfe === tx.id}>
                           {fetchingDanfe === tx.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ScanLine className="w-3.5 h-3.5" />}
