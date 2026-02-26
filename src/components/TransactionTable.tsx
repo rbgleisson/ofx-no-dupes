@@ -153,7 +153,7 @@ const TransactionTable = ({ transactions, categories, accounts, chartAccounts, o
       if (data?.error) {
         toast.error(data.error);
       } else {
-        toast.success('DANFE anexado com sucesso!');
+        toast.success('Chave de acesso NF-e salva com sucesso!');
         onTransactionsChange();
       }
     } catch (err: any) {
