@@ -3,7 +3,9 @@ import { Transaction, updateTransaction, deleteTransaction } from '@/lib/transac
 import { Category } from '@/components/CategoriesManager';
 import { Account } from '@/components/AccountsManager';
 import { ChartAccount } from '@/components/ChartAccountsManager';
-import { ArrowDownLeft, ArrowUpRight, Paperclip, X, FileText, Loader2, Pencil, Trash2, Check, ChevronsUpDown } from 'lucide-react';
+import { ArrowDownLeft, ArrowUpRight, Paperclip, X, FileText, Loader2, Pencil, Trash2, Check, ChevronsUpDown, ScanLine } from 'lucide-react';
+import QrScannerDialog from '@/components/QrScannerDialog';
+import { toast } from 'sonner';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
@@ -45,6 +47,9 @@ const TransactionTable = ({ transactions, categories, accounts, chartAccounts, o
   const [openCategoryPopover, setOpenCategoryPopover] = useState<string | null>(null);
   const [openChartAccountPopover, setOpenChartAccountPopover] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [scannerOpen, setScannerOpen] = useState(false);
+  const [scanTargetTxId, setScanTargetTxId] = useState<string | null>(null);
+  const [fetchingDanfe, setFetchingDanfe] = useState<string | null>(null);
 
   const toggleSelect = (id: string) => {
     setSelectedIds(prev => {
@@ -132,9 +137,38 @@ const TransactionTable = ({ transactions, categories, accounts, chartAccounts, o
     onTransactionsChange();
   };
 
+  const handleScanClick = (txId: string) => {
+    setScanTargetTxId(txId);
+    setScannerOpen(true);
+  };
+
+  const handleAccessKey = async (key: string) => {
+    if (!scanTargetTxId) return;
+    setFetchingDanfe(scanTargetTxId);
+    try {
+      const { data, error } = await supabase.functions.invoke('fetch-danfe', {
+        body: { access_key: key, transaction_id: scanTargetTxId },
+      });
+      if (error) throw error;
+      if (data?.error) {
+        toast.error(data.error);
+      } else {
+        toast.success('DANFE anexado com sucesso!');
+        onTransactionsChange();
+      }
+    } catch (err: any) {
+      console.error('fetch-danfe error:', err);
+      toast.error('Erro ao buscar DANFE: ' + (err.message || 'Tente novamente'));
+    } finally {
+      setFetchingDanfe(null);
+      setScanTargetTxId(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileChange} accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx" capture="environment" />
+      <QrScannerDialog open={scannerOpen} onClose={() => setScannerOpen(false)} onAccessKey={handleAccessKey} />
 
 
       {/* Bulk actions */}
@@ -350,6 +384,9 @@ const TransactionTable = ({ transactions, categories, accounts, chartAccounts, o
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-center gap-1">
+                        <button onClick={() => handleScanClick(tx.id)} className="text-muted-foreground hover:text-primary transition-colors" title="Escanear NF-e" disabled={fetchingDanfe === tx.id}>
+                          {fetchingDanfe === tx.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ScanLine className="w-3.5 h-3.5" />}
+                        </button>
                         <button onClick={() => onEditTransaction(tx)} className="text-muted-foreground hover:text-foreground transition-colors" title="Editar">
                           <Pencil className="w-3.5 h-3.5" />
                         </button>
