@@ -1,1 +1,4 @@
 project_id = "vlrhysiynybkimrfgzpe"
+
+[functions.fetch-danfe]
+verify_jwt = false
