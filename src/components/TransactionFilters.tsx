@@ -35,7 +35,7 @@ const TransactionFiltersComponent = ({ filters, onChange, categories, accounts }
   const hasFilters = filters.year || filters.month || filters.day || filters.category_id || filters.account_id || filters.search;
 
   return (
-    <div className="flex items-center gap-2 flex-wrap">
+    <div className="hidden md:flex items-center gap-2 flex-wrap">
       <div className="relative">
         <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
         <Input
