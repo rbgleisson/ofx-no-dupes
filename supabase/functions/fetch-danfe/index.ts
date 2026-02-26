@@ -12,7 +12,6 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Auth check
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -42,117 +41,55 @@ Deno.serve(async (req) => {
     if (!access_key || !/^\d{44}$/.test(access_key)) {
       return new Response(
         JSON.stringify({ error: "Chave de acesso inválida (44 dígitos)" }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     if (!transaction_id) {
       return new Response(
         JSON.stringify({ error: "transaction_id é obrigatório" }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Fetch DANFE PDF from consultadanfe.com.br (free, no key needed)
-    const danfeUrl = `https://consultadanfe.com.br/api/danfe/${access_key}`;
-    const pdfResponse = await fetch(danfeUrl);
+    // For now, store the access key in the transaction memo
+    // In production, integrate with a paid DANFE API to download the PDF
+    const { data: tx } = await supabase
+      .from("transactions")
+      .select("memo")
+      .eq("id", transaction_id)
+      .single();
 
-    if (!pdfResponse.ok) {
-      // Fallback: try alternative free endpoint
-      const altUrl = `https://www.meudanfe.com.br/api/v1/get/nfe/${access_key}/pdf`;
-      const altResponse = await fetch(altUrl);
+    const currentMemo = tx?.memo || "";
+    const newMemo = currentMemo
+      ? `${currentMemo} | NF-e: ${access_key}`
+      : `NF-e: ${access_key}`;
 
-      if (!altResponse.ok) {
-        return new Response(
-          JSON.stringify({
-            error: "Não foi possível baixar o DANFE. A nota pode não estar disponível.",
-            access_key,
-          }),
-          {
-            status: 404,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          }
-        );
-      }
+    const { error: updateError } = await supabase
+      .from("transactions")
+      .update({ memo: newMemo })
+      .eq("id", transaction_id);
 
-      const pdfBytes = await altResponse.arrayBuffer();
-      return await uploadAndLink(supabase, transaction_id, access_key, pdfBytes, corsHeaders);
+    if (updateError) {
+      return new Response(
+        JSON.stringify({ error: "Falha ao salvar chave: " + updateError.message }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
-    const pdfBytes = await pdfResponse.arrayBuffer();
-    return await uploadAndLink(supabase, transaction_id, access_key, pdfBytes, corsHeaders);
+    return new Response(
+      JSON.stringify({
+        success: true,
+        access_key,
+        message: "Chave de acesso salva na transação. Integração com API de DANFE pendente.",
+      }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
   } catch (err) {
     console.error("fetch-danfe error:", err);
     return new Response(
-      JSON.stringify({ error: "Erro interno ao buscar DANFE" }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
+      JSON.stringify({ error: "Erro interno" }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });
-
-async function uploadAndLink(
-  supabase: any,
-  transactionId: string,
-  accessKey: string,
-  pdfBytes: ArrayBuffer,
-  headers: Record<string, string>
-) {
-  const path = `${transactionId}/danfe_${accessKey.slice(-8)}.pdf`;
-
-  const { error: uploadError } = await supabase.storage
-    .from("transaction-docs")
-    .upload(path, new Uint8Array(pdfBytes), {
-      contentType: "application/pdf",
-      upsert: true,
-    });
-
-  if (uploadError) {
-    return new Response(
-      JSON.stringify({ error: "Falha no upload do PDF: " + uploadError.message }),
-      {
-        status: 500,
-        headers: { ...headers, "Content-Type": "application/json" },
-      }
-    );
-  }
-
-  const { data: urlData } = supabase.storage
-    .from("transaction-docs")
-    .getPublicUrl(path);
-
-  const { error: updateError } = await supabase
-    .from("transactions")
-    .update({ attachment_url: urlData.publicUrl })
-    .eq("id", transactionId);
-
-  if (updateError) {
-    return new Response(
-      JSON.stringify({ error: "PDF salvo mas falha ao vincular: " + updateError.message }),
-      {
-        status: 500,
-        headers: { ...headers, "Content-Type": "application/json" },
-      }
-    );
-  }
-
-  return new Response(
-    JSON.stringify({
-      success: true,
-      attachment_url: urlData.publicUrl,
-      access_key: accessKey,
-    }),
-    {
-      status: 200,
-      headers: { ...headers, "Content-Type": "application/json" },
-    }
-  );
-}
