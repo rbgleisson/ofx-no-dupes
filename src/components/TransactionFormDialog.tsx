@@ -6,7 +6,9 @@ import { Account } from '@/components/AccountsManager';
 import { ChartAccount } from '@/components/ChartAccountsManager';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Paperclip, X } from 'lucide-react';
+import { Paperclip, X, Loader2, Sparkles } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 import {
   Dialog,
   DialogContent,
@@ -73,7 +75,50 @@ const TransactionFormDialog = ({
   const [chartAccountOpen, setChartAccountOpen] = useState(false);
   const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isExtracting, setIsExtracting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const extractDataFromFile = async (file: File) => {
+    setIsExtracting(true);
+    try {
+      const reader = new FileReader();
+      const base64 = await new Promise<string>((resolve, reject) => {
+        reader.onload = () => {
+          const result = reader.result as string;
+          resolve(result.split(',')[1]);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      const { data, error } = await supabase.functions.invoke('extract-attachment-data', {
+        body: { fileBase64: base64, fileName: file.name, mimeType: file.type },
+      });
+
+      if (error) throw error;
+
+      let applied = false;
+      if (data?.date && !transaction) {
+        setDate(data.date);
+        applied = true;
+      }
+      if (data?.amount != null && !amount) {
+        setAmount(data.amount.toString());
+        applied = true;
+      }
+
+      if (applied) {
+        toast.success('Dados extraídos do anexo com sucesso!');
+      } else if (!data?.date && !data?.amount) {
+        toast.info('Não foi possível extrair dados do anexo.');
+      }
+    } catch (err) {
+      console.error('Extraction error:', err);
+      toast.error('Erro ao extrair dados do anexo.');
+    } finally {
+      setIsExtracting(false);
+    }
+  };
   useEffect(() => {
     if (transaction) {
       setDate(transaction.date);
@@ -240,14 +285,23 @@ const TransactionFormDialog = ({
               className="hidden"
               onChange={(e) => {
                 const f = e.target.files?.[0];
-                if (f) setAttachmentFile(f);
+                if (f) {
+                  setAttachmentFile(f);
+                  extractDataFromFile(f);
+                }
                 e.target.value = '';
               }}
             />
             {attachmentFile ? (
               <div className="flex items-center gap-2 rounded-md border border-input px-3 py-2 text-xs">
-                <Paperclip className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                <span className="truncate flex-1">{attachmentFile.name}</span>
+                {isExtracting ? (
+                  <Sparkles className="h-3.5 w-3.5 text-primary shrink-0 animate-pulse" />
+                ) : (
+                  <Paperclip className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                )}
+                <span className="truncate flex-1">
+                  {isExtracting ? 'Extraindo dados...' : attachmentFile.name}
+                </span>
                 <button type="button" onClick={() => setAttachmentFile(null)} className="text-muted-foreground hover:text-foreground">
                   <X className="h-3.5 w-3.5" />
                 </button>
