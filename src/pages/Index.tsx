@@ -306,16 +306,12 @@ const Index = () => {
           <input ref={ofxInputRef} type="file" accept=".ofx,.qfx" onChange={handleOfxFileChange} className="hidden" />
           <MobileMenu
             onNewTransaction={() => { setEditingTransaction(null); setFormOpen(true); }}
-            onImportOFX={() => ofxInputRef.current?.click()}
-            onImportExcel={() => xlsxInputRef.current?.click()}
-            onDownloadTemplate={downloadExcelTemplate}
             onClear={handleClear}
             onLogout={async () => { await supabase.auth.signOut(); }}
             showClear={transactions.length > 0}
             accountsManager={<AccountsManager accounts={accounts} onAccountsChange={fetchAccounts} />}
             categoriesManager={<CategoriesManager categories={categories} onCategoriesChange={fetchCategories} />}
             chartAccountsManager={<ChartAccountsManager chartAccounts={chartAccounts} onChartAccountsChange={fetchChartAccounts} />}
-            exportDialog={<ExportDialog transactions={transactions} categories={categories} accounts={accounts} chartAccounts={chartAccounts} />}
           />
         </div>
 
