@@ -45,38 +45,40 @@ const TransactionFiltersComponent = ({ filters, onChange, categories, accounts }
           className="h-8 w-48 text-xs pl-7"
         />
       </div>
+      {/* Year & Month always visible */}
+      <Select
+        value={filters.year?.toString() || '__all__'}
+        onValueChange={v => onChange({ ...filters, year: v === '__all__' ? undefined : Number(v), month: v === '__all__' ? undefined : filters.month, day: v === '__all__' ? undefined : filters.day })}
+      >
+        <SelectTrigger className="h-8 w-24 text-xs">
+          <SelectValue placeholder="Ano" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="__all__">Todos anos</SelectItem>
+          {YEARS.map(y => (
+            <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      <Select
+        value={filters.month?.toString() || '__all__'}
+        onValueChange={v => onChange({ ...filters, month: v === '__all__' ? undefined : Number(v), day: v === '__all__' ? undefined : filters.day })}
+        disabled={!filters.year}
+      >
+        <SelectTrigger className="h-8 w-28 text-xs">
+          <SelectValue placeholder="Mês" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="__all__">Todos meses</SelectItem>
+          {MONTHS.map((m, i) => (
+            <SelectItem key={i} value={(i + 1).toString()}>{m}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      {/* Day, category, account: desktop only */}
       <div className="hidden md:contents">
-        <Select
-          value={filters.year?.toString() || '__all__'}
-          onValueChange={v => onChange({ ...filters, year: v === '__all__' ? undefined : Number(v), month: v === '__all__' ? undefined : filters.month, day: v === '__all__' ? undefined : filters.day })}
-        >
-          <SelectTrigger className="h-8 w-28 text-xs">
-            <SelectValue placeholder="Ano" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="__all__">Todos anos</SelectItem>
-            {YEARS.map(y => (
-              <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select
-          value={filters.month?.toString() || '__all__'}
-          onValueChange={v => onChange({ ...filters, month: v === '__all__' ? undefined : Number(v), day: v === '__all__' ? undefined : filters.day })}
-          disabled={!filters.year}
-        >
-          <SelectTrigger className="h-8 w-32 text-xs">
-            <SelectValue placeholder="Mês" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="__all__">Todos meses</SelectItem>
-            {MONTHS.map((m, i) => (
-              <SelectItem key={i} value={(i + 1).toString()}>{m}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
         <Select
           value={filters.day?.toString() || '__all__'}
           onValueChange={v => onChange({ ...filters, day: v === '__all__' ? undefined : Number(v) })}
