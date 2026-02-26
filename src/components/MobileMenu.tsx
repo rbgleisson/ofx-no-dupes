@@ -1,4 +1,4 @@
-import { Menu, Plus, Upload, Trash2, LogOut, FileSpreadsheet, Download } from 'lucide-react';
+import { Menu, Plus, Trash2, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Sheet,
@@ -11,30 +11,22 @@ import { useState } from 'react';
 
 interface MobileMenuProps {
   onNewTransaction: () => void;
-  onImportOFX: () => void;
-  onImportExcel: () => void;
-  onDownloadTemplate: () => void;
   onClear: () => void;
   onLogout: () => void;
   showClear: boolean;
   accountsManager: React.ReactNode;
   categoriesManager: React.ReactNode;
   chartAccountsManager: React.ReactNode;
-  exportDialog: React.ReactNode;
 }
 
 const MobileMenu = ({
   onNewTransaction,
-  onImportOFX,
-  onImportExcel,
-  onDownloadTemplate,
   onClear,
   onLogout,
   showClear,
   accountsManager,
   categoriesManager,
   chartAccountsManager,
-  exportDialog,
 }: MobileMenuProps) => {
   const [open, setOpen] = useState(false);
 
@@ -62,37 +54,11 @@ const MobileMenu = ({
             <Plus className="w-4 h-4 mr-2" />
             Novo Lançamento
           </Button>
-          <Button
-            onClick={() => handleAction(onImportOFX)}
-            className="bg-slate-700 hover:bg-slate-800 text-white border-0 justify-start"
-          >
-            <Upload className="w-4 h-4 mr-2" />
-            Importar OFX
-          </Button>
-
-          <Button
-            onClick={() => handleAction(onImportExcel)}
-            variant="outline"
-            className="justify-start"
-          >
-            <FileSpreadsheet className="w-4 h-4 mr-2" />
-            Importar Excel
-          </Button>
-          <Button
-            onClick={() => handleAction(onDownloadTemplate)}
-            variant="ghost"
-            className="justify-start"
-          >
-            <Download className="w-4 h-4 mr-2" />
-            Baixar Modelo Excel
-          </Button>
-
           <div className="border-t my-2" />
 
           <div onClick={() => setOpen(false)} className="[&>button]:w-full [&>button]:justify-start">{accountsManager}</div>
           <div onClick={() => setOpen(false)} className="[&>button]:w-full [&>button]:justify-start">{categoriesManager}</div>
           <div onClick={() => setOpen(false)} className="[&>button]:w-full [&>button]:justify-start">{chartAccountsManager}</div>
-          <div onClick={() => setOpen(false)} className="[&>button]:w-full [&>button]:justify-start">{exportDialog}</div>
 
           {showClear && (
             <>
