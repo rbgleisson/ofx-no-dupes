@@ -346,7 +346,7 @@ const Index = () => {
           const saldo = totalReceber - totalPagar;
           const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
           return (
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+            <div className="hidden sm:grid grid-cols-3 gap-4 mb-6">
               <div className="rounded-xl border p-4 bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800">
                 <p className="text-xs font-medium text-muted-foreground mb-1">Entradas</p>
                 <p className="text-lg font-bold text-emerald-600">{fmt(totalReceber)}</p>
