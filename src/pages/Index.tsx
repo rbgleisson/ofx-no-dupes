@@ -32,7 +32,11 @@ const Index = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [chartAccounts, setChartAccounts] = useState<ChartAccount[]>([]);
-  const [filters, setFilters] = useState<TransactionFilters>({});
+  const now = new Date();
+  const [filters, setFilters] = useState<TransactionFilters>({
+    year: now.getFullYear(),
+    month: now.getMonth() + 1,
+  });
   const [activeTab, setActiveTab] = useState<'payable' | 'receivable'>('payable');
   const [notification, setNotification] = useState<{ type: 'success' | 'warning'; message: string } | null>(null);
   const [formOpen, setFormOpen] = useState(false);

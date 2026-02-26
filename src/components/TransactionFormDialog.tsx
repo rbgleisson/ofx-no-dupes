@@ -170,8 +170,7 @@ const TransactionFormDialog = ({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange} modal={false}>
-      {open && <div className="fixed inset-0 z-50 bg-black/80" onClick={() => onOpenChange(false)} />}
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{transaction ? 'Editar Lançamento' : 'Novo Lançamento'}</DialogTitle>
@@ -244,7 +243,7 @@ const TransactionFormDialog = ({
           </div>
           <div>
             <label className="text-xs font-medium text-muted-foreground mb-1 block">Conta Contábil</label>
-            <Popover open={chartAccountOpen} onOpenChange={setChartAccountOpen}>
+            <Popover open={chartAccountOpen} onOpenChange={setChartAccountOpen} modal={false}>
               <PopoverTrigger asChild>
                 <button type="button" className="flex items-center gap-1.5 h-9 w-full px-3 text-xs border rounded-md bg-background hover:bg-muted/50 transition-colors text-left">
                   {chartAccountId !== '__none__' ? (
