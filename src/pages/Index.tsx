@@ -223,6 +223,7 @@ const Index = () => {
     category_id?: string | null;
     account_id?: string | null;
     chart_account_id?: string | null;
+    attachment_url?: string | null;
   }) => {
     try {
       if (editingTransaction) {

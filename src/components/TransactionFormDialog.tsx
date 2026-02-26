@@ -1,10 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Transaction } from '@/lib/transactionStore';
+import { uploadAttachment } from '@/lib/attachmentStore';
 import { Category } from '@/components/CategoriesManager';
 import { Account } from '@/components/AccountsManager';
 import { ChartAccount } from '@/components/ChartAccountsManager';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Paperclip, X } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -48,6 +50,7 @@ interface TransactionFormDialogProps {
     category_id?: string | null;
     account_id?: string | null;
     chart_account_id?: string | null;
+    attachment_url?: string | null;
   }) => void;
 }
 
@@ -68,7 +71,9 @@ const TransactionFormDialog = ({
   const [accountId, setAccountId] = useState('__none__');
   const [chartAccountId, setChartAccountId] = useState('__none__');
   const [chartAccountOpen, setChartAccountOpen] = useState(false);
-
+  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     if (transaction) {
       setDate(transaction.date);
@@ -78,6 +83,7 @@ const TransactionFormDialog = ({
       setCategoryId(transaction.category_id || '__none__');
       setAccountId(transaction.account_id || '__none__');
       setChartAccountId((transaction as any).chart_account_id || '__none__');
+      setAttachmentFile(null);
     } else {
       setDate(new Date().toISOString().split('T')[0]);
       setAmount('');
@@ -86,22 +92,36 @@ const TransactionFormDialog = ({
       setCategoryId('__none__');
       setAccountId('__none__');
       setChartAccountId('__none__');
+      setAttachmentFile(null);
     }
   }, [transaction, open]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!date || !amount || !description.trim()) return;
-    onSave({
-      date,
-      amount: parseFloat(amount),
-      description: description.trim(),
-      memo: memo.trim() || undefined,
-      category_id: categoryId === '__none__' ? null : categoryId,
-      account_id: accountId === '__none__' ? null : accountId,
-      chart_account_id: chartAccountId === '__none__' ? null : chartAccountId,
-    });
-    onOpenChange(false);
+
+    setIsUploading(true);
+    try {
+      let attachment_url: string | null = null;
+      if (attachmentFile) {
+        const tempId = transaction?.id || crypto.randomUUID();
+        attachment_url = await uploadAttachment(tempId, attachmentFile);
+      }
+
+      onSave({
+        date,
+        amount: parseFloat(amount),
+        description: description.trim(),
+        memo: memo.trim() || undefined,
+        category_id: categoryId === '__none__' ? null : categoryId,
+        account_id: accountId === '__none__' ? null : accountId,
+        chart_account_id: chartAccountId === '__none__' ? null : chartAccountId,
+        attachment_url,
+      });
+      onOpenChange(false);
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   return (
@@ -211,9 +231,39 @@ const TransactionFormDialog = ({
               </PopoverContent>
             </Popover>
           </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground mb-1 block">Anexo</label>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*,.pdf"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) setAttachmentFile(f);
+                e.target.value = '';
+              }}
+            />
+            {attachmentFile ? (
+              <div className="flex items-center gap-2 rounded-md border border-input px-3 py-2 text-xs">
+                <Paperclip className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                <span className="truncate flex-1">{attachmentFile.name}</span>
+                <button type="button" onClick={() => setAttachmentFile(null)} className="text-muted-foreground hover:text-foreground">
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ) : (
+              <Button type="button" variant="outline" size="sm" className="w-full text-xs gap-1.5" onClick={() => fileInputRef.current?.click()}>
+                <Paperclip className="h-3.5 w-3.5" />
+                Anexar documento
+              </Button>
+            )}
+          </div>
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="outline" size="sm" onClick={() => onOpenChange(false)}>Cancelar</Button>
-            <Button type="submit" size="sm">{transaction ? 'Salvar' : 'Adicionar'}</Button>
+            <Button type="submit" size="sm" disabled={isUploading}>
+              {isUploading ? 'Enviando...' : transaction ? 'Salvar' : 'Adicionar'}
+            </Button>
           </div>
         </form>
       </DialogContent>
