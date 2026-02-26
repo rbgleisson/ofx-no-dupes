@@ -20,7 +20,9 @@ import CategoriesManager, { Category } from '@/components/CategoriesManager';
 import AccountsManager, { Account } from '@/components/AccountsManager';
 import ChartAccountsManager, { ChartAccount } from '@/components/ChartAccountsManager';
 import ExportDialog from '@/components/ExportDialog';
-import { Trash2, FileText, CheckCircle2, AlertCircle, Plus, Upload, LogOut } from 'lucide-react';
+import ExcelImportReviewDialog from '@/components/ExcelImportReviewDialog';
+import { ExcelRow, parseExcelFile, downloadExcelTemplate } from '@/lib/excelImport';
+import { Trash2, FileText, CheckCircle2, AlertCircle, Plus, Upload, LogOut, Download, FileSpreadsheet } from 'lucide-react';
 import MobileMenu from '@/components/MobileMenu';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -36,6 +38,9 @@ const Index = () => {
   const [formOpen, setFormOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const ofxInputRef = useRef<HTMLInputElement>(null);
+  const xlsxInputRef = useRef<HTMLInputElement>(null);
+  const [excelReviewOpen, setExcelReviewOpen] = useState(false);
+  const [excelRows, setExcelRows] = useState<ExcelRow[]>([]);
 
   const handleOfxFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -47,6 +52,47 @@ const Index = () => {
     };
     reader.readAsText(file);
     e.target.value = '';
+  };
+
+  const handleXlsxFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const rows = await parseExcelFile(file);
+      if (rows.length === 0) {
+        setNotification({ type: 'warning', message: 'Nenhuma transação encontrada na planilha.' });
+        return;
+      }
+      setExcelRows(rows);
+      setExcelReviewOpen(true);
+    } catch {
+      setNotification({ type: 'warning', message: 'Erro ao ler a planilha. Verifique o formato.' });
+    }
+    e.target.value = '';
+  };
+
+  const handleExcelConfirm = async (rows: ExcelRow[]) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { setNotification({ type: 'warning', message: 'Usuário não autenticado.' }); return; }
+
+      const toInsert = rows.map(r => ({
+        ...r,
+        category_id: r.category_id || null,
+        account_id: r.account_id || null,
+        chart_account_id: r.chart_account_id || null,
+      }));
+
+      for (const tx of toInsert) {
+        await addTransaction(tx);
+      }
+
+      setExcelReviewOpen(false);
+      await loadTransactions();
+      setNotification({ type: 'success', message: `${toInsert.length} transações importadas da planilha.` });
+    } catch {
+      setNotification({ type: 'warning', message: 'Erro ao importar transações da planilha.' });
+    }
   };
 
   const loadTransactions = useCallback(async () => {
@@ -225,6 +271,15 @@ const Index = () => {
               <Upload className="w-4 h-4 mr-1.5" />
               Importar OFX
             </Button>
+            <input ref={xlsxInputRef} type="file" accept=".xlsx,.xls" onChange={handleXlsxFileChange} className="hidden" />
+            <Button size="sm" onClick={() => xlsxInputRef.current?.click()} variant="outline">
+              <FileSpreadsheet className="w-4 h-4 mr-1.5" />
+              Importar Excel
+            </Button>
+            <Button size="sm" onClick={downloadExcelTemplate} variant="ghost" title="Baixar modelo Excel">
+              <Download className="w-4 h-4 mr-1.5" />
+              Modelo
+            </Button>
             {transactions.length > 0 && (
               <Button
                 variant="outline"
@@ -252,6 +307,8 @@ const Index = () => {
           <MobileMenu
             onNewTransaction={() => { setEditingTransaction(null); setFormOpen(true); }}
             onImportOFX={() => ofxInputRef.current?.click()}
+            onImportExcel={() => xlsxInputRef.current?.click()}
+            onDownloadTemplate={downloadExcelTemplate}
             onClear={handleClear}
             onLogout={async () => { await supabase.auth.signOut(); }}
             showClear={transactions.length > 0}
@@ -363,6 +420,17 @@ const Index = () => {
           accounts={accounts}
           chartAccounts={chartAccounts}
           onSave={handleSaveTransaction}
+        />
+
+        {/* Excel Import Review Dialog */}
+        <ExcelImportReviewDialog
+          open={excelReviewOpen}
+          onOpenChange={setExcelReviewOpen}
+          rows={excelRows}
+          categories={categories}
+          accounts={accounts}
+          chartAccounts={chartAccounts}
+          onConfirm={handleExcelConfirm}
         />
       </div>
     </div>
