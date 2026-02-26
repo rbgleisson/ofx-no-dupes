@@ -1,4 +1,4 @@
-import { Menu, Plus, Upload, Trash2, LogOut } from 'lucide-react';
+import { Menu, Plus, Upload, Trash2, LogOut, FileSpreadsheet, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Sheet,
@@ -12,6 +12,8 @@ import { useState } from 'react';
 interface MobileMenuProps {
   onNewTransaction: () => void;
   onImportOFX: () => void;
+  onImportExcel: () => void;
+  onDownloadTemplate: () => void;
   onClear: () => void;
   onLogout: () => void;
   showClear: boolean;
@@ -24,6 +26,8 @@ interface MobileMenuProps {
 const MobileMenu = ({
   onNewTransaction,
   onImportOFX,
+  onImportExcel,
+  onDownloadTemplate,
   onClear,
   onLogout,
   showClear,
@@ -64,6 +68,23 @@ const MobileMenu = ({
           >
             <Upload className="w-4 h-4 mr-2" />
             Importar OFX
+          </Button>
+
+          <Button
+            onClick={() => handleAction(onImportExcel)}
+            variant="outline"
+            className="justify-start"
+          >
+            <FileSpreadsheet className="w-4 h-4 mr-2" />
+            Importar Excel
+          </Button>
+          <Button
+            onClick={() => handleAction(onDownloadTemplate)}
+            variant="ghost"
+            className="justify-start"
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Baixar Modelo Excel
           </Button>
 
           <div className="border-t my-2" />
