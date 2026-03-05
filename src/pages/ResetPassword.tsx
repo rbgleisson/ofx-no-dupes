@@ -10,14 +10,35 @@ import logoImg from '@/assets/logo.png';
 const ResetPassword = () => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [ready, setReady] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        setReady(true);
+      }
+    });
+
+    // Also check if hash contains recovery token (fallback)
     const hash = window.location.hash;
-    if (!hash.includes('type=recovery')) {
-      navigate('/auth');
+    if (hash.includes('type=recovery')) {
+      setReady(true);
     }
+
+    // Give it a few seconds to process the token
+    const timeout = setTimeout(() => {
+      setReady((prev) => {
+        if (!prev) navigate('/auth');
+        return prev;
+      });
+    }, 3000);
+
+    return () => {
+      subscription.unsubscribe();
+      clearTimeout(timeout);
+    };
   }, [navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
