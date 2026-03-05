@@ -21,9 +21,13 @@ function ProtectedRoute({ children, session }: { children: React.ReactNode; sess
 const AppRoutes = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isRecovery, setIsRecovery] = useState(false);
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        setIsRecovery(true);
+      }
       setSession(session);
       setLoading(false);
     });
@@ -46,8 +50,8 @@ const AppRoutes = () => {
 
   return (
     <Routes>
-      <Route path="/auth" element={session ? <Navigate to="/" replace /> : <Auth />} />
-      <Route path="/reset-password" element={<ResetPassword />} />
+      <Route path="/auth" element={session && !isRecovery ? <Navigate to="/" replace /> : <Auth />} />
+      <Route path="/reset-password" element={<ResetPassword onPasswordUpdated={() => setIsRecovery(false)} />} />
       <Route path="/" element={<ProtectedRoute session={session}><Index /></ProtectedRoute>} />
       <Route path="*" element={<NotFound />} />
     </Routes>
