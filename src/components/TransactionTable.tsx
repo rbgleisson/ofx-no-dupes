@@ -233,7 +233,7 @@ const TransactionTable = ({ transactions, categories, accounts, chartAccounts, o
                     <td className="px-4 py-3 text-sm font-mono text-muted-foreground whitespace-nowrap">
                       {formatDate(tx.date)}
                     </td>
-                    <td className="px-4 py-3 max-w-xs">
+                    <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
                         <div className={`rounded-lg p-1.5 flex-shrink-0 ${amt >= 0 ? 'bg-[hsl(var(--success))]/10' : 'bg-destructive/10'}`}>
                           {amt >= 0 ? (
