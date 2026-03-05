@@ -212,41 +212,75 @@ const TransactionFormDialog = ({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">Categoria</label>
-              <Select value={categoryId} onValueChange={setCategoryId}>
-                <SelectTrigger className="h-9 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">Sem categoria</SelectItem>
-                  {categories.map(c => (
-                    <SelectItem key={c.id} value={c.id}>
-                      <span className="flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: c.color }} />
-                        {c.name}
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Popover open={categoryOpen} onOpenChange={setCategoryOpen} modal={false}>
+                <PopoverTrigger asChild>
+                  <button type="button" className="flex items-center gap-1.5 h-9 w-full px-3 text-xs border rounded-md bg-background hover:bg-muted/50 transition-colors text-left">
+                    {categoryId !== '__none__' ? (
+                      (() => { const cat = categories.find(c => c.id === categoryId); return cat ? <span className="truncate flex items-center gap-1.5"><span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: cat.color }} />{cat.name}</span> : <span className="text-muted-foreground">Sem categoria</span>; })()
+                    ) : (
+                      <span className="text-muted-foreground">Sem categoria</span>
+                    )}
+                    <ChevronsUpDown className="ml-auto h-3 w-3 shrink-0 opacity-50" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-52 p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Buscar categoria..." className="h-8 text-xs" />
+                    <CommandList>
+                      <CommandEmpty className="py-2 text-center text-xs text-muted-foreground">Nenhuma encontrada.</CommandEmpty>
+                      <CommandGroup>
+                        <CommandItem value="__none__" onSelect={() => { setCategoryId('__none__'); setCategoryOpen(false); }} className="text-xs">
+                          <span className="text-muted-foreground">Sem categoria</span>
+                          {categoryId === '__none__' && <Check className="ml-auto h-3 w-3" />}
+                        </CommandItem>
+                        {categories.map(c => (
+                          <CommandItem key={c.id} value={c.name} onSelect={() => { setCategoryId(c.id); setCategoryOpen(false); }} className="text-xs">
+                            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: c.color }} />
+                            {c.name}
+                            {categoryId === c.id && <Check className="ml-auto h-3 w-3" />}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">Conta</label>
-              <Select value={accountId} onValueChange={setAccountId}>
-                <SelectTrigger className="h-9 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">Sem conta</SelectItem>
-                  {accounts.map(a => (
-                    <SelectItem key={a.id} value={a.id}>
-                      <span className="flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: a.color }} />
-                        {a.name}
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Popover open={accountOpen} onOpenChange={setAccountOpen} modal={false}>
+                <PopoverTrigger asChild>
+                  <button type="button" className="flex items-center gap-1.5 h-9 w-full px-3 text-xs border rounded-md bg-background hover:bg-muted/50 transition-colors text-left">
+                    {accountId !== '__none__' ? (
+                      (() => { const acc = accounts.find(a => a.id === accountId); return acc ? <span className="truncate flex items-center gap-1.5"><span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: acc.color }} />{acc.name}</span> : <span className="text-muted-foreground">Sem conta</span>; })()
+                    ) : (
+                      <span className="text-muted-foreground">Sem conta</span>
+                    )}
+                    <ChevronsUpDown className="ml-auto h-3 w-3 shrink-0 opacity-50" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-52 p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Buscar conta..." className="h-8 text-xs" />
+                    <CommandList>
+                      <CommandEmpty className="py-2 text-center text-xs text-muted-foreground">Nenhuma encontrada.</CommandEmpty>
+                      <CommandGroup>
+                        <CommandItem value="__none__" onSelect={() => { setAccountId('__none__'); setAccountOpen(false); }} className="text-xs">
+                          <span className="text-muted-foreground">Sem conta</span>
+                          {accountId === '__none__' && <Check className="ml-auto h-3 w-3" />}
+                        </CommandItem>
+                        {accounts.map(a => (
+                          <CommandItem key={a.id} value={a.name} onSelect={() => { setAccountId(a.id); setAccountOpen(false); }} className="text-xs">
+                            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: a.color }} />
+                            {a.name}
+                            {accountId === a.id && <Check className="ml-auto h-3 w-3" />}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
           <div>
