@@ -106,10 +106,18 @@ const TransactionFormDialog = ({
         setAmount(data.amount.toString());
         applied = true;
       }
+      if (data?.name && !description) {
+        setDescription(data.name);
+        applied = true;
+      }
+      if (data?.memo && !memo) {
+        setMemo(data.memo);
+        applied = true;
+      }
 
       if (applied) {
         toast.success('Dados extraídos do anexo com sucesso!');
-      } else if (!data?.date && !data?.amount) {
+      } else if (!data?.date && !data?.amount && !data?.name) {
         toast.info('Não foi possível extrair dados do anexo.');
       }
     } catch (err) {
