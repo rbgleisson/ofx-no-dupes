@@ -7,7 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
 import logoImg from '@/assets/logo.png';
 
-const ResetPassword = () => {
+const ResetPassword = ({ onPasswordUpdated }: { onPasswordUpdated?: () => void }) => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [ready, setReady] = useState(false);
@@ -48,6 +48,7 @@ const ResetPassword = () => {
       const { error } = await supabase.auth.updateUser({ password });
       if (error) throw error;
       setMessage({ type: 'success', text: 'Senha atualizada! Redirecionando...' });
+      onPasswordUpdated?.();
       setTimeout(() => navigate('/'), 2000);
     } catch (err: any) {
       setMessage({ type: 'error', text: err.message || 'Erro ao atualizar senha.' });
