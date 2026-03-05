@@ -7,39 +7,12 @@ import { useNavigate } from 'react-router-dom';
 import { AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
 import logoImg from '@/assets/logo.png';
 
-const ResetPassword = () => {
+const ResetPassword = ({ onPasswordUpdated }: { onPasswordUpdated?: () => void }) => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [ready, setReady] = useState(false);
+  const [ready, setReady] = useState(true);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const navigate = useNavigate();
-
-  useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'PASSWORD_RECOVERY') {
-        setReady(true);
-      }
-    });
-
-    // Also check if hash contains recovery token (fallback)
-    const hash = window.location.hash;
-    if (hash.includes('type=recovery')) {
-      setReady(true);
-    }
-
-    // Give it a few seconds to process the token
-    const timeout = setTimeout(() => {
-      setReady((prev) => {
-        if (!prev) navigate('/auth');
-        return prev;
-      });
-    }, 3000);
-
-    return () => {
-      subscription.unsubscribe();
-      clearTimeout(timeout);
-    };
-  }, [navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,6 +21,7 @@ const ResetPassword = () => {
       const { error } = await supabase.auth.updateUser({ password });
       if (error) throw error;
       setMessage({ type: 'success', text: 'Senha atualizada! Redirecionando...' });
+      onPasswordUpdated?.();
       setTimeout(() => navigate('/'), 2000);
     } catch (err: any) {
       setMessage({ type: 'error', text: err.message || 'Erro ao atualizar senha.' });
