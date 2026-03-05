@@ -35,9 +35,11 @@ serve(async (req) => {
         text: `Analise este documento (${fileName}) e extraia as seguintes informações se disponíveis:
 - Data do documento (formato YYYY-MM-DD)
 - Valor total (número decimal, negativo se for despesa/pagamento)
+- Nome do beneficiário, destinatário ou pagador (a pessoa ou empresa que recebeu ou enviou o pagamento)
+- Descrição ou finalidade do pagamento
 
 Responda APENAS em JSON válido, sem markdown, neste formato exato:
-{"date": "YYYY-MM-DD" ou null, "amount": número ou null}
+{"date": "YYYY-MM-DD" ou null, "amount": número ou null, "name": "nome" ou null, "memo": "descrição/finalidade" ou null}
 
 Se não conseguir identificar algum campo, retorne null para ele.`,
       },
