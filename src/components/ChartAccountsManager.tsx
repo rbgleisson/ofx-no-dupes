@@ -34,11 +34,19 @@ const ChartAccountsManager = ({ chartAccounts, onChartAccountsChange }: ChartAcc
   const handleAdd = async () => {
     if (!code.trim() || !name.trim()) return;
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    await supabase.from('chart_accounts').insert({ code: code.trim(), name: name.trim(), user_id: user.id });
+    if (!user) {
+      toast.error('Usuário não autenticado. Faça login novamente.');
+      return;
+    }
+    const { error } = await supabase.from('chart_accounts').insert({ code: code.trim(), name: name.trim(), user_id: user.id });
+    if (error) {
+      toast.error('Erro ao adicionar: ' + error.message);
+      return;
+    }
     setCode('');
     setName('');
     onChartAccountsChange();
+    toast.success('Conta contábil adicionada!');
   };
 
   const handleUpdate = async (id: string) => {
