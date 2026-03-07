@@ -8,6 +8,8 @@ export interface ExcelRow {
   category_id?: string | null;
   account_id?: string | null;
   chart_account_id?: string | null;
+  _fit_id?: string;
+  _type?: string;
 }
 
 export async function downloadExcelTemplate() {

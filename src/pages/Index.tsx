@@ -81,10 +81,14 @@ const Index = () => {
       if (!user) { setNotification({ type: 'warning', message: 'Usuário não autenticado.' }); return; }
 
       const toInsert = rows.map(r => ({
-        ...r,
+        date: r.date,
+        amount: r.amount,
+        description: r.description,
+        memo: r.memo || undefined,
         category_id: r.category_id || null,
         account_id: r.account_id || null,
         chart_account_id: r.chart_account_id || null,
+        ...(r._fit_id ? { fit_id: r._fit_id, type: r._type } : {}),
       }));
 
       for (const tx of toInsert) {
@@ -93,9 +97,9 @@ const Index = () => {
 
       setExcelReviewOpen(false);
       await loadTransactions();
-      setNotification({ type: 'success', message: `${toInsert.length} transações importadas da planilha.` });
+      setNotification({ type: 'success', message: `${toInsert.length} transações importadas.` });
     } catch {
-      setNotification({ type: 'warning', message: 'Erro ao importar transações da planilha.' });
+      setNotification({ type: 'warning', message: 'Erro ao importar transações.' });
     }
   };
 
