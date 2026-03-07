@@ -155,7 +155,6 @@ const Index = () => {
       let accountId: string | null = null;
       if (data.bankId || data.accountId) {
         const accountName = [data.bankId, data.accountId].filter(Boolean).join(' - ');
-        // Check if account already exists
         const { data: existing } = await supabase
           .from('accounts')
           .select('id')
@@ -177,25 +176,36 @@ const Index = () => {
         }
       }
 
-      const mapped = data.transactions.map(t => ({
-        fit_id: t.id,
-        type: t.type,
+      // Filter out fit_id duplicates first
+      const { data: existingTx } = await supabase.from('transactions').select('fit_id');
+      const existingFitIds = new Set((existingTx || []).map(t => t.fit_id).filter(Boolean));
+
+      const uniqueByFitId = data.transactions.filter(t => !existingFitIds.has(t.id));
+
+      if (uniqueByFitId.length === 0) {
+        setNotification({ type: 'warning', message: `Todas as ${data.transactions.length} transações já existem (fit_id duplicado).` });
+        return;
+      }
+
+      // Convert to ExcelRow format and open review dialog for duplicate detection
+      const rows: ExcelRow[] = uniqueByFitId.map(t => ({
         date: t.date,
         amount: t.amount,
         description: t.description,
-        memo: t.memo,
+        memo: t.memo || undefined,
+        category_id: null,
         account_id: accountId,
+        chart_account_id: null,
+        _fit_id: t.id,
+        _type: t.type,
       }));
 
-      const result: ImportResult = await importTransactions(mapped);
-      await loadTransactions();
+      setExcelRows(rows);
+      setExcelReviewOpen(true);
 
-      if (result.duplicates > 0 && result.imported === 0) {
-        setNotification({ type: 'warning', message: `Todas as ${result.duplicates} transações já existem.` });
-      } else if (result.duplicates > 0) {
-        setNotification({ type: 'success', message: `${result.imported} importadas, ${result.duplicates} duplicatas ignoradas.` });
-      } else {
-        setNotification({ type: 'success', message: `${result.imported} transações importadas de "${fileName}".` });
+      if (data.transactions.length > uniqueByFitId.length) {
+        const skipped = data.transactions.length - uniqueByFitId.length;
+        setNotification({ type: 'warning', message: `${skipped} transações com fit_id duplicado foram removidas automaticamente.` });
       }
     } catch (err: any) {
       const msg = err?.message || '';
