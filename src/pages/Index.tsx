@@ -432,6 +432,7 @@ const Index = () => {
           categories={categories}
           accounts={accounts}
           chartAccounts={chartAccounts}
+          existingTransactions={transactions}
           onConfirm={handleExcelConfirm}
         />
       </div>
