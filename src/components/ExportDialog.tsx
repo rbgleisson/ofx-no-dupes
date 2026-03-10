@@ -62,6 +62,20 @@ const ExportDialog = ({ transactions, categories, accounts, chartAccounts }: Exp
   const [exportType, setExportType] = useState<'listagem' | 'demonstrativo'>('demonstrativo');
   const [companyName, setCompanyName] = useState('');
   const [exporting, setExporting] = useState(false);
+  const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
+
+  // Fetch ALL transactions when dialog opens (not just filtered ones from the page)
+  useEffect(() => {
+    if (!open) return;
+    const fetchAll = async () => {
+      const { data } = await supabase
+        .from('transactions')
+        .select('*')
+        .order('date', { ascending: false });
+      setAllTransactions((data as Transaction[]) || []);
+    };
+    fetchAll();
+  }, [open]);
 
   const toggle = (key: string) => {
     setSelected(prev => {
