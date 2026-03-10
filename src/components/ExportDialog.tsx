@@ -87,7 +87,7 @@ const ExportDialog = ({ transactions, categories, accounts, chartAccounts }: Exp
   };
 
   const getFilteredTransactions = () => {
-    let filtered = transactions;
+    let filtered = allTransactions;
     const year = exportYear !== '__all__' ? Number(exportYear) : null;
     const month = exportMonth !== '__all__' ? Number(exportMonth) : null;
 
