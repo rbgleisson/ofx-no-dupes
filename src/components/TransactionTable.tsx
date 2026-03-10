@@ -1,9 +1,9 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import { Transaction, updateTransaction, deleteTransaction } from '@/lib/transactionStore';
 import { Category } from '@/components/CategoriesManager';
 import { Account } from '@/components/AccountsManager';
 import { ChartAccount } from '@/components/ChartAccountsManager';
-import { ArrowDownLeft, ArrowUpRight, Paperclip, X, FileText, Loader2, Pencil, Trash2, Check, ChevronsUpDown, ScanLine } from 'lucide-react';
+import { ArrowDownLeft, ArrowUpRight, Paperclip, X, FileText, Loader2, Pencil, Trash2, Check, ChevronsUpDown, ScanLine, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import QrScannerDialog from '@/components/QrScannerDialog';
 import TransactionDetailSheet from '@/components/TransactionDetailSheet';
 import { toast } from 'sonner';
@@ -52,6 +52,34 @@ const TransactionTable = ({ transactions, categories, accounts, chartAccounts, o
   const [scanTargetTxId, setScanTargetTxId] = useState<string | null>(null);
   const [fetchingDanfe, setFetchingDanfe] = useState<string | null>(null);
   const [detailTransaction, setDetailTransaction] = useState<Transaction | null>(null);
+  const [sortField, setSortField] = useState<'date' | 'description' | 'amount' | null>(null);
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+
+  const toggleSort = (field: 'date' | 'description' | 'amount') => {
+    if (sortField === field) {
+      if (sortDir === 'asc') setSortDir('desc');
+      else { setSortField(null); setSortDir('asc'); }
+    } else {
+      setSortField(field);
+      setSortDir('asc');
+    }
+  };
+
+  const sortedTransactions = useMemo(() => {
+    if (!sortField) return transactions;
+    return [...transactions].sort((a, b) => {
+      let cmp = 0;
+      if (sortField === 'date') cmp = a.date.localeCompare(b.date);
+      else if (sortField === 'description') cmp = a.description.localeCompare(b.description, 'pt-BR', { sensitivity: 'base' });
+      else if (sortField === 'amount') cmp = Number(a.amount) - Number(b.amount);
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+  }, [transactions, sortField, sortDir]);
+
+  const SortIcon = ({ field }: { field: 'date' | 'description' | 'amount' }) => {
+    if (sortField !== field) return <ArrowUpDown className="w-3 h-3 ml-1 inline opacity-40" />;
+    return sortDir === 'asc' ? <ArrowUp className="w-3 h-3 ml-1 inline" /> : <ArrowDown className="w-3 h-3 ml-1 inline" />;
+  };
 
   const toggleSelect = (id: string) => {
     setSelectedIds(prev => {
@@ -206,18 +234,24 @@ const TransactionTable = ({ transactions, categories, accounts, chartAccounts, o
                     onCheckedChange={toggleAll}
                   />
                 </th>
-                <th className="text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Data</th>
-                <th className="text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Descrição</th>
+                <th className="text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3 cursor-pointer select-none hover:text-foreground transition-colors" onClick={() => toggleSort('date')}>
+                  Data <SortIcon field="date" />
+                </th>
+                <th className="text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3 cursor-pointer select-none hover:text-foreground transition-colors" onClick={() => toggleSort('description')}>
+                  Descrição <SortIcon field="description" />
+                </th>
                 <th className="text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Categoria</th>
                 <th className="text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Conta</th>
                 <th className="text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Conta Contábil</th>
-                <th className="text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Valor</th>
+                <th className="text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3 cursor-pointer select-none hover:text-foreground transition-colors" onClick={() => toggleSort('amount')}>
+                  Valor <SortIcon field="amount" />
+                </th>
                 <th className="text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Anexo</th>
                 <th className="text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Ações</th>
               </tr>
             </thead>
             <tbody>
-              {transactions.map((tx) => {
+              {sortedTransactions.map((tx) => {
                 const cat = categories.find(c => c.id === tx.category_id);
                 const acc = accounts.find(a => a.id === tx.account_id);
                 const ca = chartAccounts.find(c => c.id === (tx as any).chart_account_id);
