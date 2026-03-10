@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Transaction } from '@/lib/transactionStore';
 import { Category } from '@/components/CategoriesManager';
 import { Account } from '@/components/AccountsManager';
 import { ChartAccount } from '@/components/ChartAccountsManager';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -61,6 +62,20 @@ const ExportDialog = ({ transactions, categories, accounts, chartAccounts }: Exp
   const [exportType, setExportType] = useState<'listagem' | 'demonstrativo'>('demonstrativo');
   const [companyName, setCompanyName] = useState('');
   const [exporting, setExporting] = useState(false);
+  const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
+
+  // Fetch ALL transactions when dialog opens (not just filtered ones from the page)
+  useEffect(() => {
+    if (!open) return;
+    const fetchAll = async () => {
+      const { data } = await supabase
+        .from('transactions')
+        .select('*')
+        .order('date', { ascending: false });
+      setAllTransactions((data as Transaction[]) || []);
+    };
+    fetchAll();
+  }, [open]);
 
   const toggle = (key: string) => {
     setSelected(prev => {
@@ -72,7 +87,7 @@ const ExportDialog = ({ transactions, categories, accounts, chartAccounts }: Exp
   };
 
   const getFilteredTransactions = () => {
-    let filtered = transactions;
+    let filtered = allTransactions;
     const year = exportYear !== '__all__' ? Number(exportYear) : null;
     const month = exportMonth !== '__all__' ? Number(exportMonth) : null;
 
