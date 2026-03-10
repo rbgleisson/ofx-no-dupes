@@ -251,7 +251,7 @@ const TransactionTable = ({ transactions, categories, accounts, chartAccounts, o
               </tr>
             </thead>
             <tbody>
-              {transactions.map((tx) => {
+              {sortedTransactions.map((tx) => {
                 const cat = categories.find(c => c.id === tx.category_id);
                 const acc = accounts.find(a => a.id === tx.account_id);
                 const ca = chartAccounts.find(c => c.id === (tx as any).chart_account_id);
