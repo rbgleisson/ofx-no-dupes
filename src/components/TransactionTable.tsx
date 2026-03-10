@@ -52,6 +52,34 @@ const TransactionTable = ({ transactions, categories, accounts, chartAccounts, o
   const [scanTargetTxId, setScanTargetTxId] = useState<string | null>(null);
   const [fetchingDanfe, setFetchingDanfe] = useState<string | null>(null);
   const [detailTransaction, setDetailTransaction] = useState<Transaction | null>(null);
+  const [sortField, setSortField] = useState<'date' | 'description' | 'amount' | null>(null);
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+
+  const toggleSort = (field: 'date' | 'description' | 'amount') => {
+    if (sortField === field) {
+      if (sortDir === 'asc') setSortDir('desc');
+      else { setSortField(null); setSortDir('asc'); }
+    } else {
+      setSortField(field);
+      setSortDir('asc');
+    }
+  };
+
+  const sortedTransactions = useMemo(() => {
+    if (!sortField) return transactions;
+    return [...transactions].sort((a, b) => {
+      let cmp = 0;
+      if (sortField === 'date') cmp = a.date.localeCompare(b.date);
+      else if (sortField === 'description') cmp = a.description.localeCompare(b.description, 'pt-BR', { sensitivity: 'base' });
+      else if (sortField === 'amount') cmp = Number(a.amount) - Number(b.amount);
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+  }, [transactions, sortField, sortDir]);
+
+  const SortIcon = ({ field }: { field: 'date' | 'description' | 'amount' }) => {
+    if (sortField !== field) return <ArrowUpDown className="w-3 h-3 ml-1 inline opacity-40" />;
+    return sortDir === 'asc' ? <ArrowUp className="w-3 h-3 ml-1 inline" /> : <ArrowDown className="w-3 h-3 ml-1 inline" />;
+  };
 
   const toggleSelect = (id: string) => {
     setSelectedIds(prev => {
