@@ -146,13 +146,17 @@ const TransactionTable = ({ transactions, categories, accounts, chartAccounts, o
     }
   };
 
-  const handleRemoveAttachment = async (txId: string) => {
-    setUploading(txId);
+  const [removeConfirmTxId, setRemoveConfirmTxId] = useState<string | null>(null);
+
+  const confirmRemoveAttachment = async () => {
+    if (!removeConfirmTxId) return;
+    setUploading(removeConfirmTxId);
     try {
-      await updateTransaction(txId, { attachment_url: null });
+      await updateTransaction(removeConfirmTxId, { attachment_url: null });
       onTransactionsChange();
     } finally {
       setUploading(null);
+      setRemoveConfirmTxId(null);
     }
   };
 
