@@ -431,7 +431,7 @@ const TransactionTable = ({ transactions, categories, accounts, chartAccounts, o
                           <a href={tx.attachment_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:text-primary/80 transition-colors" title="Ver documento">
                             <FileText className="w-4 h-4" />
                           </a>
-                          <button onClick={() => handleRemoveAttachment(tx.id)} className="text-muted-foreground hover:text-destructive transition-colors" title="Remover anexo">
+                          <button onClick={() => setRemoveConfirmTxId(tx.id)} className="text-muted-foreground hover:text-destructive transition-colors" title="Remover anexo">
                             <X className="w-3.5 h-3.5" />
                           </button>
                         </div>
