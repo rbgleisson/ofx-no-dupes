@@ -43,6 +43,7 @@ const Index = () => {
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const ofxInputRef = useRef<HTMLInputElement>(null);
   const xlsxInputRef = useRef<HTMLInputElement>(null);
+  const loadRequestRef = useRef(0);
   const [excelReviewOpen, setExcelReviewOpen] = useState(false);
   const [excelRows, setExcelRows] = useState<ExcelRow[]>([]);
 
@@ -104,9 +105,12 @@ const Index = () => {
   };
 
   const loadTransactions = useCallback(async () => {
+    const requestId = ++loadRequestRef.current;
     try {
       const data = await fetchTransactions(filters);
-      setTransactions(data);
+      if (requestId === loadRequestRef.current) {
+        setTransactions(data);
+      }
     } catch (err) {
       console.error('Error loading transactions:', err);
     }
@@ -129,10 +133,13 @@ const Index = () => {
 
   useEffect(() => {
     loadTransactions();
+  }, [loadTransactions]);
+
+  useEffect(() => {
     fetchCategories();
     fetchAccounts();
     fetchChartAccounts();
-  }, [loadTransactions, fetchCategories, fetchAccounts, fetchChartAccounts]);
+  }, [fetchCategories, fetchAccounts, fetchChartAccounts]);
 
   useEffect(() => {
     if (notification) {
