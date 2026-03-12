@@ -11,6 +11,16 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -146,13 +156,17 @@ const TransactionTable = ({ transactions, categories, accounts, chartAccounts, o
     }
   };
 
-  const handleRemoveAttachment = async (txId: string) => {
-    setUploading(txId);
+  const [removeConfirmTxId, setRemoveConfirmTxId] = useState<string | null>(null);
+
+  const confirmRemoveAttachment = async () => {
+    if (!removeConfirmTxId) return;
+    setUploading(removeConfirmTxId);
     try {
-      await updateTransaction(txId, { attachment_url: null });
+      await updateTransaction(removeConfirmTxId, { attachment_url: null });
       onTransactionsChange();
     } finally {
       setUploading(null);
+      setRemoveConfirmTxId(null);
     }
   };
 
@@ -199,6 +213,22 @@ const TransactionTable = ({ transactions, categories, accounts, chartAccounts, o
     <div className="space-y-6">
       <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileChange} accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx" capture="environment" />
       <QrScannerDialog open={scannerOpen} onClose={() => setScannerOpen(false)} onAccessKey={handleAccessKey} />
+      <AlertDialog open={!!removeConfirmTxId} onOpenChange={(open) => { if (!open) setRemoveConfirmTxId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remover anexo</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja remover o anexo deste lançamento? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmRemoveAttachment} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Remover
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <TransactionDetailSheet
         transaction={detailTransaction}
         open={!!detailTransaction}
@@ -417,7 +447,7 @@ const TransactionTable = ({ transactions, categories, accounts, chartAccounts, o
                           <a href={tx.attachment_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:text-primary/80 transition-colors" title="Ver documento">
                             <FileText className="w-4 h-4" />
                           </a>
-                          <button onClick={() => handleRemoveAttachment(tx.id)} className="text-muted-foreground hover:text-destructive transition-colors" title="Remover anexo">
+                          <button onClick={() => setRemoveConfirmTxId(tx.id)} className="text-muted-foreground hover:text-destructive transition-colors" title="Remover anexo">
                             <X className="w-3.5 h-3.5" />
                           </button>
                         </div>
