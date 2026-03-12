@@ -48,7 +48,15 @@ const TransactionFiltersComponent = ({ filters, onChange, categories, accounts }
       {/* Year & Month always visible */}
       <Select
         value={filters.year?.toString() || '__all__'}
-        onValueChange={v => onChange({ ...filters, year: v === '__all__' ? undefined : Number(v), month: v === '__all__' ? undefined : filters.month, day: v === '__all__' ? undefined : filters.day })}
+        onValueChange={v => {
+          const nextYear = v === '__all__' ? undefined : Number(v);
+          onChange({
+            ...filters,
+            year: nextYear,
+            month: v === '__all__' ? undefined : filters.month,
+            day: undefined,
+          });
+        }}
       >
         <SelectTrigger className="h-8 w-24 text-xs">
           <SelectValue placeholder="Ano" />
@@ -63,7 +71,7 @@ const TransactionFiltersComponent = ({ filters, onChange, categories, accounts }
 
       <Select
         value={filters.month?.toString() || '__all__'}
-        onValueChange={v => onChange({ ...filters, month: v === '__all__' ? undefined : Number(v), day: v === '__all__' ? undefined : filters.day })}
+        onValueChange={v => onChange({ ...filters, month: v === '__all__' ? undefined : Number(v), day: undefined })}
         disabled={!filters.year}
       >
         <SelectTrigger className="h-8 w-28 text-xs">

@@ -43,6 +43,7 @@ const Index = () => {
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const ofxInputRef = useRef<HTMLInputElement>(null);
   const xlsxInputRef = useRef<HTMLInputElement>(null);
+  const loadRequestRef = useRef(0);
   const [excelReviewOpen, setExcelReviewOpen] = useState(false);
   const [excelRows, setExcelRows] = useState<ExcelRow[]>([]);
 
@@ -104,9 +105,12 @@ const Index = () => {
   };
 
   const loadTransactions = useCallback(async () => {
+    const requestId = ++loadRequestRef.current;
     try {
       const data = await fetchTransactions(filters);
-      setTransactions(data);
+      if (requestId === loadRequestRef.current) {
+        setTransactions(data);
+      }
     } catch (err) {
       console.error('Error loading transactions:', err);
     }
@@ -129,10 +133,13 @@ const Index = () => {
 
   useEffect(() => {
     loadTransactions();
+  }, [loadTransactions]);
+
+  useEffect(() => {
     fetchCategories();
     fetchAccounts();
     fetchChartAccounts();
-  }, [loadTransactions, fetchCategories, fetchAccounts, fetchChartAccounts]);
+  }, [fetchCategories, fetchAccounts, fetchChartAccounts]);
 
   useEffect(() => {
     if (notification) {
@@ -393,12 +400,13 @@ const Index = () => {
               tab === 'payable' ? Number(t.amount) < 0 : Number(t.amount) >= 0
             );
             if (filters.search) {
-              const term = filters.search.toLowerCase().replace(',', '.');
+              const searchTerm = filters.search.toLowerCase();
+              const term = searchTerm.replace(',', '.');
               filtered = filtered.filter(t => {
-                const matchDesc = t.description.toLowerCase().includes(filters.search!.toLowerCase());
-                const matchMemo = t.memo && t.memo.toLowerCase().includes(filters.search!.toLowerCase());
+                const matchDesc = (t.description ?? '').toLowerCase().includes(searchTerm);
+                const matchMemo = (t.memo ?? '').toLowerCase().includes(searchTerm);
                 const amountStr = Math.abs(Number(t.amount)).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
-                const matchAmount = amountStr.includes(filters.search!.toLowerCase()) || Math.abs(Number(t.amount)).toString().includes(term);
+                const matchAmount = amountStr.includes(searchTerm) || Math.abs(Number(t.amount)).toString().includes(term);
                 return matchDesc || matchMemo || matchAmount;
               });
             }

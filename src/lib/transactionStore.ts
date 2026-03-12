@@ -38,23 +38,54 @@ async function getUserId(): Promise<string> {
   return user.id;
 }
 
+function pad2(value: number): string {
+  return String(value).padStart(2, '0');
+}
+
+function toYmd(date: Date): string {
+  return `${date.getUTCFullYear()}-${pad2(date.getUTCMonth() + 1)}-${pad2(date.getUTCDate())}`;
+}
+
+function normalizeTransaction(tx: any): Transaction {
+  return {
+    ...tx,
+    date: typeof tx?.date === 'string' ? tx.date : '',
+    amount: Number(tx?.amount ?? 0),
+    description: typeof tx?.description === 'string' ? tx.description : '',
+    memo: typeof tx?.memo === 'string' ? tx.memo : null,
+  } as Transaction;
+}
+
 export async function fetchTransactions(filters?: TransactionFilters): Promise<Transaction[]> {
   let query = supabase.from('transactions').select('*').order('date', { ascending: false });
 
   if (filters?.year) {
-    const startDate = new Date(filters.year, (filters.month ?? 1) - 1, filters.day ?? 1);
-    let endDate: Date;
+    const year = filters.year;
+    const month = filters.month;
+    const day = filters.day;
 
-    if (filters.day && filters.month) {
-      endDate = new Date(filters.year, filters.month - 1, filters.day + 1);
-    } else if (filters.month) {
-      endDate = new Date(filters.year, filters.month, 1);
+    let startDate: string;
+    let endDate: string;
+
+    if (month && day) {
+      const start = new Date(Date.UTC(year, month - 1, day));
+      const end = new Date(start);
+      end.setUTCDate(end.getUTCDate() + 1);
+      startDate = toYmd(start);
+      endDate = toYmd(end);
+    } else if (month) {
+      const start = new Date(Date.UTC(year, month - 1, 1));
+      const end = month === 12
+        ? new Date(Date.UTC(year + 1, 0, 1))
+        : new Date(Date.UTC(year, month, 1));
+      startDate = toYmd(start);
+      endDate = toYmd(end);
     } else {
-      endDate = new Date(filters.year + 1, 0, 1);
+      startDate = `${year}-01-01`;
+      endDate = `${year + 1}-01-01`;
     }
 
-    query = query.gte('date', startDate.toISOString().split('T')[0])
-                 .lt('date', endDate.toISOString().split('T')[0]);
+    query = query.gte('date', startDate).lt('date', endDate);
   }
 
   if (filters?.category_id) {
@@ -67,7 +98,8 @@ export async function fetchTransactions(filters?: TransactionFilters): Promise<T
 
   const { data, error } = await query;
   if (error) throw error;
-  return (data || []) as Transaction[];
+
+  return (data || []).map(normalizeTransaction);
 }
 
 export async function importTransactions(
