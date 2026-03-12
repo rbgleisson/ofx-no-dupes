@@ -213,6 +213,22 @@ const TransactionTable = ({ transactions, categories, accounts, chartAccounts, o
     <div className="space-y-6">
       <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileChange} accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx" capture="environment" />
       <QrScannerDialog open={scannerOpen} onClose={() => setScannerOpen(false)} onAccessKey={handleAccessKey} />
+      <AlertDialog open={!!removeConfirmTxId} onOpenChange={(open) => { if (!open) setRemoveConfirmTxId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remover anexo</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja remover o anexo deste lançamento? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmRemoveAttachment} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Remover
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <TransactionDetailSheet
         transaction={detailTransaction}
         open={!!detailTransaction}
