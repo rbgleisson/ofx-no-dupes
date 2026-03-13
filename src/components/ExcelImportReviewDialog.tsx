@@ -6,7 +6,7 @@ import { ChartAccount } from '@/components/ChartAccountsManager';
 import { Transaction } from '@/lib/transactionStore';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Check, ChevronsUpDown, AlertTriangle } from 'lucide-react';
+import { Check, ChevronsUpDown, AlertTriangle, Trash2, EyeOff, Eye, ArrowLeftRight } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
@@ -35,6 +35,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { Badge } from '@/components/ui/badge';
 
 interface Props {
   open: boolean;
@@ -47,37 +48,92 @@ interface Props {
   onConfirm: (rows: ExcelRow[]) => void;
 }
 
-function isDuplicate(row: ExcelRow, existing: Transaction[]): boolean {
-  return existing.some(t =>
-    t.date === row.date &&
-    Math.abs(t.amount - row.amount) < 0.01 &&
-    (t.account_id || null) === (row.account_id || null)
-  );
+interface DuplicateMatch {
+  isDuplicate: boolean;
+  matchedTransaction?: Transaction;
+  matchType?: 'exact' | 'probable' | 'possible';
+  matchReason?: string;
 }
+
+function normalize(s: string): string {
+  return (s || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+}
+
+function findDuplicate(row: ExcelRow, existing: Transaction[]): DuplicateMatch {
+  // 1. Exact: same date + same amount + same description normalized
+  const rowDescNorm = normalize(row.description);
+  for (const t of existing) {
+    if (
+      t.date === row.date &&
+      Math.abs(t.amount - row.amount) < 0.01 &&
+      normalize(t.description) === rowDescNorm
+    ) {
+      return { isDuplicate: true, matchedTransaction: t, matchType: 'exact', matchReason: 'Mesma data, valor e descrição' };
+    }
+  }
+
+  // 2. Probable: same date + same amount (different description)
+  for (const t of existing) {
+    if (
+      t.date === row.date &&
+      Math.abs(t.amount - row.amount) < 0.01
+    ) {
+      return { isDuplicate: true, matchedTransaction: t, matchType: 'probable', matchReason: 'Mesma data e valor (descrição diferente)' };
+    }
+  }
+
+  // 3. Possible: ±1 day + same amount
+  const rowDate = new Date(row.date + 'T12:00:00Z');
+  for (const t of existing) {
+    const tDate = new Date(t.date + 'T12:00:00Z');
+    const diffDays = Math.abs(rowDate.getTime() - tDate.getTime()) / (1000 * 60 * 60 * 24);
+    if (diffDays <= 1 && diffDays > 0 && Math.abs(t.amount - row.amount) < 0.01) {
+      return { isDuplicate: true, matchedTransaction: t, matchType: 'possible', matchReason: 'Mesmo valor em data próxima (±1 dia)' };
+    }
+  }
+
+  return { isDuplicate: false };
+}
+
+const matchTypeColors: Record<string, string> = {
+  exact: 'bg-red-100 text-red-800 border-red-200',
+  probable: 'bg-amber-100 text-amber-800 border-amber-200',
+  possible: 'bg-yellow-50 text-yellow-800 border-yellow-200',
+};
+
+const matchTypeLabels: Record<string, string> = {
+  exact: 'Duplicata exata',
+  probable: 'Provável duplicata',
+  possible: 'Possível duplicata',
+};
 
 const ExcelImportReviewDialog = ({ open, onOpenChange, rows: initialRows, categories, accounts, chartAccounts, existingTransactions, onConfirm }: Props) => {
   const [rows, setRows] = useState<ExcelRow[]>(initialRows);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [openCatPopover, setOpenCatPopover] = useState<number | null>(null);
   const [openChartPopover, setOpenChartPopover] = useState<number | null>(null);
+  const [hideDuplicates, setHideDuplicates] = useState(false);
 
   // Sync when dialog opens with new data
   const [prevRows, setPrevRows] = useState(initialRows);
   if (initialRows !== prevRows) {
     setRows(initialRows);
     setPrevRows(initialRows);
-    // Pre-select all non-duplicate rows, deselect duplicates
+    setHideDuplicates(false);
     const sel = new Set<number>();
     initialRows.forEach((r, i) => {
-      if (!isDuplicate(r, existingTransactions)) {
+      if (!findDuplicate(r, existingTransactions).isDuplicate) {
         sel.add(i);
       }
     });
     setSelected(sel);
   }
 
-  const duplicateFlags = rows.map(r => isDuplicate(r, existingTransactions));
-  const duplicateCount = duplicateFlags.filter(Boolean).length;
+  const duplicateMatches = rows.map(r => findDuplicate(r, existingTransactions));
+  const duplicateCount = duplicateMatches.filter(m => m.isDuplicate).length;
+  const exactCount = duplicateMatches.filter(m => m.matchType === 'exact').length;
+  const probableCount = duplicateMatches.filter(m => m.matchType === 'probable').length;
+  const possibleCount = duplicateMatches.filter(m => m.matchType === 'possible').length;
 
   const toggleRow = (index: number) => {
     setSelected(prev => {
@@ -89,15 +145,42 @@ const ExcelImportReviewDialog = ({ open, onOpenChange, rows: initialRows, catego
   };
 
   const toggleAll = () => {
-    if (selected.size === rows.length) {
-      setSelected(new Set());
+    const visibleIndices = rows.map((_, i) => i).filter(i => !hideDuplicates || !duplicateMatches[i].isDuplicate);
+    const allSelected = visibleIndices.every(i => selected.has(i));
+    if (allSelected) {
+      setSelected(prev => {
+        const next = new Set(prev);
+        visibleIndices.forEach(i => next.delete(i));
+        return next;
+      });
     } else {
-      setSelected(new Set(rows.map((_, i) => i)));
+      setSelected(prev => {
+        const next = new Set(prev);
+        visibleIndices.forEach(i => next.add(i));
+        return next;
+      });
     }
   };
 
   const updateRow = (index: number, field: keyof ExcelRow, value: string | null) => {
     setRows(prev => prev.map((r, i) => i === index ? { ...r, [field]: value } : r));
+  };
+
+  const removeDuplicates = () => {
+    const keep = rows.filter((_, i) => !duplicateMatches[i].isDuplicate);
+    setRows(keep);
+    // Re-select all remaining
+    setSelected(new Set(keep.map((_, i) => i)));
+  };
+
+  const deselectAllDuplicates = () => {
+    setSelected(prev => {
+      const next = new Set(prev);
+      duplicateMatches.forEach((m, i) => {
+        if (m.isDuplicate) next.delete(i);
+      });
+      return next;
+    });
   };
 
   // Bulk assign
@@ -131,20 +214,58 @@ const ExcelImportReviewDialog = ({ open, onOpenChange, rows: initialRows, catego
     onConfirm(selectedRows);
   };
 
+  const visibleRows = rows.map((row, i) => ({ row, i })).filter(({ i }) => !hideDuplicates || !duplicateMatches[i].isDuplicate);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-5xl max-h-[90vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle>Revisar Importação ({rows.length} transações)</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            <ArrowLeftRight className="h-5 w-5" />
+            Conciliação — Revisar Importação ({rows.length} transações)
+          </DialogTitle>
           <DialogDescription>
-            Atribua categorias, contas e contas contábeis antes de confirmar. Campos em branco serão importados sem preenchimento.
+            Confira as transações antes de importar. Duplicatas são detectadas automaticamente comparando data, valor e descrição com seus lançamentos existentes.
           </DialogDescription>
           {duplicateCount > 0 && (
-            <div className="flex items-center gap-2 mt-2 px-3 py-2 rounded-md bg-amber-50 border border-amber-200 text-amber-800 text-xs">
-              <AlertTriangle className="h-4 w-4 flex-shrink-0" />
-              <span>
-                <strong>{duplicateCount}</strong> possíveis duplicatas encontradas (mesmo valor, data e conta). Elas estão desmarcadas por padrão. Marque para incluí-las.
-              </span>
+            <div className="flex flex-col gap-2 mt-2">
+              <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-amber-50 border border-amber-200 text-amber-800 text-xs">
+                <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+                <span className="flex-1">
+                  <strong>{duplicateCount}</strong> possíveis duplicatas encontradas e desmarcadas por padrão:
+                  {exactCount > 0 && <span className="ml-1">🔴 {exactCount} exatas</span>}
+                  {probableCount > 0 && <span className="ml-1">🟠 {probableCount} prováveis</span>}
+                  {possibleCount > 0 && <span className="ml-1">🟡 {possibleCount} possíveis</span>}
+                </span>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs gap-1"
+                  onClick={() => setHideDuplicates(!hideDuplicates)}
+                >
+                  {hideDuplicates ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
+                  {hideDuplicates ? 'Mostrar duplicatas' : 'Ocultar duplicatas'}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs gap-1 text-destructive border-destructive/30 hover:bg-destructive/10"
+                  onClick={removeDuplicates}
+                >
+                  <Trash2 className="h-3 w-3" />
+                  Remover todas as duplicatas da lista
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs gap-1"
+                  onClick={deselectAllDuplicates}
+                >
+                  Desmarcar duplicatas
+                </Button>
+              </div>
             </div>
           )}
         </DialogHeader>
@@ -205,10 +326,11 @@ const ExcelImportReviewDialog = ({ open, onOpenChange, rows: initialRows, catego
                 <tr className="border-b bg-muted/50">
                   <th className="text-center px-2 py-2 w-8">
                     <Checkbox
-                      checked={selected.size === rows.length}
+                      checked={visibleRows.length > 0 && visibleRows.every(({ i }) => selected.has(i))}
                       onCheckedChange={toggleAll}
                     />
                   </th>
+                  <th className="text-left text-xs font-semibold text-muted-foreground uppercase px-3 py-2">Status</th>
                   <th className="text-left text-xs font-semibold text-muted-foreground uppercase px-3 py-2">Data</th>
                   <th className="text-right text-xs font-semibold text-muted-foreground uppercase px-3 py-2">Valor</th>
                   <th className="text-left text-xs font-semibold text-muted-foreground uppercase px-3 py-2">Descrição</th>
@@ -218,33 +340,52 @@ const ExcelImportReviewDialog = ({ open, onOpenChange, rows: initialRows, catego
                 </tr>
               </thead>
               <tbody>
-                {rows.map((row, i) => {
+                {visibleRows.map(({ row, i }) => {
                   const cat = categories.find(c => c.id === row.category_id);
                   const acc = accounts.find(a => a.id === row.account_id);
                   const ca = chartAccounts.find(c => c.id === row.chart_account_id);
-                  const dup = duplicateFlags[i];
+                  const match = duplicateMatches[i];
                   const isSelected = selected.has(i);
+                  const rowBg = match.isDuplicate
+                    ? match.matchType === 'exact' ? 'bg-red-50/50' : match.matchType === 'probable' ? 'bg-amber-50/50' : 'bg-yellow-50/30'
+                    : '';
                   return (
-                    <tr key={i} className={`border-b last:border-0 hover:bg-muted/30 ${dup ? 'bg-amber-50/50' : ''} ${!isSelected ? 'opacity-50' : ''}`}>
+                    <tr key={i} className={`border-b last:border-0 hover:bg-muted/30 ${rowBg} ${!isSelected ? 'opacity-50' : ''}`}>
                       <td className="text-center px-2 py-2">
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <div className="flex items-center justify-center gap-1">
-                                <Checkbox
-                                  checked={isSelected}
-                                  onCheckedChange={() => toggleRow(i)}
-                                />
-                                {dup && <AlertTriangle className="h-3 w-3 text-amber-500" />}
-                              </div>
-                            </TooltipTrigger>
-                            {dup && (
-                              <TooltipContent>
-                                <p className="text-xs">Possível duplicata: já existe lançamento com mesmo valor, data e conta.</p>
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={() => toggleRow(i)}
+                        />
+                      </td>
+                      <td className="px-3 py-2">
+                        {match.isDuplicate ? (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Badge variant="outline" className={`text-[10px] px-1.5 py-0 whitespace-nowrap cursor-help ${matchTypeColors[match.matchType || 'possible']}`}>
+                                  <AlertTriangle className="h-3 w-3 mr-0.5" />
+                                  {matchTypeLabels[match.matchType || 'possible']}
+                                </Badge>
+                              </TooltipTrigger>
+                              <TooltipContent side="right" className="max-w-xs">
+                                <p className="text-xs font-medium mb-1">{match.matchReason}</p>
+                                {match.matchedTransaction && (
+                                  <div className="text-[11px] text-muted-foreground space-y-0.5 border-t pt-1 mt-1">
+                                    <p className="font-medium text-foreground">Lançamento existente:</p>
+                                    <p>📅 {formatDate(match.matchedTransaction.date)}</p>
+                                    <p>💰 {formatCurrency(match.matchedTransaction.amount)}</p>
+                                    <p>📝 {match.matchedTransaction.description}</p>
+                                  </div>
+                                )}
                               </TooltipContent>
-                            )}
-                          </Tooltip>
-                        </TooltipProvider>
+                            </Tooltip>
+                          </TooltipProvider>
+                        ) : (
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 whitespace-nowrap bg-emerald-50 text-emerald-700 border-emerald-200">
+                            <Check className="h-3 w-3 mr-0.5" />
+                            Novo
+                          </Badge>
+                        )}
                       </td>
                       <td className="px-3 py-2 font-mono text-xs whitespace-nowrap">{formatDate(row.date)}</td>
                       <td className={`px-3 py-2 font-mono text-xs font-semibold text-right whitespace-nowrap ${row.amount >= 0 ? 'text-emerald-600' : 'text-destructive'}`}>
@@ -357,7 +498,15 @@ const ExcelImportReviewDialog = ({ open, onOpenChange, rows: initialRows, catego
           </div>
         </ScrollArea>
 
-        <DialogFooter>
+        <DialogFooter className="flex-wrap gap-2">
+          <div className="flex-1 text-xs text-muted-foreground">
+            {duplicateCount > 0 && !hideDuplicates && (
+              <span>Mostrando {visibleRows.length} de {rows.length} • {duplicateCount} duplicatas</span>
+            )}
+            {duplicateCount > 0 && hideDuplicates && (
+              <span>Mostrando {visibleRows.length} de {rows.length} • {duplicateCount} duplicatas ocultas</span>
+            )}
+          </div>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
           <Button onClick={handleConfirm} disabled={selectedCount === 0} className="bg-emerald-600 hover:bg-emerald-700 text-white">
             Confirmar Importação ({selectedCount})
