@@ -12,6 +12,7 @@ import {
   ImportResult,
 } from '@/lib/transactionStore';
 import { supabase } from '@/integrations/supabase/client';
+import { classifyTransaction, ensureSystemCategories } from '@/lib/autoCategorize';
 
 import TransactionTable from '@/components/TransactionTable';
 import TransactionFiltersComponent from '@/components/TransactionFilters';
