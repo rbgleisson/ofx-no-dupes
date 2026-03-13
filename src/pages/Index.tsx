@@ -199,18 +199,26 @@ const Index = () => {
         return;
       }
 
+      // Auto-categorize transactions
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      const { transferCategoryId, investmentIncomeCategoryId } = await ensureSystemCategories(currentUser!.id);
+
       // Convert to ExcelRow format and open review dialog for duplicate detection
-      const rows: ExcelRow[] = uniqueByFitId.map(t => ({
-        date: t.date,
-        amount: t.amount,
-        description: t.description,
-        memo: t.memo || undefined,
-        category_id: null,
-        account_id: accountId,
-        chart_account_id: null,
-        _fit_id: t.id,
-        _type: t.type,
-      }));
+      const rows: ExcelRow[] = uniqueByFitId.map(t => {
+        const classification = classifyTransaction(t.description, t.amount, transferCategoryId, investmentIncomeCategoryId);
+        return {
+          date: t.date,
+          amount: t.amount,
+          description: t.description,
+          memo: t.memo || undefined,
+          category_id: classification.category_id,
+          account_id: accountId,
+          chart_account_id: null,
+          _fit_id: t.id,
+          _type: t.type,
+          _is_transfer: classification.is_transfer,
+        };
+      });
 
       setExcelRows(rows);
       setExcelReviewOpen(true);
