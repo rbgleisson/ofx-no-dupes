@@ -372,23 +372,29 @@ const Index = () => {
 
         {/* Summary Cards */}
         {transactions.length > 0 && (() => {
-          const totalReceber = transactions.filter(t => Number(t.amount) >= 0).reduce((s, t) => s + Number(t.amount), 0);
-          const totalPagar = transactions.filter(t => Number(t.amount) < 0).reduce((s, t) => s + Math.abs(Number(t.amount)), 0);
+          const nonTransfer = transactions.filter(t => !t.is_transfer);
+          const totalReceber = nonTransfer.filter(t => Number(t.amount) >= 0).reduce((s, t) => s + Number(t.amount), 0);
+          const totalPagar = nonTransfer.filter(t => Number(t.amount) < 0).reduce((s, t) => s + Math.abs(Number(t.amount)), 0);
           const saldo = totalReceber - totalPagar;
+          const totalTransfer = transactions.filter(t => t.is_transfer).reduce((s, t) => s + Math.abs(Number(t.amount)), 0);
           const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
           return (
-            <div className="hidden sm:grid grid-cols-3 gap-4 mb-6">
+            <div className="hidden sm:grid grid-cols-4 gap-4 mb-6">
               <div className="rounded-xl border p-4 bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800">
                 <p className="text-xs font-medium text-muted-foreground mb-1">Entradas</p>
                 <p className="text-lg font-bold text-emerald-600">{fmt(totalReceber)}</p>
               </div>
               <div className="rounded-xl border p-4 bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800">
-                <p className="text-xs font-medium text-muted-foreground mb-1">Saídas</p>
+                <p className="text-xs font-medium text-muted-foreground mb-1">Despesas Reais</p>
                 <p className="text-lg font-bold text-red-600">{fmt(-totalPagar)}</p>
               </div>
               <div className={`rounded-xl border p-4 ${saldo >= 0 ? 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800' : 'bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-800'}`}>
                 <p className="text-xs font-medium text-muted-foreground mb-1">Saldo</p>
                 <p className={`text-lg font-bold ${saldo >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>{fmt(saldo)}</p>
+              </div>
+              <div className="rounded-xl border p-4 bg-gray-50 dark:bg-gray-950/30 border-gray-200 dark:border-gray-800">
+                <p className="text-xs font-medium text-muted-foreground mb-1">Movimentações Internas</p>
+                <p className="text-lg font-bold text-gray-500">{fmt(totalTransfer)}</p>
               </div>
             </div>
           );
