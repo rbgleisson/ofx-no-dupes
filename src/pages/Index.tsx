@@ -90,6 +90,7 @@ const Index = () => {
         category_id: r.category_id || null,
         account_id: r.account_id || null,
         chart_account_id: r.chart_account_id || null,
+        is_transfer: r._is_transfer || false,
         ...(r._fit_id ? { fit_id: r._fit_id, type: r._type } : {}),
       }));
 
