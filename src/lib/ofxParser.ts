@@ -66,7 +66,7 @@ export function parseOFX(content: string): OFXData {
 
     if (datePosted && amountStr) {
       const date = parseOFXDate(datePosted);
-      const amount = parseFloat(amountStr);
+      const amount = parseFloat(amountStr.replace(',', '.'));
       const description = name || memo || 'Sem descrição';
 
       transactions.push({
