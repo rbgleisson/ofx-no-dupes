@@ -287,7 +287,7 @@ const TransactionTable = ({ transactions, categories, accounts, chartAccounts, o
                 const ca = chartAccounts.find(c => c.id === (tx as any).chart_account_id);
                 const amt = Number(tx.amount);
                 return (
-                  <tr key={tx.id} className={`border-b last:border-0 hover:bg-muted/30 transition-colors cursor-pointer ${selectedIds.has(tx.id) ? 'bg-primary/5' : ''}`} onClick={() => setDetailTransaction(tx)}>
+                  <tr key={tx.id} className={`border-b last:border-0 hover:bg-muted/30 transition-colors cursor-pointer ${selectedIds.has(tx.id) ? 'bg-primary/5' : ''} ${tx.is_transfer ? 'opacity-60 bg-muted/20' : ''}`} onClick={() => setDetailTransaction(tx)}>
                     <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
                       <Checkbox
                         checked={selectedIds.has(tx.id)}
