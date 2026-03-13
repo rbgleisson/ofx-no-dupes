@@ -99,6 +99,7 @@ const Index = () => {
       }
 
       setExcelReviewOpen(false);
+      await fetchCategories();
       await loadTransactions();
       setNotification({ type: 'success', message: `${toInsert.length} transações importadas.` });
     } catch {
