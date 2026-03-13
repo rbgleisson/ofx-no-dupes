@@ -98,6 +98,7 @@ export type Database = {
           description: string
           fit_id: string | null
           id: string
+          is_transfer: boolean
           memo: string | null
           type: string | null
           updated_at: string
@@ -114,6 +115,7 @@ export type Database = {
           description: string
           fit_id?: string | null
           id?: string
+          is_transfer?: boolean
           memo?: string | null
           type?: string | null
           updated_at?: string
@@ -130,6 +132,7 @@ export type Database = {
           description?: string
           fit_id?: string | null
           id?: string
+          is_transfer?: boolean
           memo?: string | null
           type?: string | null
           updated_at?: string

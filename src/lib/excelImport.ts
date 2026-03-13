@@ -10,6 +10,7 @@ export interface ExcelRow {
   chart_account_id?: string | null;
   _fit_id?: string;
   _type?: string;
+  _is_transfer?: boolean;
 }
 
 export async function downloadExcelTemplate() {

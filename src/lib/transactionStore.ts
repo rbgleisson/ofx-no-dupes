@@ -12,6 +12,7 @@ export interface Transaction {
   account_id?: string | null;
   chart_account_id?: string | null;
   attachment_url?: string | null;
+  is_transfer?: boolean;
   created_at?: string;
   updated_at?: string;
 }

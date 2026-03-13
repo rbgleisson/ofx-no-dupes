@@ -12,6 +12,7 @@ import {
   ImportResult,
 } from '@/lib/transactionStore';
 import { supabase } from '@/integrations/supabase/client';
+import { classifyTransaction, ensureSystemCategories } from '@/lib/autoCategorize';
 
 import TransactionTable from '@/components/TransactionTable';
 import TransactionFiltersComponent from '@/components/TransactionFilters';
@@ -89,6 +90,7 @@ const Index = () => {
         category_id: r.category_id || null,
         account_id: r.account_id || null,
         chart_account_id: r.chart_account_id || null,
+        is_transfer: r._is_transfer || false,
         ...(r._fit_id ? { fit_id: r._fit_id, type: r._type } : {}),
       }));
 
@@ -97,6 +99,7 @@ const Index = () => {
       }
 
       setExcelReviewOpen(false);
+      await fetchCategories();
       await loadTransactions();
       setNotification({ type: 'success', message: `${toInsert.length} transações importadas.` });
     } catch {
@@ -198,18 +201,26 @@ const Index = () => {
         return;
       }
 
+      // Auto-categorize transactions
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      const { transferCategoryId, investmentIncomeCategoryId } = await ensureSystemCategories(currentUser!.id);
+
       // Convert to ExcelRow format and open review dialog for duplicate detection
-      const rows: ExcelRow[] = uniqueByFitId.map(t => ({
-        date: t.date,
-        amount: t.amount,
-        description: t.description,
-        memo: t.memo || undefined,
-        category_id: null,
-        account_id: accountId,
-        chart_account_id: null,
-        _fit_id: t.id,
-        _type: t.type,
-      }));
+      const rows: ExcelRow[] = uniqueByFitId.map(t => {
+        const classification = classifyTransaction(t.description, t.amount, transferCategoryId, investmentIncomeCategoryId);
+        return {
+          date: t.date,
+          amount: t.amount,
+          description: t.description,
+          memo: t.memo || undefined,
+          category_id: classification.category_id,
+          account_id: accountId,
+          chart_account_id: null,
+          _fit_id: t.id,
+          _type: t.type,
+          _is_transfer: classification.is_transfer,
+        };
+      });
 
       setExcelRows(rows);
       setExcelReviewOpen(true);
@@ -362,23 +373,29 @@ const Index = () => {
 
         {/* Summary Cards */}
         {transactions.length > 0 && (() => {
-          const totalReceber = transactions.filter(t => Number(t.amount) >= 0).reduce((s, t) => s + Number(t.amount), 0);
-          const totalPagar = transactions.filter(t => Number(t.amount) < 0).reduce((s, t) => s + Math.abs(Number(t.amount)), 0);
+          const nonTransfer = transactions.filter(t => !t.is_transfer);
+          const totalReceber = nonTransfer.filter(t => Number(t.amount) >= 0).reduce((s, t) => s + Number(t.amount), 0);
+          const totalPagar = nonTransfer.filter(t => Number(t.amount) < 0).reduce((s, t) => s + Math.abs(Number(t.amount)), 0);
           const saldo = totalReceber - totalPagar;
+          const totalTransfer = transactions.filter(t => t.is_transfer).reduce((s, t) => s + Math.abs(Number(t.amount)), 0);
           const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
           return (
-            <div className="hidden sm:grid grid-cols-3 gap-4 mb-6">
+            <div className="hidden sm:grid grid-cols-4 gap-4 mb-6">
               <div className="rounded-xl border p-4 bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800">
                 <p className="text-xs font-medium text-muted-foreground mb-1">Entradas</p>
                 <p className="text-lg font-bold text-emerald-600">{fmt(totalReceber)}</p>
               </div>
               <div className="rounded-xl border p-4 bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800">
-                <p className="text-xs font-medium text-muted-foreground mb-1">Saídas</p>
+                <p className="text-xs font-medium text-muted-foreground mb-1">Despesas Reais</p>
                 <p className="text-lg font-bold text-red-600">{fmt(-totalPagar)}</p>
               </div>
               <div className={`rounded-xl border p-4 ${saldo >= 0 ? 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800' : 'bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-800'}`}>
                 <p className="text-xs font-medium text-muted-foreground mb-1">Saldo</p>
                 <p className={`text-lg font-bold ${saldo >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>{fmt(saldo)}</p>
+              </div>
+              <div className="rounded-xl border p-4 bg-gray-50 dark:bg-gray-950/30 border-gray-200 dark:border-gray-800">
+                <p className="text-xs font-medium text-muted-foreground mb-1">Movimentações Internas</p>
+                <p className="text-lg font-bold text-gray-500">{fmt(totalTransfer)}</p>
               </div>
             </div>
           );

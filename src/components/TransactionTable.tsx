@@ -3,7 +3,7 @@ import { Transaction, updateTransaction, deleteTransaction } from '@/lib/transac
 import { Category } from '@/components/CategoriesManager';
 import { Account } from '@/components/AccountsManager';
 import { ChartAccount } from '@/components/ChartAccountsManager';
-import { ArrowDownLeft, ArrowUpRight, Paperclip, X, FileText, Loader2, Pencil, Trash2, Check, ChevronsUpDown, ScanLine, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { ArrowDownLeft, ArrowUpRight, Paperclip, X, FileText, Loader2, Pencil, Trash2, Check, ChevronsUpDown, ScanLine, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeftRight } from 'lucide-react';
 import QrScannerDialog from '@/components/QrScannerDialog';
 import TransactionDetailSheet from '@/components/TransactionDetailSheet';
 import { toast } from 'sonner';
@@ -287,7 +287,7 @@ const TransactionTable = ({ transactions, categories, accounts, chartAccounts, o
                 const ca = chartAccounts.find(c => c.id === (tx as any).chart_account_id);
                 const amt = Number(tx.amount);
                 return (
-                  <tr key={tx.id} className={`border-b last:border-0 hover:bg-muted/30 transition-colors cursor-pointer ${selectedIds.has(tx.id) ? 'bg-primary/5' : ''}`} onClick={() => setDetailTransaction(tx)}>
+                  <tr key={tx.id} className={`border-b last:border-0 hover:bg-muted/30 transition-colors cursor-pointer ${selectedIds.has(tx.id) ? 'bg-primary/5' : ''} ${tx.is_transfer ? 'opacity-60 bg-muted/20' : ''}`} onClick={() => setDetailTransaction(tx)}>
                     <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
                       <Checkbox
                         checked={selectedIds.has(tx.id)}
@@ -299,8 +299,10 @@ const TransactionTable = ({ transactions, categories, accounts, chartAccounts, o
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
-                        <div className={`rounded-lg p-1.5 flex-shrink-0 ${amt >= 0 ? 'bg-[hsl(var(--success))]/10' : 'bg-destructive/10'}`}>
-                          {amt >= 0 ? (
+                        <div className={`rounded-lg p-1.5 flex-shrink-0 ${tx.is_transfer ? 'bg-muted' : amt >= 0 ? 'bg-[hsl(var(--success))]/10' : 'bg-destructive/10'}`}>
+                          {tx.is_transfer ? (
+                            <ArrowLeftRight className="w-3.5 h-3.5 text-muted-foreground" />
+                          ) : amt >= 0 ? (
                             <ArrowDownLeft className="w-3.5 h-3.5 text-[hsl(var(--success))]" />
                           ) : (
                             <ArrowUpRight className="w-3.5 h-3.5 text-destructive" />
@@ -308,6 +310,7 @@ const TransactionTable = ({ transactions, categories, accounts, chartAccounts, o
                         </div>
                         <div className="min-w-0">
                           <p className="text-sm font-medium text-foreground truncate">{tx.description}</p>
+                          {tx.is_transfer && <span className="text-[10px] font-medium text-muted-foreground bg-muted px-1.5 py-0.5 rounded">Mov. Interna</span>}
                           {tx.memo && <p className="text-xs text-muted-foreground mt-0.5 truncate">{tx.memo}</p>}
                         </div>
                       </div>
