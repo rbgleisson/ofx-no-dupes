@@ -13,6 +13,7 @@ import {
 } from '@/lib/transactionStore';
 import { supabase } from '@/integrations/supabase/client';
 import { classifyTransaction, ensureSystemCategories } from '@/lib/autoCategorize';
+import { clearAppBrowserStorage } from '@/lib/storageMaintenance';
 
 import TransactionTable from '@/components/TransactionTable';
 import TransactionFiltersComponent from '@/components/TransactionFilters';
@@ -276,6 +277,11 @@ const Index = () => {
     }
   };
 
+  const handleLogout = async () => {
+    clearAppBrowserStorage();
+    await supabase.auth.signOut();
+  };
+
   const handleEditTransaction = (tx: Transaction) => {
     setEditingTransaction(tx);
     setFormOpen(true);
@@ -331,7 +337,7 @@ const Index = () => {
             <Button
               variant="ghost"
               size="sm"
-              onClick={async () => { await supabase.auth.signOut(); }}
+              onClick={handleLogout}
               className="text-muted-foreground hover:text-destructive"
               title="Sair"
             >
@@ -344,7 +350,7 @@ const Index = () => {
           <MobileMenu
             onNewTransaction={() => { setEditingTransaction(null); setFormOpen(true); }}
             onClear={handleClear}
-            onLogout={async () => { await supabase.auth.signOut(); }}
+            onLogout={handleLogout}
             showClear={transactions.length > 0}
             accountsManager={<AccountsManager accounts={accounts} onAccountsChange={fetchAccounts} />}
             categoriesManager={<CategoriesManager categories={categories} onCategoriesChange={fetchCategories} />}

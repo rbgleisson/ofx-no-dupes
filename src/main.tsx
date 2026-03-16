@@ -1,5 +1,14 @@
 import { createRoot } from "react-dom/client";
-import App from "./App.tsx";
 import "./index.css";
+import { runBrowserStorageMaintenance } from "./lib/storageMaintenance";
 
-createRoot(document.getElementById("root")!).render(<App />);
+runBrowserStorageMaintenance();
+
+const root = createRoot(document.getElementById("root")!);
+
+async function bootstrap() {
+  const { default: App } = await import("./App.tsx");
+  root.render(<App />);
+}
+
+bootstrap();
