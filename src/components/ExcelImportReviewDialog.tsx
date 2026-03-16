@@ -319,8 +319,7 @@ const ExcelImportReviewDialog = ({ open, onOpenChange, rows: initialRows, catego
         </div>
 
         {/* Table */}
-        <ScrollArea className="flex-1 min-h-0 max-h-[50vh]">
-          <div className="overflow-x-auto">
+        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-auto" style={{ maxHeight: 'calc(90vh - 320px)' }}>
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b bg-muted/50">
