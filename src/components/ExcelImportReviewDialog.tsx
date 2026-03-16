@@ -495,7 +495,7 @@ const ExcelImportReviewDialog = ({ open, onOpenChange, rows: initialRows, catego
               </tbody>
             </table>
           </div>
-        </ScrollArea>
+        </div>
 
         <DialogFooter className="flex-wrap gap-2">
           <div className="flex-1 text-xs text-muted-foreground">
