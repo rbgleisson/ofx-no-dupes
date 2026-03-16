@@ -319,7 +319,7 @@ const ExcelImportReviewDialog = ({ open, onOpenChange, rows: initialRows, catego
         </div>
 
         {/* Table */}
-        <ScrollArea className="flex-1 min-h-0">
+        <ScrollArea className="flex-1 min-h-0 max-h-[50vh]">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
