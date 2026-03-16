@@ -218,7 +218,7 @@ const ExcelImportReviewDialog = ({ open, onOpenChange, rows: initialRows, catego
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl max-h-[90vh] flex flex-col">
+      <DialogContent className="max-w-5xl max-h-[90vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <ArrowLeftRight className="h-5 w-5" />
@@ -319,7 +319,7 @@ const ExcelImportReviewDialog = ({ open, onOpenChange, rows: initialRows, catego
         </div>
 
         {/* Table */}
-        <ScrollArea className="flex-1 min-h-0">
+        <ScrollArea className="flex-1 min-h-0 max-h-[50vh]">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
