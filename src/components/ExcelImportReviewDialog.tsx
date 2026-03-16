@@ -28,7 +28,7 @@ import {
   CommandItem,
   CommandList,
 } from '@/components/ui/command';
-import { ScrollArea } from '@/components/ui/scroll-area';
+
 import {
   Tooltip,
   TooltipContent,
@@ -319,8 +319,7 @@ const ExcelImportReviewDialog = ({ open, onOpenChange, rows: initialRows, catego
         </div>
 
         {/* Table */}
-        <ScrollArea className="flex-1 min-h-0 max-h-[50vh]">
-          <div className="overflow-x-auto">
+        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-auto" style={{ maxHeight: 'calc(90vh - 320px)' }}>
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b bg-muted/50">
@@ -495,8 +494,7 @@ const ExcelImportReviewDialog = ({ open, onOpenChange, rows: initialRows, catego
                 })}
               </tbody>
             </table>
-          </div>
-        </ScrollArea>
+        </div>
 
         <DialogFooter className="flex-wrap gap-2">
           <div className="flex-1 text-xs text-muted-foreground">
