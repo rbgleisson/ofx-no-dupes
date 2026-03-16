@@ -28,7 +28,7 @@ import {
   CommandItem,
   CommandList,
 } from '@/components/ui/command';
-import { ScrollArea } from '@/components/ui/scroll-area';
+
 import {
   Tooltip,
   TooltipContent,
