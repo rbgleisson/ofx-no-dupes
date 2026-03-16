@@ -277,6 +277,11 @@ const Index = () => {
     }
   };
 
+  const handleLogout = async () => {
+    clearAppBrowserStorage();
+    await supabase.auth.signOut();
+  };
+
   const handleEditTransaction = (tx: Transaction) => {
     setEditingTransaction(tx);
     setFormOpen(true);
