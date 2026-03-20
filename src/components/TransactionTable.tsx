@@ -466,12 +466,16 @@ const TransactionTable = ({ transactions, categories, accounts, chartAccounts, o
                         <button onClick={() => handleScanClick(tx.id)} className="text-muted-foreground hover:text-primary transition-colors" title="Escanear NF-e" disabled={fetchingDanfe === tx.id}>
                           {fetchingDanfe === tx.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ScanLine className="w-3.5 h-3.5" />}
                         </button>
-                        <button onClick={() => onEditTransaction(tx)} className="text-muted-foreground hover:text-foreground transition-colors" title="Editar">
-                          <Pencil className="w-3.5 h-3.5" />
-                        </button>
-                        <button onClick={() => handleDelete(tx.id)} className="text-muted-foreground hover:text-destructive transition-colors" title="Excluir">
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        {onEditTransaction && (
+                          <button onClick={() => onEditTransaction(tx)} className="text-muted-foreground hover:text-foreground transition-colors" title="Editar">
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        {canDelete && (
+                          <button onClick={() => handleDelete(tx.id)} className="text-muted-foreground hover:text-destructive transition-colors" title="Excluir">
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
