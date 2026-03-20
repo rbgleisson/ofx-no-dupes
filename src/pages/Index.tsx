@@ -53,6 +53,7 @@ const Index = ({ onOpenAdmin }: IndexProps) => {
   const ofxInputRef = useRef<HTMLInputElement>(null);
   const xlsxInputRef = useRef<HTMLInputElement>(null);
   const loadRequestRef = useRef(0);
+  const { permissions, isAdmin } = usePermissions();
   const [excelReviewOpen, setExcelReviewOpen] = useState(false);
   const [excelRows, setExcelRows] = useState<ExcelRow[]>([]);
 
