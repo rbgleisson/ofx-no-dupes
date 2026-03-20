@@ -500,7 +500,8 @@ const Index = ({ onOpenAdmin }: IndexProps) => {
                     accounts={accounts}
                     chartAccounts={chartAccounts}
                     onTransactionsChange={loadTransactions}
-                    onEditTransaction={handleEditTransaction}
+                    onEditTransaction={permissions.can_edit_transactions ? handleEditTransaction : undefined}
+                    canDelete={permissions.can_delete_transactions}
                   />
                 ) : (
                   <div className="text-center py-12">
