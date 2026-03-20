@@ -390,6 +390,7 @@ const Index = ({ onOpenAdmin }: IndexProps) => {
                 Admin
               </Button>
             )}
+            <ChangePasswordDialog />
             <Button
               variant="ghost"
               size="sm"
