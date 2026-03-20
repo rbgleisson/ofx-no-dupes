@@ -24,7 +24,8 @@ import ChartAccountsManager, { ChartAccount } from '@/components/ChartAccountsMa
 import ExportDialog from '@/components/ExportDialog';
 import ExcelImportReviewDialog from '@/components/ExcelImportReviewDialog';
 import { ExcelRow, parseExcelFile, downloadExcelTemplate } from '@/lib/excelImport';
-import { Trash2, FileText, CheckCircle2, AlertCircle, Plus, Upload, LogOut, Download, FileSpreadsheet } from 'lucide-react';
+import { Trash2, FileText, CheckCircle2, AlertCircle, Plus, Upload, LogOut, Download, FileSpreadsheet, HardDrive } from 'lucide-react';
+import { createFullBackup } from '@/lib/backupExport';
 import MobileMenu from '@/components/MobileMenu';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -43,6 +44,7 @@ const Index = () => {
   const [notification, setNotification] = useState<{ type: 'success' | 'warning'; message: string } | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+  const [backupProgress, setBackupProgress] = useState<string | null>(null);
   const ofxInputRef = useRef<HTMLInputElement>(null);
   const xlsxInputRef = useRef<HTMLInputElement>(null);
   const loadRequestRef = useRef(0);
@@ -322,6 +324,25 @@ const Index = () => {
             <Button size="sm" onClick={downloadExcelTemplate} variant="ghost" title="Baixar modelo Excel">
               <Download className="w-4 h-4 mr-1.5" />
               Modelo
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={!!backupProgress}
+              onClick={async () => {
+                try {
+                  await createFullBackup(setBackupProgress);
+                  setNotification({ type: 'success', message: 'Backup gerado com sucesso!' });
+                } catch {
+                  setNotification({ type: 'warning', message: 'Erro ao gerar backup.' });
+                } finally {
+                  setBackupProgress(null);
+                }
+              }}
+              title="Backup completo (ZIP com dados + anexos)"
+            >
+              <HardDrive className="w-4 h-4 mr-1.5" />
+              {backupProgress || 'Backup'}
             </Button>
             {transactions.length > 0 && (
               <Button
