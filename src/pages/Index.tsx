@@ -24,13 +24,18 @@ import ChartAccountsManager, { ChartAccount } from '@/components/ChartAccountsMa
 import ExportDialog from '@/components/ExportDialog';
 import ExcelImportReviewDialog from '@/components/ExcelImportReviewDialog';
 import { ExcelRow, parseExcelFile, downloadExcelTemplate } from '@/lib/excelImport';
-import { Trash2, FileText, CheckCircle2, AlertCircle, Plus, Upload, LogOut, Download, FileSpreadsheet, HardDrive } from 'lucide-react';
+import { Trash2, FileText, CheckCircle2, AlertCircle, Plus, Upload, LogOut, Download, FileSpreadsheet, HardDrive, Shield } from 'lucide-react';
 import { createFullBackup } from '@/lib/backupExport';
 import MobileMenu from '@/components/MobileMenu';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { usePermissions } from '@/hooks/usePermissions';
 
-const Index = () => {
+interface IndexProps {
+  onOpenAdmin?: () => void;
+}
+
+const Index = ({ onOpenAdmin }: IndexProps) => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -48,6 +53,7 @@ const Index = () => {
   const ofxInputRef = useRef<HTMLInputElement>(null);
   const xlsxInputRef = useRef<HTMLInputElement>(null);
   const loadRequestRef = useRef(0);
+  const { permissions, isAdmin } = usePermissions();
   const [excelReviewOpen, setExcelReviewOpen] = useState(false);
   const [excelRows, setExcelRows] = useState<ExcelRow[]>([]);
 
@@ -303,48 +309,64 @@ const Index = () => {
           </div>
           {/* Desktop buttons */}
           <div className="hidden lg:flex items-center gap-2 flex-wrap">
-            <Button size="sm" onClick={() => { setEditingTransaction(null); setFormOpen(true); }} className="bg-emerald-600 hover:bg-emerald-700 text-white border-0">
-              <Plus className="w-4 h-4 mr-1.5" />
-              Lançamento
-            </Button>
-            <AccountsManager accounts={accounts} onAccountsChange={fetchAccounts} />
-            <CategoriesManager categories={categories} onCategoriesChange={fetchCategories} />
-            <ChartAccountsManager chartAccounts={chartAccounts} onChartAccountsChange={fetchChartAccounts} />
-            <ExportDialog transactions={transactions} categories={categories} accounts={accounts} chartAccounts={chartAccounts} />
-            <input ref={ofxInputRef} type="file" accept=".ofx,.qfx" onChange={handleOfxFileChange} className="hidden" />
-            <Button size="sm" onClick={() => ofxInputRef.current?.click()} className="bg-slate-700 hover:bg-slate-800 text-white border-0">
-              <Upload className="w-4 h-4 mr-1.5" />
-              Importar OFX
-            </Button>
-            <input ref={xlsxInputRef} type="file" accept=".xlsx,.xls" onChange={handleXlsxFileChange} className="hidden" />
-            <Button size="sm" onClick={() => xlsxInputRef.current?.click()} variant="outline">
-              <FileSpreadsheet className="w-4 h-4 mr-1.5" />
-              Importar Excel
-            </Button>
-            <Button size="sm" onClick={downloadExcelTemplate} variant="ghost" title="Baixar modelo Excel">
-              <Download className="w-4 h-4 mr-1.5" />
-              Modelo
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={!!backupProgress}
-              onClick={async () => {
-                try {
-                  await createFullBackup(setBackupProgress);
-                  setNotification({ type: 'success', message: 'Backup gerado com sucesso!' });
-                } catch {
-                  setNotification({ type: 'warning', message: 'Erro ao gerar backup.' });
-                } finally {
-                  setBackupProgress(null);
-                }
-              }}
-              title="Backup completo (ZIP com dados + anexos)"
-            >
-              <HardDrive className="w-4 h-4 mr-1.5" />
-              {backupProgress || 'Backup'}
-            </Button>
-            {transactions.length > 0 && (
+            {permissions.can_create_transactions && (
+              <Button size="sm" onClick={() => { setEditingTransaction(null); setFormOpen(true); }} className="bg-emerald-600 hover:bg-emerald-700 text-white border-0">
+                <Plus className="w-4 h-4 mr-1.5" />
+                Lançamento
+              </Button>
+            )}
+            {permissions.can_manage_accounts && (
+              <AccountsManager accounts={accounts} onAccountsChange={fetchAccounts} />
+            )}
+            {permissions.can_manage_categories && (
+              <CategoriesManager categories={categories} onCategoriesChange={fetchCategories} />
+            )}
+            {permissions.can_manage_chart_accounts && (
+              <ChartAccountsManager chartAccounts={chartAccounts} onChartAccountsChange={fetchChartAccounts} />
+            )}
+            {permissions.can_export && (
+              <ExportDialog transactions={transactions} categories={categories} accounts={accounts} chartAccounts={chartAccounts} />
+            )}
+            {permissions.can_import && (
+              <>
+                <input ref={ofxInputRef} type="file" accept=".ofx,.qfx" onChange={handleOfxFileChange} className="hidden" />
+                <Button size="sm" onClick={() => ofxInputRef.current?.click()} className="bg-slate-700 hover:bg-slate-800 text-white border-0">
+                  <Upload className="w-4 h-4 mr-1.5" />
+                  Importar OFX
+                </Button>
+                <input ref={xlsxInputRef} type="file" accept=".xlsx,.xls" onChange={handleXlsxFileChange} className="hidden" />
+                <Button size="sm" onClick={() => xlsxInputRef.current?.click()} variant="outline">
+                  <FileSpreadsheet className="w-4 h-4 mr-1.5" />
+                  Importar Excel
+                </Button>
+                <Button size="sm" onClick={downloadExcelTemplate} variant="ghost" title="Baixar modelo Excel">
+                  <Download className="w-4 h-4 mr-1.5" />
+                  Modelo
+                </Button>
+              </>
+            )}
+            {permissions.can_backup && (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={!!backupProgress}
+                onClick={async () => {
+                  try {
+                    await createFullBackup(setBackupProgress);
+                    setNotification({ type: 'success', message: 'Backup gerado com sucesso!' });
+                  } catch {
+                    setNotification({ type: 'warning', message: 'Erro ao gerar backup.' });
+                  } finally {
+                    setBackupProgress(null);
+                  }
+                }}
+                title="Backup completo (ZIP com dados + anexos)"
+              >
+                <HardDrive className="w-4 h-4 mr-1.5" />
+                {backupProgress || 'Backup'}
+              </Button>
+            )}
+            {permissions.can_clear_all && transactions.length > 0 && (
               <Button
                 variant="outline"
                 size="sm"
@@ -353,6 +375,18 @@ const Index = () => {
               >
                 <Trash2 className="w-4 h-4 mr-1.5" />
                 Limpar
+              </Button>
+            )}
+            {isAdmin && onOpenAdmin && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onOpenAdmin}
+                className="text-primary border-primary/30"
+                title="Painel Administrativo"
+              >
+                <Shield className="w-4 h-4 mr-1.5" />
+                Admin
               </Button>
             )}
             <Button
@@ -399,7 +433,7 @@ const Index = () => {
 
 
         {/* Summary Cards */}
-        {transactions.length > 0 && (() => {
+        {permissions.can_view_totals && transactions.length > 0 && (() => {
           const nonTransfer = transactions.filter(t => !t.is_transfer);
           const totalReceber = nonTransfer.filter(t => Number(t.amount) >= 0).reduce((s, t) => s + Number(t.amount), 0);
           const totalPagar = nonTransfer.filter(t => Number(t.amount) < 0).reduce((s, t) => s + Math.abs(Number(t.amount)), 0);
@@ -466,7 +500,8 @@ const Index = () => {
                     accounts={accounts}
                     chartAccounts={chartAccounts}
                     onTransactionsChange={loadTransactions}
-                    onEditTransaction={handleEditTransaction}
+                    onEditTransaction={permissions.can_edit_transactions ? handleEditTransaction : undefined}
+                    canDelete={permissions.can_delete_transactions}
                   />
                 ) : (
                   <div className="text-center py-12">
