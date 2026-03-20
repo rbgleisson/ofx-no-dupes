@@ -325,6 +325,25 @@ const Index = () => {
               <Download className="w-4 h-4 mr-1.5" />
               Modelo
             </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={!!backupProgress}
+              onClick={async () => {
+                try {
+                  await createFullBackup(setBackupProgress);
+                  setNotification({ type: 'success', message: 'Backup gerado com sucesso!' });
+                } catch {
+                  setNotification({ type: 'warning', message: 'Erro ao gerar backup.' });
+                } finally {
+                  setBackupProgress(null);
+                }
+              }}
+              title="Backup completo (ZIP com dados + anexos)"
+            >
+              <HardDrive className="w-4 h-4 mr-1.5" />
+              {backupProgress || 'Backup'}
+            </Button>
             {transactions.length > 0 && (
               <Button
                 variant="outline"
