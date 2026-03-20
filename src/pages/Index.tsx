@@ -24,7 +24,8 @@ import ChartAccountsManager, { ChartAccount } from '@/components/ChartAccountsMa
 import ExportDialog from '@/components/ExportDialog';
 import ExcelImportReviewDialog from '@/components/ExcelImportReviewDialog';
 import { ExcelRow, parseExcelFile, downloadExcelTemplate } from '@/lib/excelImport';
-import { Trash2, FileText, CheckCircle2, AlertCircle, Plus, Upload, LogOut, Download, FileSpreadsheet } from 'lucide-react';
+import { Trash2, FileText, CheckCircle2, AlertCircle, Plus, Upload, LogOut, Download, FileSpreadsheet, HardDrive } from 'lucide-react';
+import { createFullBackup } from '@/lib/backupExport';
 import MobileMenu from '@/components/MobileMenu';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
