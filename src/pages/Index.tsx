@@ -433,7 +433,7 @@ const Index = ({ onOpenAdmin }: IndexProps) => {
 
 
         {/* Summary Cards */}
-        {transactions.length > 0 && (() => {
+        {permissions.can_view_totals && transactions.length > 0 && (() => {
           const nonTransfer = transactions.filter(t => !t.is_transfer);
           const totalReceber = nonTransfer.filter(t => Number(t.amount) >= 0).reduce((s, t) => s + Number(t.amount), 0);
           const totalPagar = nonTransfer.filter(t => Number(t.amount) < 0).reduce((s, t) => s + Math.abs(Number(t.amount)), 0);
