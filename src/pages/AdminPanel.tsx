@@ -5,6 +5,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { ArrowLeft, Shield, Users, Loader2, UserPlus, Trash2 } from 'lucide-react';
+import AuthorizedEmailsManager from '@/components/AuthorizedEmailsManager';
 import { useToast } from '@/hooks/use-toast';
 import {
   Dialog,
