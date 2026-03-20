@@ -162,6 +162,63 @@ export type Database = {
           },
         ]
       }
+      user_permissions: {
+        Row: {
+          can_backup: boolean
+          can_clear_all: boolean
+          can_create_transactions: boolean
+          can_delete_transactions: boolean
+          can_edit_transactions: boolean
+          can_export: boolean
+          can_import: boolean
+          can_manage_accounts: boolean
+          can_manage_categories: boolean
+          can_manage_chart_accounts: boolean
+          can_view_totals: boolean
+          created_at: string
+          id: string
+          is_active: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          can_backup?: boolean
+          can_clear_all?: boolean
+          can_create_transactions?: boolean
+          can_delete_transactions?: boolean
+          can_edit_transactions?: boolean
+          can_export?: boolean
+          can_import?: boolean
+          can_manage_accounts?: boolean
+          can_manage_categories?: boolean
+          can_manage_chart_accounts?: boolean
+          can_view_totals?: boolean
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          can_backup?: boolean
+          can_clear_all?: boolean
+          can_create_transactions?: boolean
+          can_delete_transactions?: boolean
+          can_edit_transactions?: boolean
+          can_export?: boolean
+          can_import?: boolean
+          can_manage_accounts?: boolean
+          can_manage_categories?: boolean
+          can_manage_chart_accounts?: boolean
+          can_view_totals?: boolean
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -188,12 +245,21 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_user_permissions: { Args: { _user_id: string }; Returns: Json }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
         Returns: boolean
+      }
+      list_all_users: {
+        Args: never
+        Returns: {
+          created_at: string
+          email: string
+          id: string
+        }[]
       }
     }
     Enums: {
