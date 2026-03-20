@@ -24,6 +24,7 @@ const AppRoutes = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [isRecovery, setIsRecovery] = useState(false);
+  const [showAdmin, setShowAdmin] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -54,8 +55,6 @@ const AppRoutes = () => {
       </div>
     );
   }
-
-  const [showAdmin, setShowAdmin] = useState(false);
 
   if (showAdmin && session) {
     return <AdminPanel onBack={() => setShowAdmin(false)} />;
