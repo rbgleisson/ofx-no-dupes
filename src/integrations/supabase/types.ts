@@ -38,6 +38,27 @@ export type Database = {
         }
         Relationships: []
       }
+      authorized_emails: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          email: string
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          email: string
+          id?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          email?: string
+          id?: string
+        }
+        Relationships: []
+      }
       categories: {
         Row: {
           color: string
@@ -253,6 +274,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_email_authorized: { Args: { _email: string }; Returns: boolean }
       list_all_users: {
         Args: never
         Returns: {
