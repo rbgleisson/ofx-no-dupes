@@ -55,11 +55,17 @@ const AppRoutes = () => {
     );
   }
 
+  const [showAdmin, setShowAdmin] = useState(false);
+
+  if (showAdmin && session) {
+    return <AdminPanel onBack={() => setShowAdmin(false)} />;
+  }
+
   return (
     <Routes>
       <Route path="/auth" element={session && !isRecovery ? <Navigate to="/" replace /> : <Auth />} />
       <Route path="/reset-password" element={<ResetPassword onPasswordUpdated={() => setIsRecovery(false)} />} />
-      <Route path="/" element={<ProtectedRoute session={session}><Index /></ProtectedRoute>} />
+      <Route path="/" element={<ProtectedRoute session={session}><Index onOpenAdmin={() => setShowAdmin(true)} /></ProtectedRoute>} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
