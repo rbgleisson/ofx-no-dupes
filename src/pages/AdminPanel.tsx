@@ -251,6 +251,11 @@ const AdminPanel = ({ onBack }: AdminPanelProps) => {
           </Button>
         </div>
 
+        {/* Authorized Emails */}
+        <div className="rounded-xl border bg-card p-4 mb-6">
+          <AuthorizedEmailsManager />
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* User list */}
           <div className="rounded-xl border bg-card p-4">
