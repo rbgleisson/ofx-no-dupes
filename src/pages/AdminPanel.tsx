@@ -5,6 +5,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { ArrowLeft, Shield, Users, Loader2, UserPlus, Trash2 } from 'lucide-react';
+import AuthorizedEmailsManager from '@/components/AuthorizedEmailsManager';
 import { useToast } from '@/hooks/use-toast';
 import {
   Dialog,
@@ -248,6 +249,11 @@ const AdminPanel = ({ onBack }: AdminPanelProps) => {
             <UserPlus className="w-4 h-4 mr-1.5" />
             Novo Usuário
           </Button>
+        </div>
+
+        {/* Authorized Emails */}
+        <div className="rounded-xl border bg-card p-4 mb-6">
+          <AuthorizedEmailsManager />
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

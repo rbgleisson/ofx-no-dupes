@@ -19,6 +19,14 @@ const Auth = () => {
     setMessage(null);
 
     try {
+      // Check if email is authorized
+      const { data: isAuthorized } = await supabase.rpc('is_email_authorized', { _email: email });
+      if (!isAuthorized) {
+        setMessage({ type: 'error', text: 'Este e-mail não está autorizado. Solicite acesso ao administrador.' });
+        setLoading(false);
+        return;
+      }
+
       if (isLogin) {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;

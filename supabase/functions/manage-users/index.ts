@@ -47,6 +47,12 @@ Deno.serve(async (req) => {
         });
       }
 
+      // Auto-authorize the email if not already
+      await supabaseAdmin.from('authorized_emails').upsert(
+        { email: email.toLowerCase() },
+        { onConflict: 'email' }
+      );
+
       const { data, error } = await supabaseAdmin.auth.admin.createUser({
         email,
         password,
