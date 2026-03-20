@@ -48,10 +48,11 @@ interface TransactionTableProps {
   accounts: Account[];
   chartAccounts: ChartAccount[];
   onTransactionsChange: () => void;
-  onEditTransaction: (tx: Transaction) => void;
+  onEditTransaction?: (tx: Transaction) => void;
+  canDelete?: boolean;
 }
 
-const TransactionTable = ({ transactions, categories, accounts, chartAccounts, onTransactionsChange, onEditTransaction }: TransactionTableProps) => {
+const TransactionTable = ({ transactions, categories, accounts, chartAccounts, onTransactionsChange, onEditTransaction, canDelete = true }: TransactionTableProps) => {
   const [uploading, setUploading] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [activeTransactionId, setActiveTransactionId] = useState<string | null>(null);
