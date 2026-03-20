@@ -27,6 +27,7 @@ import { ExcelRow, parseExcelFile, downloadExcelTemplate } from '@/lib/excelImpo
 import { Trash2, FileText, CheckCircle2, AlertCircle, Plus, Upload, LogOut, Download, FileSpreadsheet, HardDrive, Shield } from 'lucide-react';
 import { createFullBackup } from '@/lib/backupExport';
 import MobileMenu from '@/components/MobileMenu';
+import ChangePasswordDialog from '@/components/ChangePasswordDialog';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -389,6 +390,7 @@ const Index = ({ onOpenAdmin }: IndexProps) => {
                 Admin
               </Button>
             )}
+            <ChangePasswordDialog />
             <Button
               variant="ghost"
               size="sm"
