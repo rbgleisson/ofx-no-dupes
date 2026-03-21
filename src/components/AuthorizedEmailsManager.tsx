@@ -39,9 +39,11 @@ const AuthorizedEmailsManager = () => {
     if (!newEmail.trim()) return;
     setAdding(true);
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const orgId = user ? (await supabase.rpc('get_user_org_id', { _user_id: user.id })).data : null;
       const { error } = await supabase
         .from('authorized_emails')
-        .insert({ email: newEmail.trim().toLowerCase() });
+        .insert({ email: newEmail.trim().toLowerCase(), organization_id: orgId });
       if (error) throw error;
       toast({ title: 'Sucesso', description: `E-mail ${newEmail} autorizado.` });
       setNewEmail('');
