@@ -381,13 +381,25 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
                 Limpar
               </Button>
             )}
-            {isAdmin && onOpenAdmin && (
+            {(isOwner || isSuperAdmin) && onOpenOrgSettings && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onOpenOrgSettings}
+                className="text-primary border-primary/30"
+                title="Configurações da Empresa"
+              >
+                <Building className="w-4 h-4 mr-1.5" />
+                Empresa
+              </Button>
+            )}
+            {isSuperAdmin && onOpenAdmin && (
               <Button
                 variant="outline"
                 size="sm"
                 onClick={onOpenAdmin}
                 className="text-primary border-primary/30"
-                title="Painel Administrativo"
+                title="Super Admin"
               >
                 <Shield className="w-4 h-4 mr-1.5" />
                 Admin
