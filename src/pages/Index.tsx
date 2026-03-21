@@ -34,6 +34,7 @@ import { usePermissions } from '@/hooks/usePermissions';
 
 interface IndexProps {
   onOpenAdmin?: () => void;
+  onOpenOrgSettings?: () => void;
 }
 
 const Index = ({ onOpenAdmin }: IndexProps) => {
