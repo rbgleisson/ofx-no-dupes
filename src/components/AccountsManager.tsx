@@ -40,7 +40,8 @@ const AccountsManager = ({ accounts, onAccountsChange }: AccountsManagerProps) =
     if (!newName.trim()) return;
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    const { error } = await supabase.from('accounts').insert({ name: newName.trim(), color: newColor, user_id: user.id });
+    const { data: orgId } = await supabase.rpc('get_user_org_id', { _user_id: user.id });
+    const { error } = await supabase.from('accounts').insert({ name: newName.trim(), color: newColor, user_id: user.id, organization_id: orgId });
     if (!error) {
       setNewName('');
       setNewColor(PRESET_COLORS[0]);

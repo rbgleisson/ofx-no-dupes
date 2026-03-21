@@ -38,7 +38,8 @@ const ChartAccountsManager = ({ chartAccounts, onChartAccountsChange }: ChartAcc
       toast.error('Usuário não autenticado. Faça login novamente.');
       return;
     }
-    const { error } = await supabase.from('chart_accounts').insert({ code: code.trim(), name: name.trim(), user_id: user.id });
+    const { data: orgId } = await supabase.rpc('get_user_org_id', { _user_id: user.id });
+    const { error } = await supabase.from('chart_accounts').insert({ code: code.trim(), name: name.trim(), user_id: user.id, organization_id: orgId });
     if (error) {
       toast.error('Erro ao adicionar: ' + error.message);
       return;
