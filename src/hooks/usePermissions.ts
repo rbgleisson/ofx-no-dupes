@@ -34,6 +34,8 @@ const ALL_PERMISSIONS: UserPermissions = {
 export function usePermissions() {
   const [permissions, setPermissions] = useState<UserPermissions>(ALL_PERMISSIONS);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [isOwner, setIsOwner] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -44,12 +46,38 @@ export function usePermissions() {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user || cancelled) return;
 
-        // Check admin
+        // Check super_admin
+        const { data: superCheck } = await supabase.rpc('is_super_admin', { _user_id: user.id });
+        if (cancelled) return;
+
+        if (superCheck) {
+          setIsSuperAdmin(true);
+          setIsAdmin(true);
+          setPermissions(ALL_PERMISSIONS);
+          setLoading(false);
+          return;
+        }
+
+        // Check owner
+        const { data: ownerCheck } = await supabase.rpc('has_role', {
+          _user_id: user.id,
+          _role: 'owner',
+        });
+        if (cancelled) return;
+
+        if (ownerCheck) {
+          setIsOwner(true);
+          setIsAdmin(true);
+          setPermissions(ALL_PERMISSIONS);
+          setLoading(false);
+          return;
+        }
+
+        // Check admin (legacy)
         const { data: adminCheck } = await supabase.rpc('has_role', {
           _user_id: user.id,
           _role: 'admin',
         });
-        
         if (cancelled) return;
 
         if (adminCheck) {
@@ -94,5 +122,5 @@ export function usePermissions() {
     return () => { cancelled = true; };
   }, []);
 
-  return { permissions, isAdmin, loading };
+  return { permissions, isAdmin, isSuperAdmin, isOwner, loading };
 }
