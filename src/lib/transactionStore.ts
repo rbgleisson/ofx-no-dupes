@@ -13,6 +13,7 @@ export interface Transaction {
   chart_account_id?: string | null;
   attachment_url?: string | null;
   is_transfer?: boolean;
+  organization_id?: string | null;
   created_at?: string;
   updated_at?: string;
 }
@@ -55,6 +56,14 @@ function normalizeTransaction(tx: any): Transaction {
     description: typeof tx?.description === 'string' ? tx.description : '',
     memo: typeof tx?.memo === 'string' ? tx.memo : null,
   } as Transaction;
+}
+
+async function getOrgId(): Promise<string> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+  const { data } = await supabase.rpc('get_user_org_id', { _user_id: user.id });
+  if (!data) throw new Error('No organization found');
+  return data as string;
 }
 
 export async function fetchTransactions(filters?: TransactionFilters): Promise<Transaction[]> {
@@ -107,14 +116,15 @@ export async function importTransactions(
   newTransactions: { fit_id: string; type: string; date: string; amount: number; description: string; memo?: string; account_id?: string | null }[]
 ): Promise<ImportResult> {
   const userId = await getUserId();
+  const orgId = await getOrgId();
   const { data: existing } = await supabase.from('transactions').select('fit_id');
   const existingIds = new Set((existing || []).map(t => t.fit_id).filter(Boolean));
 
   const unique = newTransactions.filter(t => !existingIds.has(t.fit_id));
 
   if (unique.length > 0) {
-    const withUserId = unique.map(t => ({ ...t, user_id: userId }));
-    const { error } = await supabase.from('transactions').insert(withUserId);
+    const withIds = unique.map(t => ({ ...t, user_id: userId, organization_id: orgId }));
+    const { error } = await supabase.from('transactions').insert(withIds);
     if (error) throw error;
   }
 
@@ -127,7 +137,8 @@ export async function importTransactions(
 
 export async function addTransaction(tx: Omit<Transaction, 'id' | 'created_at' | 'updated_at'>): Promise<Transaction> {
   const userId = await getUserId();
-  const { data, error } = await supabase.from('transactions').insert({ ...tx, user_id: userId }).select().single();
+  const orgId = await getOrgId();
+  const { data, error } = await supabase.from('transactions').insert({ ...tx, user_id: userId, organization_id: orgId }).select().single();
   if (error) throw error;
   return data as Transaction;
 }

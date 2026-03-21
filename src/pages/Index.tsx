@@ -24,19 +24,21 @@ import ChartAccountsManager, { ChartAccount } from '@/components/ChartAccountsMa
 import ExportDialog from '@/components/ExportDialog';
 import ExcelImportReviewDialog from '@/components/ExcelImportReviewDialog';
 import { ExcelRow, parseExcelFile, downloadExcelTemplate } from '@/lib/excelImport';
-import { Trash2, FileText, CheckCircle2, AlertCircle, Plus, Upload, LogOut, Download, FileSpreadsheet, HardDrive, Shield } from 'lucide-react';
+import { Trash2, FileText, CheckCircle2, AlertCircle, Plus, Upload, LogOut, Download, FileSpreadsheet, HardDrive, Shield, Building } from 'lucide-react';
 import { createFullBackup } from '@/lib/backupExport';
 import MobileMenu from '@/components/MobileMenu';
 import ChangePasswordDialog from '@/components/ChangePasswordDialog';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { usePermissions } from '@/hooks/usePermissions';
+import { useOrganization } from '@/hooks/useOrganization';
 
 interface IndexProps {
   onOpenAdmin?: () => void;
+  onOpenOrgSettings?: () => void;
 }
 
-const Index = ({ onOpenAdmin }: IndexProps) => {
+const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -54,7 +56,8 @@ const Index = ({ onOpenAdmin }: IndexProps) => {
   const ofxInputRef = useRef<HTMLInputElement>(null);
   const xlsxInputRef = useRef<HTMLInputElement>(null);
   const loadRequestRef = useRef(0);
-  const { permissions, isAdmin } = usePermissions();
+  const { permissions, isAdmin, isSuperAdmin, isOwner } = usePermissions();
+  const { organization } = useOrganization();
   const [excelReviewOpen, setExcelReviewOpen] = useState(false);
   const [excelRows, setExcelRows] = useState<ExcelRow[]>([]);
 
@@ -188,9 +191,10 @@ const Index = ({ onOpenAdmin }: IndexProps) => {
         if (existing) {
           accountId = existing.id;
         } else {
+          const { data: orgId } = await supabase.rpc('get_user_org_id', { _user_id: user.id });
           const { data: created } = await supabase
             .from('accounts')
-            .insert({ name: accountName, user_id: user.id })
+            .insert({ name: accountName, user_id: user.id, organization_id: orgId })
             .select('id')
             .single();
           if (created) {
@@ -378,13 +382,25 @@ const Index = ({ onOpenAdmin }: IndexProps) => {
                 Limpar
               </Button>
             )}
-            {isAdmin && onOpenAdmin && (
+            {(isOwner || isSuperAdmin) && onOpenOrgSettings && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onOpenOrgSettings}
+                className="text-primary border-primary/30"
+                title="Configurações da Empresa"
+              >
+                <Building className="w-4 h-4 mr-1.5" />
+                Empresa
+              </Button>
+            )}
+            {isSuperAdmin && onOpenAdmin && (
               <Button
                 variant="outline"
                 size="sm"
                 onClick={onOpenAdmin}
                 className="text-primary border-primary/30"
-                title="Painel Administrativo"
+                title="Super Admin"
               >
                 <Shield className="w-4 h-4 mr-1.5" />
                 Admin

@@ -7,10 +7,12 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Session } from "@supabase/supabase-js";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import { OrganizationContext, useOrganizationLoader } from "@/hooks/useOrganization";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
 import AdminPanel from "./pages/AdminPanel";
+import OrgSettings from "./pages/OrgSettings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -25,7 +27,9 @@ const AppRoutes = () => {
   const [loading, setLoading] = useState(true);
   const [isRecovery, setIsRecovery] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
+  const [showOrgSettings, setShowOrgSettings] = useState(false);
   const navigate = useNavigate();
+  const orgContext = useOrganizationLoader();
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
@@ -48,7 +52,7 @@ const AppRoutes = () => {
     return () => subscription.unsubscribe();
   }, [navigate]);
 
-  if (loading) {
+  if (loading || (session && orgContext.loading)) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
@@ -56,17 +60,38 @@ const AppRoutes = () => {
     );
   }
 
+  if (showOrgSettings && session) {
+    return (
+      <OrganizationContext.Provider value={orgContext}>
+        <OrgSettings onBack={() => setShowOrgSettings(false)} />
+      </OrganizationContext.Provider>
+    );
+  }
+
   if (showAdmin && session) {
-    return <AdminPanel onBack={() => setShowAdmin(false)} />;
+    return (
+      <OrganizationContext.Provider value={orgContext}>
+        <AdminPanel onBack={() => setShowAdmin(false)} />
+      </OrganizationContext.Provider>
+    );
   }
 
   return (
-    <Routes>
-      <Route path="/auth" element={session && !isRecovery ? <Navigate to="/" replace /> : <Auth />} />
-      <Route path="/reset-password" element={<ResetPassword onPasswordUpdated={() => setIsRecovery(false)} />} />
-      <Route path="/" element={<ProtectedRoute session={session}><Index onOpenAdmin={() => setShowAdmin(true)} /></ProtectedRoute>} />
-      <Route path="*" element={<NotFound />} />
-    </Routes>
+    <OrganizationContext.Provider value={orgContext}>
+      <Routes>
+        <Route path="/auth" element={session && !isRecovery ? <Navigate to="/" replace /> : <Auth />} />
+        <Route path="/reset-password" element={<ResetPassword onPasswordUpdated={() => setIsRecovery(false)} />} />
+        <Route path="/" element={
+          <ProtectedRoute session={session}>
+            <Index
+              onOpenAdmin={() => setShowAdmin(true)}
+              onOpenOrgSettings={() => setShowOrgSettings(true)}
+            />
+          </ProtectedRoute>
+        } />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </OrganizationContext.Provider>
   );
 };
 
