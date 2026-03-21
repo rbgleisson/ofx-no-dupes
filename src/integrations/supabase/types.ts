@@ -387,6 +387,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_user_org_id: { Args: { _user_id: string }; Returns: string }
       get_user_permissions: { Args: { _user_id: string }; Returns: Json }
       has_role: {
         Args: {
@@ -396,8 +397,21 @@ export type Database = {
         Returns: boolean
       }
       is_email_authorized: { Args: { _email: string }; Returns: boolean }
+      is_org_owner: {
+        Args: { _org_id: string; _user_id: string }
+        Returns: boolean
+      }
+      is_super_admin: { Args: { _user_id: string }; Returns: boolean }
       list_all_users: {
         Args: never
+        Returns: {
+          created_at: string
+          email: string
+          id: string
+        }[]
+      }
+      list_org_users: {
+        Args: { _org_id: string }
         Returns: {
           created_at: string
           email: string
