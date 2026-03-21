@@ -37,7 +37,7 @@ interface IndexProps {
   onOpenOrgSettings?: () => void;
 }
 
-const Index = ({ onOpenAdmin }: IndexProps) => {
+const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
