@@ -191,9 +191,10 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
         if (existing) {
           accountId = existing.id;
         } else {
+          const { data: orgId } = await supabase.rpc('get_user_org_id', { _user_id: user.id });
           const { data: created } = await supabase
             .from('accounts')
-            .insert({ name: accountName, user_id: user.id })
+            .insert({ name: accountName, user_id: user.id, organization_id: orgId })
             .select('id')
             .single();
           if (created) {
