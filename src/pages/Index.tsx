@@ -31,6 +31,7 @@ import ChangePasswordDialog from '@/components/ChangePasswordDialog';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { usePermissions } from '@/hooks/usePermissions';
+import { useOrganization } from '@/hooks/useOrganization';
 
 interface IndexProps {
   onOpenAdmin?: () => void;
