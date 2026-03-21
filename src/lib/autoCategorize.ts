@@ -33,10 +33,13 @@ async function ensureSystemCategories(userId: string): Promise<{
   transferCategoryId: string;
   investmentIncomeCategoryId: string;
 }> {
+  // Get org_id for the user
+  const { data: orgId } = await supabase.rpc('get_user_org_id', { _user_id: userId });
+
   const names = ['Transferência Interna', 'Receita de Investimento'];
   const colors: Record<string, string> = {
-    'Transferência Interna': '#9ca3af',       // gray
-    'Receita de Investimento': '#10b981',      // emerald
+    'Transferência Interna': '#9ca3af',
+    'Receita de Investimento': '#10b981',
   };
 
   const result: Record<string, string> = {};
@@ -53,7 +56,7 @@ async function ensureSystemCategories(userId: string): Promise<{
     } else {
       const { data: created } = await supabase
         .from('categories')
-        .insert({ name, color: colors[name], user_id: userId })
+        .insert({ name, color: colors[name], user_id: userId, organization_id: orgId })
         .select('id')
         .single();
       if (created) result[name] = created.id;
@@ -68,7 +71,6 @@ async function ensureSystemCategories(userId: string): Promise<{
 
 /**
  * Auto-categorizes a transaction based on description + amount.
- * Returns category_id and is_transfer flag.
  */
 export function classifyTransaction(
   description: string,
@@ -76,23 +78,19 @@ export function classifyTransaction(
   transferCategoryId: string,
   investmentIncomeCategoryId: string
 ): AutoCategorizeResult {
-  // Transfer out: negative amount + transfer keywords
   if (amount < 0 && matchesAny(description, TRANSFER_OUT_KEYWORDS)) {
     return { category_id: transferCategoryId, is_transfer: true };
   }
 
-  // Transfer in: positive amount + transfer-in keywords
   if (amount >= 0 && matchesAny(description, TRANSFER_IN_KEYWORDS)) {
     return { category_id: transferCategoryId, is_transfer: true };
   }
 
-  // PIX to self (common pattern: PIX followed by user's own name)
   const upper = description.toUpperCase();
   if (amount < 0 && upper.includes('PIX') && (upper.includes('MESMA TITULARIDADE') || upper.includes('PROPRIO') || upper.includes('PRÓPRIO'))) {
     return { category_id: transferCategoryId, is_transfer: true };
   }
 
-  // Investment income
   if (matchesAny(description, INCOME_KEYWORDS)) {
     return { category_id: investmentIncomeCategoryId, is_transfer: false };
   }
