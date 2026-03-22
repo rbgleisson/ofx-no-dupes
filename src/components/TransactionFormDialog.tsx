@@ -73,6 +73,9 @@ const TransactionFormDialog = ({
   const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
+  const [cropDialogOpen, setCropDialogOpen] = useState(false);
+  const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
+  const [rawFileName, setRawFileName] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const extractDataFromFile = async (file: File) => {
