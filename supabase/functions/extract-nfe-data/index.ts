@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { access_key } = await req.json();
+    const { access_key, categories } = await req.json();
 
     if (!access_key || !/^\d{44}$/.test(access_key)) {
       return new Response(JSON.stringify({ error: "Chave de acesso inválida" }), {
@@ -26,8 +26,7 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY not configured");
     }
 
-    // Parse NF-e key structure:
-    // Positions: UF(2) AAMM(4) CNPJ(14) MOD(2) SERIE(3) NUM(9) FORMA(1) COD(8) DV(1)
+    // Parse NF-e key structure
     const uf = access_key.substring(0, 2);
     const aamm = access_key.substring(2, 6);
     const cnpj = access_key.substring(6, 20);
@@ -37,6 +36,15 @@ serve(async (req) => {
 
     const ano = 2000 + parseInt(aamm.substring(0, 2));
     const mes = aamm.substring(2, 4);
+
+    const cnpjFormatado = cnpj.replace(
+      /^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/,
+      "$1.$2.$3/$4-$5"
+    );
+
+    const categoriesInfo = categories?.length
+      ? `\nCategorias disponíveis no sistema (id | nome):\n${categories.map((c: any) => `${c.id} | ${c.name}`).join("\n")}\n\nEscolha a categoria mais adequada pelo id. Se nenhuma se encaixar, retorne null.`
+      : "";
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -49,21 +57,26 @@ serve(async (req) => {
         messages: [
           {
             role: "user",
-            content: `Analise esta chave de acesso de NF-e brasileira e extraia informações:
+            content: `Você é um assistente financeiro brasileiro. Analise esta chave de acesso de NF-e e extraia informações para um lançamento financeiro.
 
-Chave: ${access_key}
+Chave de acesso: ${access_key}
 UF: ${uf}
-Ano/Mês: ${ano}-${mes}
-CNPJ Emitente: ${cnpj}
+Ano/Mês emissão: ${ano}-${mes}
+CNPJ Emitente: ${cnpjFormatado}
 Modelo: ${modelo} (55=NF-e, 65=NFC-e)
-Série: ${serie}
-Número: ${numero}
+Série: ${parseInt(serie)}
+Número: ${parseInt(numero)}
+${categoriesInfo}
 
-Com base no CNPJ ${cnpj}, identifique o nome da empresa emitente se possível.
-Estime a data como o primeiro dia do mês/ano da emissão.
+Com base no CNPJ ${cnpjFormatado}, identifique:
+1. O nome da empresa emitente (se conhecer pelo CNPJ)
+2. O ramo de atividade provável
+3. Sugira uma descrição curta para o lançamento financeiro
+4. Estime o valor como negativo (despesa) já que é uma compra. Se não souber o valor, retorne null.
+5. Sugira a categoria mais adequada das disponíveis
 
 Responda APENAS em JSON válido, sem markdown:
-{"date": "${ano}-${mes}-01", "amount": null, "name": "nome da empresa ou CNPJ ${cnpj}", "memo": "NF-e nº ${parseInt(numero)} série ${parseInt(serie)}"}`,
+{"date": "${ano}-${mes}-01", "amount": null, "name": "nome da empresa", "description": "descrição para o lançamento", "memo": "NF-e nº ${parseInt(numero)} série ${parseInt(serie)} - CNPJ ${cnpjFormatado}", "category_id": "id_da_categoria_ou_null"}`,
           },
         ],
         temperature: 0.1,
@@ -73,6 +86,20 @@ Responda APENAS em JSON válido, sem markdown:
     if (!response.ok) {
       const errorText = await response.text();
       console.error("AI Gateway error:", errorText);
+      
+      if (response.status === 429) {
+        return new Response(JSON.stringify({ error: "Limite de requisições excedido. Tente novamente em alguns segundos." }), {
+          status: 429,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (response.status === 402) {
+        return new Response(JSON.stringify({ error: "Créditos de IA esgotados." }), {
+          status: 402,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      
       throw new Error(`AI Gateway error: ${response.status}`);
     }
 
@@ -84,8 +111,10 @@ Responda APENAS em JSON válido, sem markdown:
       return new Response(JSON.stringify({
         date: `${ano}-${mes}-01`,
         amount: null,
-        name: cnpj,
+        name: cnpjFormatado,
+        description: `Compra - ${cnpjFormatado}`,
         memo: `NF-e nº ${parseInt(numero)} série ${parseInt(serie)}`,
+        category_id: null,
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
