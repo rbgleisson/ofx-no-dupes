@@ -9,6 +9,8 @@ import { Input } from '@/components/ui/input';
 import { Paperclip, X, Loader2, Sparkles } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import ImageCropDialog from '@/components/ImageCropDialog';
+import QrTransactionScanner from '@/components/QrTransactionScanner';
 import {
   Dialog,
   DialogContent,
