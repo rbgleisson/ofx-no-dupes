@@ -37,9 +37,13 @@ function createImage(url: string): Promise<HTMLImageElement> {
 }
 
 async function getCroppedImg(imageSrc: string, pixelCrop: Area, fileName: string): Promise<File> {
+  console.log('[ImageCrop] getCroppedImg called');
   const image = await createImage(imageSrc);
+  console.log('[ImageCrop] Image loaded:', image.width, image.height);
   const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d')!;
+  const ctx = canvas.getContext('2d');
+  
+  if (!ctx) throw new Error('Canvas context not available');
 
   canvas.width = pixelCrop.width;
   canvas.height = pixelCrop.height;
@@ -56,12 +60,15 @@ async function getCroppedImg(imageSrc: string, pixelCrop: Area, fileName: string
     pixelCrop.height
   );
 
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     canvas.toBlob((blob) => {
+      console.log('[ImageCrop] toBlob result:', blob?.size);
       if (blob) {
         const ext = fileName.split('.').pop() || 'jpg';
         const name = fileName.replace(/\.[^.]+$/, '') + '_cropped.' + ext;
         resolve(new File([blob], name, { type: blob.type }));
+      } else {
+        reject(new Error('Canvas toBlob returned null'));
       }
     }, 'image/jpeg', 0.92);
   });
