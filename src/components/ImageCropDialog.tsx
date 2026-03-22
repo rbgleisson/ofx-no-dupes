@@ -106,8 +106,8 @@ const ImageCropDialog = ({ open, onOpenChange, imageSrc, onCropComplete, fileNam
   const currentAspect = ASPECT_OPTIONS.find(o => o.mode === aspectMode);
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[90vh]">
+    <Dialog open={open} onOpenChange={onOpenChange} modal>
+      <DialogContent className="z-[70] max-w-lg max-h-[90vh]">
         <DialogHeader>
           <DialogTitle className="text-sm">Recortar imagem</DialogTitle>
         </DialogHeader>
