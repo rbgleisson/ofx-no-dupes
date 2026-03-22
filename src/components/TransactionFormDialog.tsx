@@ -366,11 +366,13 @@ const TransactionFormDialog = ({
           </div>
           <div>
             <QrTransactionScanner
+              categories={categories}
               onDataExtracted={(data) => {
                 if (data.date) setDate(data.date);
                 if (data.amount != null) setAmount(data.amount.toString());
                 if (data.description) setDescription(data.description);
                 if (data.memo) setMemo(data.memo);
+                if (data.category_id) setCategoryId(data.category_id);
               }}
             />
           </div>
