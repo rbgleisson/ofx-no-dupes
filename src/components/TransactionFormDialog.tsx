@@ -9,6 +9,8 @@ import { Input } from '@/components/ui/input';
 import { Paperclip, X, Loader2, Sparkles } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import ImageCropDialog from '@/components/ImageCropDialog';
+import QrTransactionScanner from '@/components/QrTransactionScanner';
 import {
   Dialog,
   DialogContent,
@@ -71,6 +73,9 @@ const TransactionFormDialog = ({
   const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
+  const [cropDialogOpen, setCropDialogOpen] = useState(false);
+  const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
+  const [rawFileName, setRawFileName] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const extractDataFromFile = async (file: File) => {
@@ -319,12 +324,21 @@ const TransactionFormDialog = ({
               ref={fileInputRef}
               type="file"
               accept="image/*,.pdf"
+              capture="environment"
               className="hidden"
               onChange={(e) => {
                 const f = e.target.files?.[0];
                 if (f) {
-                  setAttachmentFile(f);
-                  extractDataFromFile(f);
+                  if (f.type.startsWith('image/')) {
+                    // Show crop dialog for images
+                    const url = URL.createObjectURL(f);
+                    setCropImageSrc(url);
+                    setRawFileName(f.name);
+                    setCropDialogOpen(true);
+                  } else {
+                    setAttachmentFile(f);
+                    extractDataFromFile(f);
+                  }
                 }
                 e.target.value = '';
               }}
@@ -350,6 +364,16 @@ const TransactionFormDialog = ({
               </Button>
             )}
           </div>
+          <div>
+            <QrTransactionScanner
+              onDataExtracted={(data) => {
+                if (data.date) setDate(data.date);
+                if (data.amount != null) setAmount(data.amount.toString());
+                if (data.description) setDescription(data.description);
+                if (data.memo) setMemo(data.memo);
+              }}
+            />
+          </div>
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="outline" size="sm" onClick={() => onOpenChange(false)}>Cancelar</Button>
             <Button type="submit" size="sm" disabled={isUploading}>
@@ -357,6 +381,27 @@ const TransactionFormDialog = ({
             </Button>
           </div>
         </form>
+
+        {cropImageSrc && (
+          <ImageCropDialog
+            open={cropDialogOpen}
+            onOpenChange={(open) => {
+              setCropDialogOpen(open);
+              if (!open) {
+                URL.revokeObjectURL(cropImageSrc);
+                setCropImageSrc(null);
+              }
+            }}
+            imageSrc={cropImageSrc}
+            fileName={rawFileName}
+            onCropComplete={(croppedFile) => {
+              setAttachmentFile(croppedFile);
+              extractDataFromFile(croppedFile);
+              if (cropImageSrc) URL.revokeObjectURL(cropImageSrc);
+              setCropImageSrc(null);
+            }}
+          />
+        )}
       </DialogContent>
     </Dialog>
   );
