@@ -89,9 +89,15 @@ const ImageCropDialog = ({ open, onOpenChange, imageSrc, onCropComplete, fileNam
     if (!croppedAreaPixels) return;
     setIsSaving(true);
     try {
+      console.log('[ImageCrop] handleSave start, pixels:', JSON.stringify(croppedAreaPixels));
       const croppedFile = await getCroppedImg(imageSrc, croppedAreaPixels, fileName);
+      console.log('[ImageCrop] Crop done, file size:', croppedFile.size);
       onCropComplete(croppedFile);
+      console.log('[ImageCrop] onCropComplete called, closing dialog');
       onOpenChange(false);
+      console.log('[ImageCrop] Dialog closed');
+    } catch (err) {
+      console.error('[ImageCrop] Error:', err);
     } finally {
       setIsSaving(false);
     }
