@@ -364,6 +364,16 @@ const TransactionFormDialog = ({
               </Button>
             )}
           </div>
+          <div>
+            <QrTransactionScanner
+              onDataExtracted={(data) => {
+                if (data.date) setDate(data.date);
+                if (data.amount != null) setAmount(data.amount.toString());
+                if (data.description) setDescription(data.description);
+                if (data.memo) setMemo(data.memo);
+              }}
+            />
+          </div>
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="outline" size="sm" onClick={() => onOpenChange(false)}>Cancelar</Button>
             <Button type="submit" size="sm" disabled={isUploading}>
@@ -371,6 +381,27 @@ const TransactionFormDialog = ({
             </Button>
           </div>
         </form>
+
+        {cropImageSrc && (
+          <ImageCropDialog
+            open={cropDialogOpen}
+            onOpenChange={(open) => {
+              setCropDialogOpen(open);
+              if (!open) {
+                URL.revokeObjectURL(cropImageSrc);
+                setCropImageSrc(null);
+              }
+            }}
+            imageSrc={cropImageSrc}
+            fileName={rawFileName}
+            onCropComplete={(croppedFile) => {
+              setAttachmentFile(croppedFile);
+              extractDataFromFile(croppedFile);
+              if (cropImageSrc) URL.revokeObjectURL(cropImageSrc);
+              setCropImageSrc(null);
+            }}
+          />
+        )}
       </DialogContent>
     </Dialog>
   );
