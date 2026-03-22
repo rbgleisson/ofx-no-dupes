@@ -324,12 +324,21 @@ const TransactionFormDialog = ({
               ref={fileInputRef}
               type="file"
               accept="image/*,.pdf"
+              capture="environment"
               className="hidden"
               onChange={(e) => {
                 const f = e.target.files?.[0];
                 if (f) {
-                  setAttachmentFile(f);
-                  extractDataFromFile(f);
+                  if (f.type.startsWith('image/')) {
+                    // Show crop dialog for images
+                    const url = URL.createObjectURL(f);
+                    setCropImageSrc(url);
+                    setRawFileName(f.name);
+                    setCropDialogOpen(true);
+                  } else {
+                    setAttachmentFile(f);
+                    extractDataFromFile(f);
+                  }
                 }
                 e.target.value = '';
               }}
