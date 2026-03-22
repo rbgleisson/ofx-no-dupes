@@ -150,6 +150,7 @@ const TransactionTable = ({ transactions, categories, accounts, chartAccounts, o
       onTransactionsChange();
     } catch (err) {
       console.error('Upload failed:', err);
+      toast.error('Erro ao enviar anexo. Tente novamente.');
     } finally {
       setUploading(null);
       setActiveTransactionId(null);
