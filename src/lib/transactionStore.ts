@@ -66,8 +66,12 @@ async function getOrgId(): Promise<string> {
   return data as string;
 }
 
-export async function fetchTransactions(filters?: TransactionFilters): Promise<Transaction[]> {
+export async function fetchTransactions(filters?: TransactionFilters, organizationId?: string | null): Promise<Transaction[]> {
   let query = supabase.from('transactions').select('*').order('date', { ascending: false });
+
+  if (organizationId) {
+    query = query.eq('organization_id', organizationId);
+  }
 
   if (filters?.year) {
     const year = filters.year;
