@@ -74,6 +74,12 @@ function validateAuthStorage(): void {
 export function clearAppBrowserStorage(): void {
   if (!canUseLocalStorage()) return;
   LEGACY_APP_KEYS.forEach(removeKey);
+
+  // Clear all Supabase auth tokens to prevent stale sessions
+  const authKeys = Object.keys(window.localStorage).filter(
+    (key) => key.startsWith('sb-') && key.endsWith('-auth-token')
+  );
+  authKeys.forEach(removeKey);
 }
 
 export function runBrowserStorageMaintenance(): void {
