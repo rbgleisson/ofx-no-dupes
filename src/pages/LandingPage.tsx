@@ -14,8 +14,7 @@ const LandingPage = ({ onGetStarted }: LandingPageProps) => {
       <header className="border-b border-border/50 backdrop-blur-sm bg-background/80 sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src={logoImg} alt="Sistema Financeiro" className="w-9 h-9 rounded-xl" />
-            <span className="font-bold text-lg text-foreground tracking-tight">Coinonia</span>
+            <img src={logoImg} alt="Coinonia" className="w-12 h-12 rounded-xl" />
           </div>
           <Button onClick={onGetStarted} size="sm">
             Entrar
@@ -36,9 +35,9 @@ const LandingPage = ({ onGetStarted }: LandingPageProps) => {
                 Gestão financeira inteligente
               </div>
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white tracking-tight leading-[1.1]">
-                Controle financeiro{' '}
-                <span className="text-cyan-400">simplificado</span>{' '}
-                para sua empresa
+                Gestão financeira{' '}
+                <span className="text-cyan-400">simplificada</span>{' '}
+                para igrejas
               </h1>
               <p className="text-lg text-white/70 max-w-xl mx-auto leading-relaxed">
                 Importe extratos OFX, categorize lançamentos, gere relatórios e
@@ -113,8 +112,7 @@ const LandingPage = ({ onGetStarted }: LandingPageProps) => {
       <footer className="border-t border-border/50 py-8">
         <div className="max-w-6xl mx-auto px-6 flex items-center justify-between text-sm text-muted-foreground">
           <div className="flex items-center gap-2">
-            <img src={logoImg} alt="" className="w-5 h-5 rounded-md" />
-            <span>Coinonia</span>
+            <img src={logoImg} alt="Coinonia" className="w-7 h-7 rounded-md" />
           </div>
           <span>© {new Date().getFullYear()}</span>
         </div>
