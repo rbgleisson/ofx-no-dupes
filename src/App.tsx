@@ -10,6 +10,7 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import { OrganizationContext, useOrganizationLoader } from "@/hooks/useOrganization";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
+import LandingPage from "./pages/LandingPage";
 import ResetPassword from "./pages/ResetPassword";
 import AdminPanel from "./pages/AdminPanel";
 import OrgSettings from "./pages/OrgSettings";
@@ -18,7 +19,7 @@ import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
 
 function ProtectedRoute({ children, session }: { children: React.ReactNode; session: Session | null }) {
-  if (!session) return <Navigate to="/auth" replace />;
+  if (!session) return <Navigate to="/" replace />;
   return <>{children}</>;
 }
 
@@ -42,6 +43,9 @@ const AppRoutes = () => {
       }
       setSession(session);
       setLoading(false);
+      if (session && !isRecovery) {
+        navigate('/app');
+      }
     });
 
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -79,9 +83,14 @@ const AppRoutes = () => {
   return (
     <OrganizationContext.Provider value={orgContext}>
       <Routes>
-        <Route path="/auth" element={session && !isRecovery ? <Navigate to="/" replace /> : <Auth />} />
-        <Route path="/reset-password" element={<ResetPassword onPasswordUpdated={() => setIsRecovery(false)} />} />
         <Route path="/" element={
+          session && !isRecovery ? <Navigate to="/app" replace /> : <LandingPage onGetStarted={() => navigate('/auth')} />
+        } />
+        <Route path="/auth" element={
+          session && !isRecovery ? <Navigate to="/app" replace /> : <Auth onBack={() => navigate('/')} />
+        } />
+        <Route path="/reset-password" element={<ResetPassword onPasswordUpdated={() => setIsRecovery(false)} />} />
+        <Route path="/app" element={
           <ProtectedRoute session={session}>
             <Index
               onOpenAdmin={() => setShowAdmin(true)}

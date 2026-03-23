@@ -4,9 +4,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import logoImg from '@/assets/logo.png';
-import { AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
+import { AlertCircle, ArrowLeft, CheckCircle2, Loader2, Lock, Mail } from 'lucide-react';
 
-const Auth = () => {
+interface AuthProps {
+  onBack?: () => void;
+}
+
+const Auth = ({ onBack }: AuthProps) => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -19,7 +23,6 @@ const Auth = () => {
     setMessage(null);
 
     try {
-      // Check if email is authorized
       const { data: isAuthorized } = await supabase.rpc('is_email_authorized', { _email: email });
       if (!isAuthorized) {
         setMessage({ type: 'error', text: 'Este e-mail não está autorizado. Solicite acesso ao administrador.' });
@@ -67,74 +70,146 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center px-4">
-      <div className="w-full max-w-sm space-y-6">
-        <div className="flex flex-col items-center gap-3">
-          <img src={logoImg} alt="Sistema Financeiro" className="w-14 h-14 rounded-xl" />
-          <h1 className="text-xl font-bold text-foreground">Sistema Financeiro</h1>
-          <p className="text-sm text-muted-foreground">
-            {isLogin ? 'Entre na sua conta' : 'Crie sua conta'}
+    <div className="min-h-screen bg-background flex">
+      {/* Left panel - branding */}
+      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent items-center justify-center p-12">
+        <div className="max-w-md space-y-8">
+          <div className="flex items-center gap-3">
+            <img src={logoImg} alt="Koinonia" className="w-12 h-12 rounded-xl" />
+            <span className="text-2xl font-bold text-foreground tracking-tight">Koinonia</span>
+          </div>
+          <h2 className="text-3xl font-bold text-foreground leading-tight">
+            Gestão financeira para sua empresa
+          </h2>
+          <p className="text-muted-foreground leading-relaxed">
+            Importe extratos, categorize lançamentos, controle permissões e gere relatórios — tudo em um só lugar, com segurança multi-empresa.
           </p>
+          <div className="grid grid-cols-2 gap-4 pt-4">
+            {['Importação OFX', 'Multi-empresa', 'Relatórios', 'Controle de acesso'].map((f) => (
+              <div key={f} className="flex items-center gap-2 text-sm text-muted-foreground">
+                <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+                {f}
+              </div>
+            ))}
+          </div>
         </div>
+      </div>
 
-        {message && (
-          <div className={`flex items-center gap-2 rounded-lg px-4 py-3 text-sm ${
-            message.type === 'success' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30' : 'bg-destructive/10 text-destructive'
-          }`}>
-            {message.type === 'success' ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
-            {message.text}
-          </div>
-        )}
+      {/* Right panel - form */}
+      <div className="flex-1 flex items-center justify-center px-6">
+        <div className="w-full max-w-sm space-y-8">
+          {onBack && (
+            <button
+              onClick={onBack}
+              className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Voltar
+            </button>
+          )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="seu@email.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="password">Senha</Label>
-            <Input
-              id="password"
-              type="password"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={6}
-            />
+            <div className="lg:hidden flex items-center gap-3 mb-6">
+              <img src={logoImg} alt="Koinonia" className="w-10 h-10 rounded-xl" />
+              <span className="text-xl font-bold text-foreground">Koinonia</span>
+            </div>
+            <h1 className="text-2xl font-bold text-foreground">
+              {isLogin ? 'Entrar na sua conta' : 'Criar sua conta'}
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              {isLogin
+                ? 'Informe suas credenciais para acessar o sistema'
+                : 'Preencha os dados para criar sua conta'}
+            </p>
           </div>
 
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-            {isLogin ? 'Entrar' : 'Criar conta'}
+          {message && (
+            <div
+              className={`flex items-center gap-2.5 rounded-xl px-4 py-3 text-sm ${
+                message.type === 'success'
+                  ? 'bg-[hsl(var(--success))]/10 text-[hsl(var(--success))]'
+                  : 'bg-destructive/10 text-destructive'
+              }`}
+            >
+              {message.type === 'success' ? (
+                <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+              ) : (
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              )}
+              {message.text}
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="seu@email.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  className="pl-10"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">Senha</Label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  minLength={6}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+
+            <Button type="submit" className="w-full h-11" disabled={loading}>
+              {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              {isLogin ? 'Entrar' : 'Criar conta'}
+            </Button>
+          </form>
+
+          {isLogin && (
+            <button
+              onClick={handleForgotPassword}
+              className="text-sm text-muted-foreground hover:text-foreground w-full text-center transition-colors"
+            >
+              Esqueci minha senha
+            </button>
+          )}
+
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-border" />
+            </div>
+            <div className="relative flex justify-center text-xs">
+              <span className="bg-background px-3 text-muted-foreground">
+                {isLogin ? 'Não tem conta?' : 'Já tem conta?'}
+              </span>
+            </div>
+          </div>
+
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={() => {
+              setIsLogin(!isLogin);
+              setMessage(null);
+            }}
+          >
+            {isLogin ? 'Criar conta' : 'Fazer login'}
           </Button>
-        </form>
-
-        {isLogin && (
-          <button
-            onClick={handleForgotPassword}
-            className="text-sm text-muted-foreground hover:text-foreground w-full text-center"
-          >
-            Esqueci minha senha
-          </button>
-        )}
-
-        <p className="text-sm text-center text-muted-foreground">
-          {isLogin ? 'Não tem conta? ' : 'Já tem conta? '}
-          <button
-            onClick={() => { setIsLogin(!isLogin); setMessage(null); }}
-            className="text-primary font-medium hover:underline"
-          >
-            {isLogin ? 'Criar conta' : 'Entrar'}
-          </button>
-        </p>
+        </div>
       </div>
     </div>
   );
