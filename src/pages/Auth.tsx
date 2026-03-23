@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import logoImg from '@/assets/logo.png';
 import { AlertCircle, ArrowLeft, CheckCircle2, Loader2, Lock, Mail } from 'lucide-react';
+import futuristicBg from '@/assets/futuristic-bg.jpg';
 
 interface AuthProps {
   onBack?: () => void;
