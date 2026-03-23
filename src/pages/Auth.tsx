@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import logoImg from '@/assets/logo.png';
 import { AlertCircle, ArrowLeft, CheckCircle2, Loader2, Lock, Mail } from 'lucide-react';
+import futuristicBg from '@/assets/futuristic-bg.jpg';
 
 interface AuthProps {
   onBack?: () => void;
@@ -72,22 +73,24 @@ const Auth = ({ onBack }: AuthProps) => {
   return (
     <div className="min-h-screen bg-background flex">
       {/* Left panel - branding */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent items-center justify-center p-12">
-        <div className="max-w-md space-y-8">
+      <div className="hidden lg:flex lg:w-1/2 relative items-center justify-center p-12 overflow-hidden">
+        <img src={futuristicBg} alt="" className="absolute inset-0 w-full h-full object-cover" />
+        <div className="absolute inset-0 bg-black/40" />
+        <div className="max-w-md space-y-8 relative z-10">
           <div className="flex items-center gap-3">
             <img src={logoImg} alt="Koinonia" className="w-12 h-12 rounded-xl" />
-            <span className="text-2xl font-bold text-foreground tracking-tight">Koinonia</span>
+            <span className="text-2xl font-bold text-white tracking-tight">Koinonia</span>
           </div>
-          <h2 className="text-3xl font-bold text-foreground leading-tight">
+          <h2 className="text-3xl font-bold text-white leading-tight">
             Gestão financeira para sua empresa
           </h2>
-          <p className="text-muted-foreground leading-relaxed">
+          <p className="text-white/70 leading-relaxed">
             Importe extratos, categorize lançamentos, controle permissões e gere relatórios — tudo em um só lugar, com segurança multi-empresa.
           </p>
           <div className="grid grid-cols-2 gap-4 pt-4">
             {['Importação OFX', 'Multi-empresa', 'Relatórios', 'Controle de acesso'].map((f) => (
-              <div key={f} className="flex items-center gap-2 text-sm text-muted-foreground">
-                <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+              <div key={f} className="flex items-center gap-2 text-sm text-white/60">
+                <div className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
                 {f}
               </div>
             ))}
