@@ -14,7 +14,7 @@ const LandingPage = ({ onGetStarted }: LandingPageProps) => {
       <header className="border-b border-border/50 backdrop-blur-sm bg-background/80 sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-6 h-20 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src={logoImg} alt="Coinonia" className="w-16 h-16 rounded-xl" />
+            <img src={logoImg} alt="Coinonia" className="w-28 h-28 rounded-xl" />
           </div>
           <Button onClick={onGetStarted} size="sm">
             Entrar
