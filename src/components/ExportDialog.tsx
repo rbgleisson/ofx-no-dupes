@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useOrganization } from '@/hooks/useOrganization';
 import { Transaction } from '@/lib/transactionStore';
 import { Category } from '@/components/CategoriesManager';
 import { Account } from '@/components/AccountsManager';
