@@ -1,6 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { ArrowRight, BarChart3, Shield, Users, Zap } from 'lucide-react';
 import logoImg from '@/assets/logo.png';
+import futuristicBg from '@/assets/futuristic-bg.jpg';
 
 interface LandingPageProps {
   onGetStarted: () => void;
