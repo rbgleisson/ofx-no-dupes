@@ -112,8 +112,7 @@ const LandingPage = ({ onGetStarted }: LandingPageProps) => {
       <footer className="border-t border-border/50 py-8">
         <div className="max-w-6xl mx-auto px-6 flex items-center justify-between text-sm text-muted-foreground">
           <div className="flex items-center gap-2">
-            <img src={logoImg} alt="" className="w-5 h-5 rounded-md" />
-            <span>Coinonia</span>
+            <img src={logoImg} alt="Coinonia" className="w-7 h-7 rounded-md" />
           </div>
           <span>© {new Date().getFullYear()}</span>
         </div>

@@ -112,8 +112,7 @@ const Auth = ({ onBack }: AuthProps) => {
 
           <div className="space-y-2">
             <div className="lg:hidden flex items-center gap-3 mb-6">
-              <img src={logoImg} alt="Coinonia" className="w-10 h-10 rounded-xl" />
-              <span className="text-xl font-bold text-foreground">Coinonia</span>
+              <img src={logoImg} alt="Coinonia" className="w-14 h-14 rounded-xl" />
             </div>
             <h1 className="text-2xl font-bold text-foreground">
               {isLogin ? 'Entrar na sua conta' : 'Criar sua conta'}
