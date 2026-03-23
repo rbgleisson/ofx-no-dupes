@@ -15,7 +15,7 @@ const LandingPage = ({ onGetStarted }: LandingPageProps) => {
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <img src={logoImg} alt="Sistema Financeiro" className="w-9 h-9 rounded-xl" />
-            <span className="font-bold text-lg text-foreground tracking-tight">Koinonia</span>
+            <span className="font-bold text-lg text-foreground tracking-tight">Coinonia</span>
           </div>
           <Button onClick={onGetStarted} size="sm">
             Entrar
@@ -114,7 +114,7 @@ const LandingPage = ({ onGetStarted }: LandingPageProps) => {
         <div className="max-w-6xl mx-auto px-6 flex items-center justify-between text-sm text-muted-foreground">
           <div className="flex items-center gap-2">
             <img src={logoImg} alt="" className="w-5 h-5 rounded-md" />
-            <span>Koinonia</span>
+            <span>Coinonia</span>
           </div>
           <span>© {new Date().getFullYear()}</span>
         </div>
