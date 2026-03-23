@@ -167,9 +167,6 @@ const TransactionFormDialog = ({
         attachment_url,
       });
       onOpenChange(false);
-    } catch (err) {
-      console.error('Erro ao salvar lançamento:', err);
-      toast.error('Erro ao enviar anexo. Tente novamente.');
     } finally {
       setIsUploading(false);
     }
