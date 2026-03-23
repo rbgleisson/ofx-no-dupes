@@ -31,16 +31,16 @@ const LandingPage = ({ onGetStarted }: LandingPageProps) => {
           <div className="absolute inset-0 bg-black/50" />
           <div className="max-w-6xl mx-auto px-6 py-24 md:py-36 relative">
             <div className="max-w-2xl mx-auto text-center space-y-6">
-              <div className="inline-flex items-center gap-2 bg-primary/10 text-primary rounded-full px-4 py-1.5 text-sm font-medium">
+              <div className="inline-flex items-center gap-2 bg-white/10 text-cyan-300 rounded-full px-4 py-1.5 text-sm font-medium backdrop-blur-sm border border-white/10">
                 <Zap className="w-3.5 h-3.5" />
                 Gestão financeira inteligente
               </div>
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-foreground tracking-tight leading-[1.1]">
+              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white tracking-tight leading-[1.1]">
                 Controle financeiro{' '}
-                <span className="text-primary">simplificado</span>{' '}
+                <span className="text-cyan-400">simplificado</span>{' '}
                 para sua empresa
               </h1>
-              <p className="text-lg text-muted-foreground max-w-xl mx-auto leading-relaxed">
+              <p className="text-lg text-white/70 max-w-xl mx-auto leading-relaxed">
                 Importe extratos OFX, categorize lançamentos, gere relatórios e
                 gerencie múltiplas empresas em uma única plataforma segura.
               </p>
