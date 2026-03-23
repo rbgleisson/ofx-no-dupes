@@ -66,8 +66,12 @@ async function getOrgId(): Promise<string> {
   return data as string;
 }
 
-export async function fetchTransactions(filters?: TransactionFilters): Promise<Transaction[]> {
+export async function fetchTransactions(filters?: TransactionFilters, organizationId?: string | null): Promise<Transaction[]> {
   let query = supabase.from('transactions').select('*').order('date', { ascending: false });
+
+  if (organizationId) {
+    query = query.eq('organization_id', organizationId);
+  }
 
   if (filters?.year) {
     const year = filters.year;
@@ -117,7 +121,7 @@ export async function importTransactions(
 ): Promise<ImportResult> {
   const userId = await getUserId();
   const orgId = await getOrgId();
-  const { data: existing } = await supabase.from('transactions').select('fit_id');
+  const { data: existing } = await supabase.from('transactions').select('fit_id').eq('organization_id', orgId);
   const existingIds = new Set((existing || []).map(t => t.fit_id).filter(Boolean));
 
   const unique = newTransactions.filter(t => !existingIds.has(t.fit_id));
