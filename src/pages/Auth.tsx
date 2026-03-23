@@ -78,8 +78,7 @@ const Auth = ({ onBack }: AuthProps) => {
         <div className="absolute inset-0 bg-black/40" />
         <div className="max-w-md space-y-8 relative z-10">
           <div className="flex items-center gap-3">
-            <img src={logoImg} alt="Coinonia" className="w-12 h-12 rounded-xl" />
-            <span className="text-2xl font-bold text-white tracking-tight">Coinonia</span>
+            <img src={logoImg} alt="Coinonia" className="w-16 h-16 rounded-xl" />
           </div>
           <h2 className="text-3xl font-bold text-white leading-tight">
             Gestão financeira para sua empresa
