@@ -78,8 +78,8 @@ const Auth = ({ onBack }: AuthProps) => {
         <div className="absolute inset-0 bg-black/40" />
         <div className="max-w-md space-y-8 relative z-10">
           <div className="flex items-center gap-3">
-            <img src={logoImg} alt="Koinonia" className="w-12 h-12 rounded-xl" />
-            <span className="text-2xl font-bold text-white tracking-tight">Koinonia</span>
+            <img src={logoImg} alt="Coinonia" className="w-12 h-12 rounded-xl" />
+            <span className="text-2xl font-bold text-white tracking-tight">Coinonia</span>
           </div>
           <h2 className="text-3xl font-bold text-white leading-tight">
             Gestão financeira para sua empresa
@@ -113,8 +113,8 @@ const Auth = ({ onBack }: AuthProps) => {
 
           <div className="space-y-2">
             <div className="lg:hidden flex items-center gap-3 mb-6">
-              <img src={logoImg} alt="Koinonia" className="w-10 h-10 rounded-xl" />
-              <span className="text-xl font-bold text-foreground">Koinonia</span>
+              <img src={logoImg} alt="Coinonia" className="w-10 h-10 rounded-xl" />
+              <span className="text-xl font-bold text-foreground">Coinonia</span>
             </div>
             <h1 className="text-2xl font-bold text-foreground">
               {isLogin ? 'Entrar na sua conta' : 'Criar sua conta'}
