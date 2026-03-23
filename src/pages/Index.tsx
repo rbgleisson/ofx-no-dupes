@@ -309,7 +309,14 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
             <img src={logoImg} alt="Sistema Financeiro" className="w-10 h-10 rounded-xl" />
             <div>
               <h1 className="text-xl font-bold text-foreground tracking-tight">Sistema Financeiro</h1>
-              <p className="text-sm text-muted-foreground">Gestão de lançamentos e relatórios</p>
+              <p className="text-sm text-muted-foreground">
+                {(() => {
+                  const hour = new Date().getHours();
+                  const greeting = hour >= 5 && hour < 12 ? 'Bom dia' : hour >= 12 && hour < 18 ? 'Boa tarde' : 'Boa noite';
+                  const orgName = organization?.name;
+                  return orgName ? `Olá ${orgName}, ${greeting}!` : `${greeting}!`;
+                })()}
+              </p>
             </div>
           </div>
           {/* Desktop buttons */}
