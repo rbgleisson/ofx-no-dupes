@@ -56,6 +56,7 @@ interface ExportDialogProps {
 }
 
 const ExportDialog = ({ transactions, categories, accounts, chartAccounts }: ExportDialogProps) => {
+  const { organizationId } = useOrganization();
   const [selected, setSelected] = useState<Set<string>>(new Set(['date', 'description', 'amount']));
   const [open, setOpen] = useState(false);
   const [exportMonth, setExportMonth] = useState<string>('__all__');
@@ -65,18 +66,19 @@ const ExportDialog = ({ transactions, categories, accounts, chartAccounts }: Exp
   const [exporting, setExporting] = useState(false);
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
 
-  // Fetch ALL transactions when dialog opens (not just filtered ones from the page)
   useEffect(() => {
     if (!open) return;
     const fetchAll = async () => {
-      const { data } = await supabase
+      let query = supabase
         .from('transactions')
         .select('*')
         .order('date', { ascending: false });
+      if (organizationId) query = query.eq('organization_id', organizationId);
+      const { data } = await query;
       setAllTransactions((data as Transaction[]) || []);
     };
     fetchAll();
-  }, [open]);
+  }, [open, organizationId]);
 
   const toggle = (key: string) => {
     setSelected(prev => {
