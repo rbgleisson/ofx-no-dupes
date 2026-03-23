@@ -133,19 +133,25 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
   }, [filters, organizationId]);
 
   const fetchCategories = useCallback(async () => {
-    const { data } = await supabase.from('categories').select('*').order('name');
+    let query = supabase.from('categories').select('*').order('name');
+    if (organizationId) query = query.eq('organization_id', organizationId);
+    const { data } = await query;
     if (data) setCategories(data as Category[]);
-  }, []);
+  }, [organizationId]);
 
   const fetchAccounts = useCallback(async () => {
-    const { data } = await supabase.from('accounts').select('*').order('name');
+    let query = supabase.from('accounts').select('*').order('name');
+    if (organizationId) query = query.eq('organization_id', organizationId);
+    const { data } = await query;
     if (data) setAccounts(data as Account[]);
-  }, []);
+  }, [organizationId]);
 
   const fetchChartAccounts = useCallback(async () => {
-    const { data } = await supabase.from('chart_accounts').select('*').order('code');
+    let query = supabase.from('chart_accounts').select('*').order('code');
+    if (organizationId) query = query.eq('organization_id', organizationId);
+    const { data } = await query;
     if (data) setChartAccounts(data as ChartAccount[]);
-  }, []);
+  }, [organizationId]);
 
   useEffect(() => {
     loadTransactions();
