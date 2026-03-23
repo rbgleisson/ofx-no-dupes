@@ -35,9 +35,9 @@ const LandingPage = ({ onGetStarted }: LandingPageProps) => {
                 Gestão financeira inteligente
               </div>
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white tracking-tight leading-[1.1]">
-                Controle financeiro{' '}
-                <span className="text-cyan-400">simplificado</span>{' '}
-                para sua empresa
+                Gestão financeira{' '}
+                <span className="text-cyan-400">simplificada</span>{' '}
+                para igrejas
               </h1>
               <p className="text-lg text-white/70 max-w-xl mx-auto leading-relaxed">
                 Importe extratos OFX, categorize lançamentos, gere relatórios e
