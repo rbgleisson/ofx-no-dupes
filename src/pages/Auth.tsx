@@ -73,7 +73,9 @@ const Auth = ({ onBack }: AuthProps) => {
   return (
     <div className="min-h-screen bg-background flex">
       {/* Left panel - branding */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent items-center justify-center p-12">
+      <div className="hidden lg:flex lg:w-1/2 relative items-center justify-center p-12 overflow-hidden">
+        <img src={futuristicBg} alt="" className="absolute inset-0 w-full h-full object-cover" />
+        <div className="absolute inset-0 bg-black/40" />
         <div className="max-w-md space-y-8">
           <div className="flex items-center gap-3">
             <img src={logoImg} alt="Koinonia" className="w-12 h-12 rounded-xl" />
