@@ -81,7 +81,7 @@ const Auth = ({ onBack }: AuthProps) => {
             <img src={logoImg} alt="Coinonia" className="w-16 h-16 rounded-xl" />
           </div>
           <h2 className="text-3xl font-bold text-white leading-tight">
-            Gestão financeira para sua empresa
+            Gestão financeira para igrejas
           </h2>
           <p className="text-white/70 leading-relaxed">
             Importe extratos, categorize lançamentos, controle permissões e gere relatórios — tudo em um só lugar, com segurança multi-empresa.
