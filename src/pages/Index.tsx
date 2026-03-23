@@ -123,14 +123,14 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
   const loadTransactions = useCallback(async () => {
     const requestId = ++loadRequestRef.current;
     try {
-      const data = await fetchTransactions(filters);
+      const data = await fetchTransactions(filters, organizationId);
       if (requestId === loadRequestRef.current) {
         setTransactions(data);
       }
     } catch (err) {
       console.error('Error loading transactions:', err);
     }
-  }, [filters]);
+  }, [filters, organizationId]);
 
   const fetchCategories = useCallback(async () => {
     const { data } = await supabase.from('categories').select('*').order('name');
