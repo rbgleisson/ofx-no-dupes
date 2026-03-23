@@ -121,7 +121,7 @@ export async function importTransactions(
 ): Promise<ImportResult> {
   const userId = await getUserId();
   const orgId = await getOrgId();
-  const { data: existing } = await supabase.from('transactions').select('fit_id');
+  const { data: existing } = await supabase.from('transactions').select('fit_id').eq('organization_id', orgId);
   const existingIds = new Set((existing || []).map(t => t.fit_id).filter(Boolean));
 
   const unique = newTransactions.filter(t => !existingIds.has(t.fit_id));
