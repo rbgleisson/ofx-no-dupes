@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { compressImage } from '@/lib/imageCompression';
 
 const ATTACHMENTS_KEY = 'ofx_attachments';
 
@@ -28,12 +29,14 @@ export function getAllAttachments(): AttachmentMap {
 }
 
 export async function uploadAttachment(transactionId: string, file: File): Promise<string> {
-  const ext = file.name.split('.').pop() || 'bin';
+  // Compress images before upload (PDFs are left untouched)
+  const processedFile = await compressImage(file);
+  const ext = processedFile.name.split('.').pop() || 'bin';
   const path = `${transactionId}/${Date.now()}.${ext}`;
 
   const { error } = await supabase.storage
     .from('transaction-docs')
-    .upload(path, file, { upsert: true });
+    .upload(path, processedFile, { upsert: true });
 
   if (error) throw new Error(error.message);
 
