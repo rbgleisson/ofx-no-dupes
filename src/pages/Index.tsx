@@ -209,9 +209,21 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
         }
       }
 
-      // Filter out fit_id duplicates first
-      const { data: existingTx } = await supabase.from('transactions').select('fit_id');
-      const existingFitIds = new Set((existingTx || []).map(t => t.fit_id).filter(Boolean));
+      // Filter out fit_id duplicates first — fetch ALL fit_ids for the org
+      const { data: orgIdData } = await supabase.rpc('get_user_org_id', { _user_id: user.id });
+      let allFitIds: string[] = [];
+      let from = 0;
+      const PAGE = 1000;
+      while (true) {
+        let q = supabase.from('transactions').select('fit_id').range(from, from + PAGE - 1);
+        if (orgIdData) q = q.eq('organization_id', orgIdData);
+        const { data: page } = await q;
+        if (!page || page.length === 0) break;
+        allFitIds = allFitIds.concat(page.map(t => t.fit_id).filter(Boolean) as string[]);
+        if (page.length < PAGE) break;
+        from += PAGE;
+      }
+      const existingFitIds = new Set(allFitIds);
 
       const uniqueByFitId = data.transactions.filter(t => !existingFitIds.has(t.id));
 
