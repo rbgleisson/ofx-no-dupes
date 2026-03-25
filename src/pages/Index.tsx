@@ -261,11 +261,12 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
         setNotification({ type: 'warning', message: `${skipped} transações com fit_id duplicado foram removidas automaticamente.` });
       }
     } catch (err: any) {
+      console.error('OFX import error:', err);
       const msg = err?.message || '';
       if (msg.includes('duplicate') || msg.includes('violates')) {
         setNotification({ type: 'warning', message: 'Erro de duplicidade ao importar. Tente novamente.' });
       } else {
-        setNotification({ type: 'warning', message: 'Erro ao ler o arquivo OFX. Verifique o formato.' });
+        setNotification({ type: 'warning', message: `Erro ao importar OFX: ${msg || 'Verifique o formato.'}` });
       }
     }
   };
