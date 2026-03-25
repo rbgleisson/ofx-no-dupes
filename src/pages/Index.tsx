@@ -8,6 +8,7 @@ import {
   importTransactions,
   clearTransactions,
   addTransaction,
+  addTransactionsBulk,
   updateTransaction,
   ImportResult,
 } from '@/lib/transactionStore';
