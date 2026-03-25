@@ -147,6 +147,24 @@ export async function addTransaction(tx: Omit<Transaction, 'id' | 'created_at' |
   return data as Transaction;
 }
 
+export async function addTransactionsBulk(txs: Omit<Transaction, 'id' | 'created_at' | 'updated_at'>[]): Promise<number> {
+  if (txs.length === 0) return 0;
+  const userId = await getUserId();
+  const orgId = await getOrgId();
+  const rows = txs.map(tx => ({ ...tx, user_id: userId, organization_id: orgId }));
+  
+  // Insert in batches of 100 to avoid payload limits
+  const batchSize = 100;
+  let inserted = 0;
+  for (let i = 0; i < rows.length; i += batchSize) {
+    const batch = rows.slice(i, i + batchSize);
+    const { error } = await supabase.from('transactions').insert(batch);
+    if (error) throw error;
+    inserted += batch.length;
+  }
+  return inserted;
+}
+
 export async function updateTransaction(id: string, updates: Partial<Transaction>): Promise<void> {
   const { error } = await supabase.from('transactions').update(updates).eq('id', id);
   if (error) throw error;

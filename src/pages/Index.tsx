@@ -108,9 +108,7 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
         ...(r._fit_id ? { fit_id: r._fit_id, type: r._type } : {}),
       }));
 
-      for (const tx of toInsert) {
-        await addTransaction(tx);
-      }
+      await addTransactionsBulk(toInsert);
 
       setExcelReviewOpen(false);
       await fetchCategories();
