@@ -150,10 +150,12 @@ const TransactionFormDialog = ({
 
     setIsUploading(true);
     try {
-      let attachment_url: string | null = null;
+      let attachment_url: string | null | undefined = undefined;
       if (attachmentFile) {
         const tempId = transaction?.id || crypto.randomUUID();
         attachment_url = await uploadAttachment(tempId, attachmentFile);
+      } else if (transaction?.attachment_url) {
+        attachment_url = transaction.attachment_url;
       }
 
       onSave({
