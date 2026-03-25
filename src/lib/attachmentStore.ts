@@ -36,7 +36,7 @@ export async function uploadAttachment(transactionId: string, file: File): Promi
 
   const { error } = await supabase.storage
     .from('transaction-docs')
-    .upload(path, file, { upsert: true });
+    .upload(path, processedFile, { upsert: true });
 
   if (error) throw new Error(error.message);
 
