@@ -29,7 +29,9 @@ export function getAllAttachments(): AttachmentMap {
 }
 
 export async function uploadAttachment(transactionId: string, file: File): Promise<string> {
-  const ext = file.name.split('.').pop() || 'bin';
+  // Compress images before upload (PDFs are left untouched)
+  const processedFile = await compressImage(file);
+  const ext = processedFile.name.split('.').pop() || 'bin';
   const path = `${transactionId}/${Date.now()}.${ext}`;
 
   const { error } = await supabase.storage
