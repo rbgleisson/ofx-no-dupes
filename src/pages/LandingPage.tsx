@@ -110,11 +110,18 @@ const LandingPage = ({ onGetStarted }: LandingPageProps) => {
       </main>
 
       <footer className="border-t border-border/50 py-8">
-        <div className="max-w-6xl mx-auto px-6 flex items-center justify-between text-sm text-muted-foreground">
-          <div className="flex items-center gap-2">
-            <img src={logoImg} alt="Coinonia" className="w-7 h-7 rounded-md" />
+        <div className="max-w-6xl mx-auto px-6 space-y-4">
+          <div className="flex items-center justify-between text-sm text-muted-foreground">
+            <div className="flex items-center gap-2">
+              <img src={logoImg} alt="Coinonia" className="w-7 h-7 rounded-md" />
+            </div>
+            <span>© {new Date().getFullYear()} Coinonia. Todos os direitos reservados.</span>
           </div>
-          <span>© {new Date().getFullYear()}</span>
+          <p className="text-xs text-muted-foreground/70 text-center leading-relaxed max-w-3xl mx-auto">
+            O uso deste sistema está sujeito aos nossos termos de serviço e política de privacidade.
+            As informações financeiras inseridas são de responsabilidade exclusiva do usuário.
+            É proibida a reprodução total ou parcial do conteúdo sem autorização prévia.
+          </p>
         </div>
       </footer>
     </div>
