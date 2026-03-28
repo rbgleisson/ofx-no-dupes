@@ -315,6 +315,20 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
     await supabase.auth.signOut();
   };
 
+  const handleCatalogImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const result = await importCategoriesAndChartAccounts(file);
+      await fetchCategories();
+      await fetchChartAccounts();
+      setNotification({ type: 'success', message: `Importado: ${result.categories} categorias e ${result.chartAccounts} contas contábeis.` });
+    } catch (err: any) {
+      setNotification({ type: 'warning', message: 'Erro ao importar: ' + (err.message || 'Verifique o arquivo.') });
+    }
+    e.target.value = '';
+  };
+
   const handleEditTransaction = (tx: Transaction) => {
     setEditingTransaction(tx);
     setFormOpen(true);
