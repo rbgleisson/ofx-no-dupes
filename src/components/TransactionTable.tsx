@@ -172,7 +172,9 @@ const TransactionTable = ({ transactions, categories, accounts, chartAccounts, o
   };
 
   const handleFieldChange = async (txId: string, field: string, value: string | null) => {
-    await updateTransaction(txId, { [field]: value === '__none__' ? null : value });
+    let finalValue: any = value === '__none__' ? null : value;
+    if (field === 'is_verified') finalValue = value === 'true';
+    await updateTransaction(txId, { [field]: finalValue });
     onTransactionsChange();
   };
 
