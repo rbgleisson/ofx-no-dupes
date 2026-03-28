@@ -278,6 +278,7 @@ const TransactionTable = ({ transactions, categories, accounts, chartAccounts, o
                   Valor <SortIcon field="amount" />
                 </th>
                 <th className="text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Anexo</th>
+                <th className="text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider px-2 py-3" title="Conferido">✓</th>
                 <th className="text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Ações</th>
               </tr>
             </thead>
