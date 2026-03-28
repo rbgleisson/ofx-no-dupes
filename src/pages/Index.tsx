@@ -57,6 +57,7 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
   const [backupProgress, setBackupProgress] = useState<string | null>(null);
   const ofxInputRef = useRef<HTMLInputElement>(null);
   const xlsxInputRef = useRef<HTMLInputElement>(null);
+  const catalogImportRef = useRef<HTMLInputElement>(null);
   const loadRequestRef = useRef(0);
   const { permissions, isAdmin, isSuperAdmin, isOwner } = usePermissions();
   const { organization, organizationId } = useOrganization();
