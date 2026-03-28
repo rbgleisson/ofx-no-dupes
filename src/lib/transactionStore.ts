@@ -13,6 +13,7 @@ export interface Transaction {
   chart_account_id?: string | null;
   attachment_url?: string | null;
   is_transfer?: boolean;
+  is_verified?: boolean;
   organization_id?: string | null;
   created_at?: string;
   updated_at?: string;
