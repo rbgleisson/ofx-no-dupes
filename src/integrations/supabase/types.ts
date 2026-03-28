@@ -220,6 +220,7 @@ export type Database = {
           fit_id: string | null
           id: string
           is_transfer: boolean
+          is_verified: boolean
           memo: string | null
           organization_id: string | null
           type: string | null
@@ -238,6 +239,7 @@ export type Database = {
           fit_id?: string | null
           id?: string
           is_transfer?: boolean
+          is_verified?: boolean
           memo?: string | null
           organization_id?: string | null
           type?: string | null
@@ -256,6 +258,7 @@ export type Database = {
           fit_id?: string | null
           id?: string
           is_transfer?: boolean
+          is_verified?: boolean
           memo?: string | null
           organization_id?: string | null
           type?: string | null
