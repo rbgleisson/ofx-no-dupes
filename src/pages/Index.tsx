@@ -391,6 +391,19 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
                 </Button>
               </>
             )}
+            {(permissions.can_manage_categories || permissions.can_manage_chart_accounts) && (
+              <>
+                <Button size="sm" variant="outline" onClick={() => exportCategoriesAndChartAccounts(categories, chartAccounts)} title="Exportar categorias e contas contábeis">
+                  <FolderDown className="w-4 h-4 mr-1.5" />
+                  Exportar Cadastros
+                </Button>
+                <input ref={catalogImportRef} type="file" accept=".xlsx,.xls" onChange={handleCatalogImport} className="hidden" />
+                <Button size="sm" variant="outline" onClick={() => catalogImportRef.current?.click()} title="Importar categorias e contas contábeis">
+                  <FolderUp className="w-4 h-4 mr-1.5" />
+                  Importar Cadastros
+                </Button>
+              </>
+            )}
             {permissions.can_backup && (
               <Button
                 size="sm"
