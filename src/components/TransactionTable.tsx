@@ -462,6 +462,16 @@ const TransactionTable = ({ transactions, categories, accounts, chartAccounts, o
                         </button>
                       )}
                     </td>
+                    <td className="px-2 py-3 text-center" onClick={e => e.stopPropagation()}>
+                      <Checkbox
+                        checked={!!(tx as any).is_verified}
+                        onCheckedChange={async (checked) => {
+                          await handleFieldChange(tx.id, 'is_verified', checked ? 'true' : null);
+                        }}
+                        className="mx-auto"
+                        title={`${(tx as any).is_verified ? 'Conferido' : 'Marcar como conferido'}`}
+                      />
+                    </td>
                     <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
                       <div className="flex items-center justify-center gap-1">
                         <button onClick={() => handleScanClick(tx.id)} className="text-muted-foreground hover:text-primary transition-colors" title="Escanear NF-e" disabled={fetchingDanfe === tx.id}>
