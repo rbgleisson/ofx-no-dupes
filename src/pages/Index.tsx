@@ -393,12 +393,16 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
             )}
             {(permissions.can_manage_categories || permissions.can_manage_chart_accounts) && (
               <>
-                <Button size="sm" variant="outline" onClick={() => exportCategoriesAndChartAccounts(categories, chartAccounts)} title="Exportar categorias e contas contábeis">
+                <Button size="sm" className="bg-violet-600 hover:bg-violet-700 text-white border-0" onClick={() => exportCategoriesAndChartAccounts(categories, chartAccounts)} title="Exportar categorias e contas contábeis">
                   <FolderDown className="w-4 h-4 mr-1.5" />
-                  Exportar Cadastros
+                  Exportar Categorias
+                </Button>
+                <Button size="sm" className="bg-amber-600 hover:bg-amber-700 text-white border-0" onClick={() => exportCategoriesAndChartAccounts(categories, chartAccounts)} title="Exportar plano de contas">
+                  <FolderDown className="w-4 h-4 mr-1.5" />
+                  Exportar Plano de Contas
                 </Button>
                 <input ref={catalogImportRef} type="file" accept=".xlsx,.xls" onChange={handleCatalogImport} className="hidden" />
-                <Button size="sm" variant="outline" onClick={() => catalogImportRef.current?.click()} title="Importar categorias e contas contábeis">
+                <Button size="sm" className="bg-violet-500 hover:bg-violet-600 text-white border-0" onClick={() => catalogImportRef.current?.click()} title="Importar categorias e contas contábeis">
                   <FolderUp className="w-4 h-4 mr-1.5" />
                   Importar Cadastros
                 </Button>
