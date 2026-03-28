@@ -25,7 +25,8 @@ import ChartAccountsManager, { ChartAccount } from '@/components/ChartAccountsMa
 import ExportDialog from '@/components/ExportDialog';
 import ExcelImportReviewDialog from '@/components/ExcelImportReviewDialog';
 import { ExcelRow, parseExcelFile, downloadExcelTemplate } from '@/lib/excelImport';
-import { Trash2, FileText, CheckCircle2, AlertCircle, Plus, Upload, LogOut, Download, FileSpreadsheet, HardDrive, Shield, Building } from 'lucide-react';
+import { Trash2, FileText, CheckCircle2, AlertCircle, Plus, Upload, LogOut, Download, FileSpreadsheet, HardDrive, Shield, Building, FolderDown, FolderUp } from 'lucide-react';
+import { exportCategoriesAndChartAccounts, importCategoriesAndChartAccounts } from '@/lib/catalogExportImport';
 import { createFullBackup } from '@/lib/backupExport';
 import MobileMenu from '@/components/MobileMenu';
 import ChangePasswordDialog from '@/components/ChangePasswordDialog';
@@ -56,6 +57,7 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
   const [backupProgress, setBackupProgress] = useState<string | null>(null);
   const ofxInputRef = useRef<HTMLInputElement>(null);
   const xlsxInputRef = useRef<HTMLInputElement>(null);
+  const catalogImportRef = useRef<HTMLInputElement>(null);
   const loadRequestRef = useRef(0);
   const { permissions, isAdmin, isSuperAdmin, isOwner } = usePermissions();
   const { organization, organizationId } = useOrganization();
@@ -313,6 +315,20 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
     await supabase.auth.signOut();
   };
 
+  const handleCatalogImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const result = await importCategoriesAndChartAccounts(file);
+      await fetchCategories();
+      await fetchChartAccounts();
+      setNotification({ type: 'success', message: `Importado: ${result.categories} categorias e ${result.chartAccounts} contas contábeis.` });
+    } catch (err: any) {
+      setNotification({ type: 'warning', message: 'Erro ao importar: ' + (err.message || 'Verifique o arquivo.') });
+    }
+    e.target.value = '';
+  };
+
   const handleEditTransaction = (tx: Transaction) => {
     setEditingTransaction(tx);
     setFormOpen(true);
@@ -372,6 +388,19 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
                 <Button size="sm" onClick={downloadExcelTemplate} variant="ghost" title="Baixar modelo Excel">
                   <Download className="w-4 h-4 mr-1.5" />
                   Modelo
+                </Button>
+              </>
+            )}
+            {(permissions.can_manage_categories || permissions.can_manage_chart_accounts) && (
+              <>
+                <Button size="sm" variant="outline" onClick={() => exportCategoriesAndChartAccounts(categories, chartAccounts)} title="Exportar categorias e contas contábeis">
+                  <FolderDown className="w-4 h-4 mr-1.5" />
+                  Exportar Cadastros
+                </Button>
+                <input ref={catalogImportRef} type="file" accept=".xlsx,.xls" onChange={handleCatalogImport} className="hidden" />
+                <Button size="sm" variant="outline" onClick={() => catalogImportRef.current?.click()} title="Importar categorias e contas contábeis">
+                  <FolderUp className="w-4 h-4 mr-1.5" />
+                  Importar Cadastros
                 </Button>
               </>
             )}

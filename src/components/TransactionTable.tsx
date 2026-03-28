@@ -172,7 +172,9 @@ const TransactionTable = ({ transactions, categories, accounts, chartAccounts, o
   };
 
   const handleFieldChange = async (txId: string, field: string, value: string | null) => {
-    await updateTransaction(txId, { [field]: value === '__none__' ? null : value });
+    let finalValue: any = value === '__none__' ? null : value;
+    if (field === 'is_verified') finalValue = value === 'true';
+    await updateTransaction(txId, { [field]: finalValue });
     onTransactionsChange();
   };
 
@@ -278,6 +280,7 @@ const TransactionTable = ({ transactions, categories, accounts, chartAccounts, o
                   Valor <SortIcon field="amount" />
                 </th>
                 <th className="text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Anexo</th>
+                <th className="text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider px-2 py-3" title="Conferido">✓</th>
                 <th className="text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Ações</th>
               </tr>
             </thead>
@@ -460,6 +463,16 @@ const TransactionTable = ({ transactions, categories, accounts, chartAccounts, o
                           <Paperclip className="w-4 h-4 mx-auto" />
                         </button>
                       )}
+                    </td>
+                    <td className="px-2 py-3 text-center" onClick={e => e.stopPropagation()}>
+                      <Checkbox
+                        checked={!!(tx as any).is_verified}
+                        onCheckedChange={async (checked) => {
+                          await handleFieldChange(tx.id, 'is_verified', checked ? 'true' : null);
+                        }}
+                        className="mx-auto"
+                        title={`${(tx as any).is_verified ? 'Conferido' : 'Marcar como conferido'}`}
+                      />
                     </td>
                     <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
                       <div className="flex items-center justify-center gap-1">
