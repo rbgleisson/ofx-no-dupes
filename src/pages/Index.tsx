@@ -378,9 +378,7 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
             {permissions.can_manage_chart_accounts && (
               <ChartAccountsManager chartAccounts={chartAccounts} onChartAccountsChange={fetchChartAccounts} />
             )}
-            {permissions.can_export && (
-              <ExportDialog transactions={transactions} categories={categories} accounts={accounts} chartAccounts={chartAccounts} />
-            )}
+            {/* Importações & Exportações dropdown */}
             {(permissions.can_import || permissions.can_export || permissions.can_manage_categories || permissions.can_manage_chart_accounts) && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
