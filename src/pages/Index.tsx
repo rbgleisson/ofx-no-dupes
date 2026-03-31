@@ -381,40 +381,69 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
             {permissions.can_export && (
               <ExportDialog transactions={transactions} categories={categories} accounts={accounts} chartAccounts={chartAccounts} />
             )}
-            {permissions.can_import && (
-              <>
-                <input ref={ofxInputRef} type="file" accept=".ofx,.qfx" onChange={handleOfxFileChange} className="hidden" />
-                <Button size="sm" onClick={() => ofxInputRef.current?.click()} className="bg-slate-700 hover:bg-slate-800 text-white border-0">
-                  <Upload className="w-4 h-4 mr-1.5" />
-                  Importar OFX
-                </Button>
-                <input ref={xlsxInputRef} type="file" accept=".xlsx,.xls" onChange={handleXlsxFileChange} className="hidden" />
-                <Button size="sm" onClick={() => xlsxInputRef.current?.click()} variant="outline">
-                  <FileSpreadsheet className="w-4 h-4 mr-1.5" />
-                  Importar Excel
-                </Button>
-                <Button size="sm" onClick={downloadExcelTemplate} variant="ghost" title="Baixar modelo Excel">
-                  <Download className="w-4 h-4 mr-1.5" />
-                  Modelo
-                </Button>
-              </>
-            )}
-            {(permissions.can_manage_categories || permissions.can_manage_chart_accounts) && (
-              <>
-                <Button size="sm" className="bg-violet-600 hover:bg-violet-700 text-white border-0" onClick={() => exportCategoriesAndChartAccounts(categories, chartAccounts)} title="Exportar categorias e contas contábeis">
-                  <FolderDown className="w-4 h-4 mr-1.5" />
-                  Exportar Categorias
-                </Button>
-                <Button size="sm" className="bg-amber-600 hover:bg-amber-700 text-white border-0" onClick={() => exportCategoriesAndChartAccounts(categories, chartAccounts)} title="Exportar plano de contas">
-                  <FolderDown className="w-4 h-4 mr-1.5" />
-                  Exportar Plano de Contas
-                </Button>
-                <input ref={catalogImportRef} type="file" accept=".xlsx,.xls" onChange={handleCatalogImport} className="hidden" />
-                <Button size="sm" className="bg-violet-500 hover:bg-violet-600 text-white border-0" onClick={() => catalogImportRef.current?.click()} title="Importar categorias e contas contábeis">
-                  <FolderUp className="w-4 h-4 mr-1.5" />
-                  Importar Cadastros
-                </Button>
-              </>
+            {(permissions.can_import || permissions.can_export || permissions.can_manage_categories || permissions.can_manage_chart_accounts) && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button size="sm" variant="outline" className="border-primary/30 text-primary">
+                    <FolderDown className="w-4 h-4 mr-1.5" />
+                    Importações & Exportações
+                    <ChevronDown className="w-3.5 h-3.5 ml-1" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  {permissions.can_import && (
+                    <>
+                      <DropdownMenuLabel className="text-xs text-muted-foreground uppercase tracking-wider">Importações</DropdownMenuLabel>
+                      <input ref={ofxInputRef} type="file" accept=".ofx,.qfx" onChange={handleOfxFileChange} className="hidden" />
+                      <DropdownMenuItem onClick={() => ofxInputRef.current?.click()} className="cursor-pointer">
+                        <Upload className="w-4 h-4 mr-2 text-slate-600" />
+                        Importar OFX
+                      </DropdownMenuItem>
+                      <input ref={xlsxInputRef} type="file" accept=".xlsx,.xls" onChange={handleXlsxFileChange} className="hidden" />
+                      <DropdownMenuItem onClick={() => xlsxInputRef.current?.click()} className="cursor-pointer">
+                        <FileSpreadsheet className="w-4 h-4 mr-2 text-emerald-600" />
+                        Importar Excel
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={downloadExcelTemplate} className="cursor-pointer">
+                        <Download className="w-4 h-4 mr-2 text-muted-foreground" />
+                        Baixar Modelo Excel
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                  {permissions.can_import && (permissions.can_export || permissions.can_manage_categories || permissions.can_manage_chart_accounts) && (
+                    <DropdownMenuSeparator />
+                  )}
+                  {permissions.can_export && (
+                    <>
+                      <DropdownMenuLabel className="text-xs text-muted-foreground uppercase tracking-wider">Exportações</DropdownMenuLabel>
+                    </>
+                  )}
+                  {permissions.can_export && (
+                    <div className="px-1 pb-1">
+                      <ExportDialog transactions={transactions} categories={categories} accounts={accounts} chartAccounts={chartAccounts} />
+                    </div>
+                  )}
+                  {(permissions.can_manage_categories || permissions.can_manage_chart_accounts) && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuLabel className="text-xs text-muted-foreground uppercase tracking-wider">Cadastros</DropdownMenuLabel>
+                      <DropdownMenuItem onClick={() => exportCategoriesAndChartAccounts(categories, chartAccounts)} className="cursor-pointer">
+                        <FolderDown className="w-4 h-4 mr-2 text-violet-600" />
+                        Exportar Categorias
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => exportCategoriesAndChartAccounts(categories, chartAccounts)} className="cursor-pointer">
+                        <FolderDown className="w-4 h-4 mr-2 text-amber-600" />
+                        Exportar Plano de Contas
+                      </DropdownMenuItem>
+                      <input ref={catalogImportRef} type="file" accept=".xlsx,.xls" onChange={handleCatalogImport} className="hidden" />
+                      <DropdownMenuItem onClick={() => catalogImportRef.current?.click()} className="cursor-pointer">
+                        <FolderUp className="w-4 h-4 mr-2 text-violet-500" />
+                        Importar Cadastros
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
             {permissions.can_backup && (
               <Button
