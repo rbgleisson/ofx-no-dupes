@@ -25,7 +25,7 @@ import ChartAccountsManager, { ChartAccount } from '@/components/ChartAccountsMa
 import ExportDialog from '@/components/ExportDialog';
 import ExcelImportReviewDialog from '@/components/ExcelImportReviewDialog';
 import { ExcelRow, parseExcelFile, downloadExcelTemplate } from '@/lib/excelImport';
-import { Trash2, FileText, CheckCircle2, AlertCircle, Plus, Upload, LogOut, Download, FileSpreadsheet, HardDrive, Shield, Building, FolderDown, FolderUp, ChevronDown } from 'lucide-react';
+import { Trash2, FileText, CheckCircle2, AlertCircle, Plus, Upload, LogOut, Download, FileSpreadsheet, HardDrive, Shield, Building, FolderDown, FolderUp, ChevronDown, BarChart3 } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -35,6 +35,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { exportCategoriesAndChartAccounts, importCategoriesAndChartAccounts } from '@/lib/catalogExportImport';
+import { exportMonthlySummary } from '@/lib/monthlySummaryExport';
 import { createFullBackup } from '@/lib/backupExport';
 import MobileMenu from '@/components/MobileMenu';
 import ChangePasswordDialog from '@/components/ChangePasswordDialog';
@@ -414,12 +415,22 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
                   {permissions.can_export && (
                     <>
                       <DropdownMenuLabel className="text-xs text-muted-foreground uppercase tracking-wider">Exportações</DropdownMenuLabel>
+                      <div className="px-1 pb-1">
+                        <ExportDialog transactions={transactions} categories={categories} accounts={accounts} chartAccounts={chartAccounts} />
+                      </div>
+                      <DropdownMenuItem
+                        onClick={() => {
+                          const now = new Date();
+                          exportMonthlySummary(categories, organizationId, now.getFullYear(), now.getMonth() + 1)
+                            .then(() => setNotification({ type: 'success', message: 'Resumo mensal exportado!' }))
+                            .catch(() => setNotification({ type: 'warning', message: 'Erro ao exportar resumo.' }));
+                        }}
+                        className="cursor-pointer"
+                      >
+                        <BarChart3 className="w-4 h-4 mr-2 text-blue-600" />
+                        Resumo Mensal (Mês Atual)
+                      </DropdownMenuItem>
                     </>
-                  )}
-                  {permissions.can_export && (
-                    <div className="px-1 pb-1">
-                      <ExportDialog transactions={transactions} categories={categories} accounts={accounts} chartAccounts={chartAccounts} />
-                    </div>
                   )}
                   {(permissions.can_manage_categories || permissions.can_manage_chart_accounts) && (
                     <>
