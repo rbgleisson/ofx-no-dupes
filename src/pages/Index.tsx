@@ -25,7 +25,7 @@ import ChartAccountsManager, { ChartAccount } from '@/components/ChartAccountsMa
 import ExportDialog from '@/components/ExportDialog';
 import ExcelImportReviewDialog from '@/components/ExcelImportReviewDialog';
 import { ExcelRow, parseExcelFile, downloadExcelTemplate } from '@/lib/excelImport';
-import { Trash2, FileText, CheckCircle2, AlertCircle, Plus, Upload, LogOut, Download, FileSpreadsheet, HardDrive, Shield, Building, FolderDown, FolderUp, ChevronDown } from 'lucide-react';
+import { Trash2, FileText, CheckCircle2, AlertCircle, Plus, Upload, LogOut, Download, FileSpreadsheet, HardDrive, Shield, Building, FolderDown, FolderUp, ChevronDown, BarChart3 } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
