@@ -575,7 +575,7 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
           const totalTransfer = transactions.filter(t => t.is_transfer).reduce((s, t) => s + Math.abs(Number(t.amount)), 0);
           const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
           return (
-            <div className="hidden sm:grid grid-cols-4 gap-4 mb-6">
+             <div className="hidden sm:grid grid-cols-4 gap-4 mb-6">
               <div className="rounded-xl border p-4 bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800">
                 <p className="text-xs font-medium text-muted-foreground mb-1">Entradas</p>
                 <p className="text-lg font-bold text-emerald-600">{fmt(totalReceber)}</p>
@@ -593,6 +593,25 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
                 <p className="text-lg font-bold text-gray-500">{fmt(totalTransfer)}</p>
               </div>
             </div>
+            {/* Installment summary cards */}
+            {(installmentSummary.countPayable > 0 || installmentSummary.countReceivable > 0) && (
+              <div className="hidden sm:grid grid-cols-2 gap-4 mb-6">
+                <div className="rounded-xl border p-4 bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-800 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setMainTab('installments')}>
+                  <p className="text-xs font-medium text-muted-foreground mb-1">
+                    <Receipt className="w-3.5 h-3.5 inline mr-1" />
+                    A Pagar ({installmentSummary.countPayable} parcelas)
+                  </p>
+                  <p className="text-lg font-bold text-orange-600">{fmt(installmentSummary.totalPayable)}</p>
+                </div>
+                <div className="rounded-xl border p-4 bg-teal-50 dark:bg-teal-950/30 border-teal-200 dark:border-teal-800 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setMainTab('installments')}>
+                  <p className="text-xs font-medium text-muted-foreground mb-1">
+                    <Receipt className="w-3.5 h-3.5 inline mr-1" />
+                    A Receber ({installmentSummary.countReceivable} parcelas)
+                  </p>
+                  <p className="text-lg font-bold text-teal-600">{fmt(installmentSummary.totalReceivable)}</p>
+                </div>
+              </div>
+            )}
           );
         })()}
 
