@@ -5,6 +5,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Plus, Trash2, CheckCircle, XCircle, Receipt } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Installment, fetchInstallments, payInstallment, unpayInstallment, deleteInstallmentGroup, getInstallmentSummary } from '@/lib/installmentStore';
 import { Category } from '@/components/CategoriesManager';
 import { Account } from '@/components/AccountsManager';
@@ -24,7 +25,10 @@ export default function InstallmentsTab({ categories, accounts, organizationId, 
   const [showPaid, setShowPaid] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [subTab, setSubTab] = useState<'payable' | 'receivable'>('payable');
+  const [filterMonth, setFilterMonth] = useState<string>('__all__');
   const [deleteGroupId, setDeleteGroupId] = useState<string | null>(null);
+
+  const MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 
   const loadInstallments = useCallback(async () => {
     try {
@@ -71,7 +75,15 @@ export default function InstallmentsTab({ categories, accounts, organizationId, 
     }
   };
 
-  const filtered = installments.filter(i => i.type === subTab);
+  const filtered = installments.filter(i => {
+    if (i.type !== subTab) return false;
+    if (filterMonth !== '__all__') {
+      const month = parseInt(filterMonth, 10);
+      const dueMonth = new Date(i.due_date + 'T12:00:00').getMonth();
+      if (dueMonth !== month) return false;
+    }
+    return true;
+  });
   const summary = getInstallmentSummary(installments);
 
   const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -116,6 +128,17 @@ export default function InstallmentsTab({ categories, accounts, organizationId, 
             <Checkbox checked={showPaid} onCheckedChange={v => setShowPaid(!!v)} />
             Mostrar pagas
           </label>
+          <Select value={filterMonth} onValueChange={setFilterMonth}>
+            <SelectTrigger className="w-[150px] h-8 text-sm">
+              <SelectValue placeholder="Mês" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">Todos os meses</SelectItem>
+              {MONTHS.map((m, i) => (
+                <SelectItem key={i} value={String(i)}>{m}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
