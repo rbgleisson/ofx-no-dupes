@@ -171,11 +171,19 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
     loadTransactions();
   }, [loadTransactions]);
 
+  const loadInstallmentSummary = useCallback(async () => {
+    try {
+      const data = await fetchInstallments(organizationId, undefined, false);
+      setInstallmentSummary(getInstallmentSummary(data));
+    } catch {}
+  }, [organizationId]);
+
   useEffect(() => {
     fetchCategories();
     fetchAccounts();
     fetchChartAccounts();
-  }, [fetchCategories, fetchAccounts, fetchChartAccounts]);
+    loadInstallmentSummary();
+  }, [fetchCategories, fetchAccounts, fetchChartAccounts, loadInstallmentSummary]);
 
   useEffect(() => {
     if (notification) {
