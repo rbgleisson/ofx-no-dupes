@@ -151,6 +151,101 @@ export type Database = {
           },
         ]
       }
+      installments: {
+        Row: {
+          account_id: string | null
+          amount: number
+          category_id: string | null
+          created_at: string
+          description: string
+          due_date: string
+          group_id: string
+          id: string
+          installment_number: number
+          invoice_number: string | null
+          is_paid: boolean
+          notes: string | null
+          organization_id: string | null
+          paid_at: string | null
+          total_installments: number
+          transaction_id: string | null
+          type: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          account_id?: string | null
+          amount: number
+          category_id?: string | null
+          created_at?: string
+          description: string
+          due_date: string
+          group_id?: string
+          id?: string
+          installment_number?: number
+          invoice_number?: string | null
+          is_paid?: boolean
+          notes?: string | null
+          organization_id?: string | null
+          paid_at?: string | null
+          total_installments?: number
+          transaction_id?: string | null
+          type?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          account_id?: string | null
+          amount?: number
+          category_id?: string | null
+          created_at?: string
+          description?: string
+          due_date?: string
+          group_id?: string
+          id?: string
+          installment_number?: number
+          invoice_number?: string | null
+          is_paid?: boolean
+          notes?: string | null
+          organization_id?: string | null
+          paid_at?: string | null
+          total_installments?: number
+          transaction_id?: string | null
+          type?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "installments_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "installments_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "installments_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "installments_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organizations: {
         Row: {
           created_at: string
