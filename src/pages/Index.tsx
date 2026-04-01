@@ -25,7 +25,9 @@ import ChartAccountsManager, { ChartAccount } from '@/components/ChartAccountsMa
 import ExportDialog from '@/components/ExportDialog';
 import ExcelImportReviewDialog from '@/components/ExcelImportReviewDialog';
 import { ExcelRow, parseExcelFile, downloadExcelTemplate } from '@/lib/excelImport';
-import { Trash2, FileText, CheckCircle2, AlertCircle, Plus, Upload, LogOut, Download, FileSpreadsheet, HardDrive, Shield, Building, FolderDown, FolderUp, ChevronDown, BarChart3 } from 'lucide-react';
+import { Trash2, FileText, CheckCircle2, AlertCircle, Plus, Upload, LogOut, Download, FileSpreadsheet, HardDrive, Shield, Building, FolderDown, FolderUp, ChevronDown, BarChart3, Receipt } from 'lucide-react';
+import InstallmentsTab from '@/components/InstallmentsTab';
+import { fetchInstallments, getInstallmentSummary, Installment } from '@/lib/installmentStore';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -60,6 +62,8 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
     month: now.getMonth() + 1,
   });
   const [activeTab, setActiveTab] = useState<'payable' | 'receivable'>('payable');
+  const [mainTab, setMainTab] = useState<'transactions' | 'installments'>('transactions');
+  const [installmentSummary, setInstallmentSummary] = useState({ totalPayable: 0, totalReceivable: 0, countPayable: 0, countReceivable: 0 });
   const [notification, setNotification] = useState<{ type: 'success' | 'warning'; message: string } | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
@@ -167,11 +171,19 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
     loadTransactions();
   }, [loadTransactions]);
 
+  const loadInstallmentSummary = useCallback(async () => {
+    try {
+      const data = await fetchInstallments(organizationId, undefined, false);
+      setInstallmentSummary(getInstallmentSummary(data));
+    } catch {}
+  }, [organizationId]);
+
   useEffect(() => {
     fetchCategories();
     fetchAccounts();
     fetchChartAccounts();
-  }, [fetchCategories, fetchAccounts, fetchChartAccounts]);
+    loadInstallmentSummary();
+  }, [fetchCategories, fetchAccounts, fetchChartAccounts, loadInstallmentSummary]);
 
   useEffect(() => {
     if (notification) {
@@ -563,77 +575,116 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
           const totalTransfer = transactions.filter(t => t.is_transfer).reduce((s, t) => s + Math.abs(Number(t.amount)), 0);
           const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
           return (
-            <div className="hidden sm:grid grid-cols-4 gap-4 mb-6">
-              <div className="rounded-xl border p-4 bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800">
-                <p className="text-xs font-medium text-muted-foreground mb-1">Entradas</p>
-                <p className="text-lg font-bold text-emerald-600">{fmt(totalReceber)}</p>
+            <>
+              <div className="hidden sm:grid grid-cols-4 gap-4 mb-6">
+                <div className="rounded-xl border p-4 bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800">
+                  <p className="text-xs font-medium text-muted-foreground mb-1">Entradas</p>
+                  <p className="text-lg font-bold text-emerald-600">{fmt(totalReceber)}</p>
+                </div>
+                <div className="rounded-xl border p-4 bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800">
+                  <p className="text-xs font-medium text-muted-foreground mb-1">Despesas Reais</p>
+                  <p className="text-lg font-bold text-red-600">{fmt(-totalPagar)}</p>
+                </div>
+                <div className={`rounded-xl border p-4 ${saldo >= 0 ? 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800' : 'bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-800'}`}>
+                  <p className="text-xs font-medium text-muted-foreground mb-1">Saldo</p>
+                  <p className={`text-lg font-bold ${saldo >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>{fmt(saldo)}</p>
+                </div>
+                <div className="rounded-xl border p-4 bg-gray-50 dark:bg-gray-950/30 border-gray-200 dark:border-gray-800">
+                  <p className="text-xs font-medium text-muted-foreground mb-1">Movimentações Internas</p>
+                  <p className="text-lg font-bold text-gray-500">{fmt(totalTransfer)}</p>
+                </div>
               </div>
-              <div className="rounded-xl border p-4 bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800">
-                <p className="text-xs font-medium text-muted-foreground mb-1">Despesas Reais</p>
-                <p className="text-lg font-bold text-red-600">{fmt(-totalPagar)}</p>
-              </div>
-              <div className={`rounded-xl border p-4 ${saldo >= 0 ? 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800' : 'bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-800'}`}>
-                <p className="text-xs font-medium text-muted-foreground mb-1">Saldo</p>
-                <p className={`text-lg font-bold ${saldo >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>{fmt(saldo)}</p>
-              </div>
-              <div className="rounded-xl border p-4 bg-gray-50 dark:bg-gray-950/30 border-gray-200 dark:border-gray-800">
-                <p className="text-xs font-medium text-muted-foreground mb-1">Movimentações Internas</p>
-                <p className="text-lg font-bold text-gray-500">{fmt(totalTransfer)}</p>
-              </div>
-            </div>
+              {(installmentSummary.countPayable > 0 || installmentSummary.countReceivable > 0) && (
+                <div className="hidden sm:grid grid-cols-2 gap-4 mb-6">
+                  <div className="rounded-xl border p-4 bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-800 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setMainTab('installments')}>
+                    <p className="text-xs font-medium text-muted-foreground mb-1">
+                      <Receipt className="w-3.5 h-3.5 inline mr-1" />
+                      A Pagar ({installmentSummary.countPayable} parcelas)
+                    </p>
+                    <p className="text-lg font-bold text-orange-600">{fmt(installmentSummary.totalPayable)}</p>
+                  </div>
+                  <div className="rounded-xl border p-4 bg-teal-50 dark:bg-teal-950/30 border-teal-200 dark:border-teal-800 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setMainTab('installments')}>
+                    <p className="text-xs font-medium text-muted-foreground mb-1">
+                      <Receipt className="w-3.5 h-3.5 inline mr-1" />
+                      A Receber ({installmentSummary.countReceivable} parcelas)
+                    </p>
+                    <p className="text-lg font-bold text-teal-600">{fmt(installmentSummary.totalReceivable)}</p>
+                  </div>
+                </div>
+              )}
+            </>
           );
         })()}
 
-        {/* Tabs + Filters */}
+        {/* Main Tabs: Transactions vs Installments */}
+        <Tabs value={mainTab} onValueChange={v => setMainTab(v as 'transactions' | 'installments')} className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="transactions">Lançamentos</TabsTrigger>
+            <TabsTrigger value="installments">
+              <Receipt className="w-4 h-4 mr-1.5" />
+              Contas a Pagar/Receber
+            </TabsTrigger>
+          </TabsList>
 
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'payable' | 'receivable')} className="space-y-4">
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <TabsList>
-              <TabsTrigger value="payable">A Pagar</TabsTrigger>
-              <TabsTrigger value="receivable">A Receber</TabsTrigger>
-            </TabsList>
-            <TransactionFiltersComponent filters={filters} onChange={setFilters} categories={categories} accounts={accounts} />
-          </div>
+          <TabsContent value="transactions">
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'payable' | 'receivable')} className="space-y-4">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <TabsList>
+                  <TabsTrigger value="payable">A Pagar</TabsTrigger>
+                  <TabsTrigger value="receivable">A Receber</TabsTrigger>
+                </TabsList>
+                <TransactionFiltersComponent filters={filters} onChange={setFilters} categories={categories} accounts={accounts} />
+              </div>
 
-          {(['payable', 'receivable'] as const).map((tab) => {
-            let filtered = transactions.filter(t =>
-              tab === 'payable' ? Number(t.amount) < 0 : Number(t.amount) >= 0
-            );
-            if (filters.search) {
-              const searchTerm = filters.search.toLowerCase();
-              const term = searchTerm.replace(',', '.');
-              filtered = filtered.filter(t => {
-                const matchDesc = (t.description ?? '').toLowerCase().includes(searchTerm);
-                const matchMemo = (t.memo ?? '').toLowerCase().includes(searchTerm);
-                const amountStr = Math.abs(Number(t.amount)).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
-                const matchAmount = amountStr.includes(searchTerm) || Math.abs(Number(t.amount)).toString().includes(term);
-                return matchDesc || matchMemo || matchAmount;
-              });
-            }
-            return (
-              <TabsContent key={tab} value={tab}>
-                <p className="text-sm text-muted-foreground mb-4">
-                  {filtered.length} transaç{filtered.length === 1 ? 'ão' : 'ões'}
-                </p>
-                {filtered.length > 0 ? (
-                  <TransactionTable
-                    transactions={filtered}
-                    categories={categories}
-                    accounts={accounts}
-                    chartAccounts={chartAccounts}
-                    onTransactionsChange={loadTransactions}
-                    onEditTransaction={permissions.can_edit_transactions ? handleEditTransaction : undefined}
-                    canDelete={permissions.can_delete_transactions}
-                  />
-                ) : (
-                  <div className="text-center py-12">
-                    <p className="text-muted-foreground">Nenhuma transação encontrada.</p>
-                  </div>
-                )}
-              </TabsContent>
-            );
-          })}
+              {(['payable', 'receivable'] as const).map((tab) => {
+                let filtered = transactions.filter(t =>
+                  tab === 'payable' ? Number(t.amount) < 0 : Number(t.amount) >= 0
+                );
+                if (filters.search) {
+                  const searchTerm = filters.search.toLowerCase();
+                  const term = searchTerm.replace(',', '.');
+                  filtered = filtered.filter(t => {
+                    const matchDesc = (t.description ?? '').toLowerCase().includes(searchTerm);
+                    const matchMemo = (t.memo ?? '').toLowerCase().includes(searchTerm);
+                    const amountStr = Math.abs(Number(t.amount)).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+                    const matchAmount = amountStr.includes(searchTerm) || Math.abs(Number(t.amount)).toString().includes(term);
+                    return matchDesc || matchMemo || matchAmount;
+                  });
+                }
+                return (
+                  <TabsContent key={tab} value={tab}>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      {filtered.length} transaç{filtered.length === 1 ? 'ão' : 'ões'}
+                    </p>
+                    {filtered.length > 0 ? (
+                      <TransactionTable
+                        transactions={filtered}
+                        categories={categories}
+                        accounts={accounts}
+                        chartAccounts={chartAccounts}
+                        onTransactionsChange={loadTransactions}
+                        onEditTransaction={permissions.can_edit_transactions ? handleEditTransaction : undefined}
+                        canDelete={permissions.can_delete_transactions}
+                      />
+                    ) : (
+                      <div className="text-center py-12">
+                        <p className="text-muted-foreground">Nenhuma transação encontrada.</p>
+                      </div>
+                    )}
+                  </TabsContent>
+                );
+              })}
+            </Tabs>
+          </TabsContent>
 
+          <TabsContent value="installments">
+            <InstallmentsTab
+              categories={categories}
+              accounts={accounts}
+              organizationId={organizationId ?? null}
+              onTransactionsChange={() => { loadTransactions(); loadInstallmentSummary(); }}
+            />
+          </TabsContent>
         </Tabs>
 
         {/* Form Dialog */}
