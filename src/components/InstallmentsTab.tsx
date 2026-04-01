@@ -75,8 +75,16 @@ export default function InstallmentsTab({ categories, accounts, organizationId, 
     }
   };
 
-  const filtered = installments.filter(i => i.type === subTab);
-  const summary = getInstallmentSummary(installments);
+  const filtered = installments.filter(i => {
+    if (i.type !== subTab) return false;
+    if (filterMonth !== '__all__') {
+      const month = parseInt(filterMonth, 10);
+      const dueMonth = new Date(i.due_date + 'T12:00:00').getMonth();
+      if (dueMonth !== month) return false;
+    }
+    return true;
+  });
+  const filteredSummary = getInstallmentSummary(filtered.concat(installments.filter(i => i.type !== subTab)));
 
   const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   const fmtDate = (d: string) => {
