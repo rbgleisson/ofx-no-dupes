@@ -84,7 +84,7 @@ export default function InstallmentsTab({ categories, accounts, organizationId, 
     }
     return true;
   });
-  const filteredSummary = getInstallmentSummary(filtered.concat(installments.filter(i => i.type !== subTab)));
+  const summary = getInstallmentSummary(installments);
 
   const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   const fmtDate = (d: string) => {
