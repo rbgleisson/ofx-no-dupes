@@ -128,6 +128,17 @@ export default function InstallmentsTab({ categories, accounts, organizationId, 
             <Checkbox checked={showPaid} onCheckedChange={v => setShowPaid(!!v)} />
             Mostrar pagas
           </label>
+          <Select value={filterMonth} onValueChange={setFilterMonth}>
+            <SelectTrigger className="w-[150px] h-8 text-sm">
+              <SelectValue placeholder="Mês" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">Todos os meses</SelectItem>
+              {MONTHS.map((m, i) => (
+                <SelectItem key={i} value={String(i)}>{m}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
