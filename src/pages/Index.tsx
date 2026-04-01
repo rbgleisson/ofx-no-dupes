@@ -62,6 +62,8 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
     month: now.getMonth() + 1,
   });
   const [activeTab, setActiveTab] = useState<'payable' | 'receivable'>('payable');
+  const [mainTab, setMainTab] = useState<'transactions' | 'installments'>('transactions');
+  const [installmentSummary, setInstallmentSummary] = useState({ totalPayable: 0, totalReceivable: 0, countPayable: 0, countReceivable: 0 });
   const [notification, setNotification] = useState<{ type: 'success' | 'warning'; message: string } | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
