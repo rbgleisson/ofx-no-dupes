@@ -25,7 +25,10 @@ export default function InstallmentsTab({ categories, accounts, organizationId, 
   const [showPaid, setShowPaid] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [subTab, setSubTab] = useState<'payable' | 'receivable'>('payable');
+  const [filterMonth, setFilterMonth] = useState<string>('__all__');
   const [deleteGroupId, setDeleteGroupId] = useState<string | null>(null);
+
+  const MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 
   const loadInstallments = useCallback(async () => {
     try {
