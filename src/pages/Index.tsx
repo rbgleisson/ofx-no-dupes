@@ -535,7 +535,6 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
           </div>
 
           {/* Mobile hamburger menu */}
-          <input ref={ofxInputRef} type="file" accept=".ofx,.qfx" onChange={handleOfxFileChange} className="hidden" />
           <MobileMenu
             onNewTransaction={() => { setEditingTransaction(null); setFormOpen(true); }}
             onClear={handleClear}
