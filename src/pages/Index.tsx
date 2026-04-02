@@ -248,7 +248,18 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
       }
       const existingFitIds = new Set(allFitIds);
 
-      const uniqueByFitId = data.transactions.filter(t => !existingFitIds.has(t.id));
+      // Filter by composite id AND raw fitId, then deduplicate within the batch
+      const seenIds = new Set<string>();
+      const uniqueByFitId = data.transactions.filter(t => {
+        // Check against DB (composite id stored as fit_id)
+        if (existingFitIds.has(t.id)) return false;
+        // Also check raw fitId if non-empty (some banks reuse fitIds)
+        if (t.fitId && existingFitIds.has(t.fitId)) return false;
+        // Deduplicate within the same batch
+        if (seenIds.has(t.id)) return false;
+        seenIds.add(t.id);
+        return true;
+      });
 
       if (uniqueByFitId.length === 0) {
         setNotification({ type: 'warning', message: `Todas as ${data.transactions.length} transações já existem (fit_id duplicado).` });
