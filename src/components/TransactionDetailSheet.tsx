@@ -187,15 +187,13 @@ const TransactionDetailSheet = ({
                     </div>
                   </div>
                 )}
-                <a
-                  href={transaction.attachment_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <button
+                  onClick={() => { import('@/lib/openAttachment').then(m => m.openAttachment(transaction.attachment_url!)); }}
                   className="mt-2 inline-flex items-center gap-1.5 text-xs text-primary hover:underline"
                 >
                   <ExternalLink className="w-3 h-3" />
                   Abrir anexo
-                </a>
+                </button>
               </div>
             ) : (
               <p className="text-sm text-muted-foreground">Nenhum anexo vinculado</p>
