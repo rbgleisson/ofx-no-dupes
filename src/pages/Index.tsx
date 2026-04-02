@@ -392,6 +392,9 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
               <ChartAccountsManager chartAccounts={chartAccounts} onChartAccountsChange={fetchChartAccounts} />
             )}
             {/* Importações & Exportações dropdown */}
+            <input ref={ofxInputRef} type="file" accept=".ofx,.qfx" onChange={handleOfxFileChange} className="hidden" />
+            <input ref={xlsxInputRef} type="file" accept=".xlsx,.xls" onChange={handleXlsxFileChange} className="hidden" />
+            <input ref={catalogImportRef} type="file" accept=".xlsx,.xls" onChange={handleCatalogImport} className="hidden" />
             {(permissions.can_import || permissions.can_export || permissions.can_manage_categories || permissions.can_manage_chart_accounts) && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -405,12 +408,10 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
                   {permissions.can_import && (
                     <>
                       <DropdownMenuLabel className="text-xs text-muted-foreground uppercase tracking-wider">Importações</DropdownMenuLabel>
-                      <input ref={ofxInputRef} type="file" accept=".ofx,.qfx" onChange={handleOfxFileChange} className="hidden" />
                       <DropdownMenuItem onClick={() => ofxInputRef.current?.click()} className="cursor-pointer">
                         <Upload className="w-4 h-4 mr-2 text-slate-600" />
                         Importar OFX
                       </DropdownMenuItem>
-                      <input ref={xlsxInputRef} type="file" accept=".xlsx,.xls" onChange={handleXlsxFileChange} className="hidden" />
                       <DropdownMenuItem onClick={() => xlsxInputRef.current?.click()} className="cursor-pointer">
                         <FileSpreadsheet className="w-4 h-4 mr-2 text-emerald-600" />
                         Importar Excel
@@ -456,7 +457,6 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
                         <FolderDown className="w-4 h-4 mr-2 text-amber-600" />
                         Exportar Plano de Contas
                       </DropdownMenuItem>
-                      <input ref={catalogImportRef} type="file" accept=".xlsx,.xls" onChange={handleCatalogImport} className="hidden" />
                       <DropdownMenuItem onClick={() => catalogImportRef.current?.click()} className="cursor-pointer">
                         <FolderUp className="w-4 h-4 mr-2 text-violet-500" />
                         Importar Cadastros
