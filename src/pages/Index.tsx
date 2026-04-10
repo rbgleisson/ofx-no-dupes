@@ -268,11 +268,11 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
 
       // Auto-categorize transactions
       const { data: { user: currentUser } } = await supabase.auth.getUser();
-      const { transferCategoryId, investmentIncomeCategoryId } = await ensureSystemCategories(currentUser!.id);
+      const { transferCategoryId, investmentIncomeCategoryId, tithesOfferingsCategoryId } = await ensureSystemCategories(currentUser!.id);
 
       // Convert to ExcelRow format and open review dialog for duplicate detection
       const rows: ExcelRow[] = uniqueByFitId.map(t => {
-        const classification = classifyTransaction(t.description, t.amount, transferCategoryId, investmentIncomeCategoryId);
+        const classification = classifyTransaction(t.description, t.amount, transferCategoryId, investmentIncomeCategoryId, tithesOfferingsCategoryId);
         return {
           date: t.date,
           amount: t.amount,
