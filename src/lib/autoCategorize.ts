@@ -36,10 +36,11 @@ async function ensureSystemCategories(userId: string): Promise<{
   // Get org_id for the user
   const { data: orgId } = await supabase.rpc('get_user_org_id', { _user_id: userId });
 
-  const names = ['Transferência Interna', 'Receita de Investimento'];
+  const names = ['Transferência Interna', 'Receita de Investimento', 'Dízimos e Ofertas'];
   const colors: Record<string, string> = {
     'Transferência Interna': '#9ca3af',
     'Receita de Investimento': '#10b981',
+    'Dízimos e Ofertas': '#f59e0b',
   };
 
   const result: Record<string, string> = {};
@@ -66,6 +67,7 @@ async function ensureSystemCategories(userId: string): Promise<{
   return {
     transferCategoryId: result['Transferência Interna'],
     investmentIncomeCategoryId: result['Receita de Investimento'],
+    tithesOfferingsCategoryId: result['Dízimos e Ofertas'],
   };
 }
 
@@ -76,7 +78,8 @@ export function classifyTransaction(
   description: string,
   amount: number,
   transferCategoryId: string,
-  investmentIncomeCategoryId: string
+  investmentIncomeCategoryId: string,
+  tithesOfferingsCategoryId?: string
 ): AutoCategorizeResult {
   if (amount < 0 && matchesAny(description, TRANSFER_OUT_KEYWORDS)) {
     return { category_id: transferCategoryId, is_transfer: true };
@@ -93,6 +96,11 @@ export function classifyTransaction(
 
   if (matchesAny(description, INCOME_KEYWORDS)) {
     return { category_id: investmentIncomeCategoryId, is_transfer: false };
+  }
+
+  // Default: positive amounts (credits) suggest "Dízimos e Ofertas"
+  if (amount > 0 && tithesOfferingsCategoryId) {
+    return { category_id: tithesOfferingsCategoryId, is_transfer: false };
   }
 
   return { category_id: null, is_transfer: false };
