@@ -26,27 +26,28 @@ function matchesAny(description: string, keywords: string[]): boolean {
 }
 
 /**
- * Ensures categories "Transferência Interna" and "Receita de Investimento" exist
- * for the current user, creating them if needed. Returns their IDs.
+ * Ensures system categories exist and finds the default income category.
+ * Creates "Transferência Interna" and "Receita de Investimento" if needed.
+ * For tithes, looks for existing category by name pattern (e.g. "DIZIMOS").
  */
 async function ensureSystemCategories(userId: string): Promise<{
   transferCategoryId: string;
   investmentIncomeCategoryId: string;
-  tithesOfferingsCategoryId: string;
+  tithesOfferingsCategoryId: string | null;
 }> {
   // Get org_id for the user
   const { data: orgId } = await supabase.rpc('get_user_org_id', { _user_id: userId });
 
-  const names = ['Transferência Interna', 'Receita de Investimento', 'Dízimos e Ofertas'];
+  // Categories to auto-create if missing
+  const systemNames = ['Transferência Interna', 'Receita de Investimento'];
   const colors: Record<string, string> = {
     'Transferência Interna': '#9ca3af',
     'Receita de Investimento': '#10b981',
-    'Dízimos e Ofertas': '#f59e0b',
   };
 
   const result: Record<string, string> = {};
 
-  for (const name of names) {
+  for (const name of systemNames) {
     const { data: existing } = await supabase
       .from('categories')
       .select('id')
@@ -65,10 +66,21 @@ async function ensureSystemCategories(userId: string): Promise<{
     }
   }
 
+  // Find existing tithes/offerings category by name pattern (user's own catalog)
+  let tithesId: string | null = null;
+  const { data: tithesCategory } = await supabase
+    .from('categories')
+    .select('id')
+    .ilike('name', '%dizimo%')
+    .maybeSingle();
+  if (tithesCategory) {
+    tithesId = tithesCategory.id;
+  }
+
   return {
     transferCategoryId: result['Transferência Interna'],
     investmentIncomeCategoryId: result['Receita de Investimento'],
-    tithesOfferingsCategoryId: result['Dízimos e Ofertas'],
+    tithesOfferingsCategoryId: tithesId,
   };
 }
 
