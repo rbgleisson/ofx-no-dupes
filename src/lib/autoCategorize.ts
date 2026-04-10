@@ -32,6 +32,7 @@ function matchesAny(description: string, keywords: string[]): boolean {
 async function ensureSystemCategories(userId: string): Promise<{
   transferCategoryId: string;
   investmentIncomeCategoryId: string;
+  tithesOfferingsCategoryId: string;
 }> {
   // Get org_id for the user
   const { data: orgId } = await supabase.rpc('get_user_org_id', { _user_id: userId });
