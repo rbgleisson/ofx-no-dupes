@@ -13,15 +13,18 @@ const MONTHS = [
 const currentYear = new Date().getFullYear();
 const YEARS = Array.from({ length: 10 }, (_, i) => currentYear - i);
 
+interface ChartAccount { id: string; code: string; name: string; }
+
 interface Props {
   categories: Category[];
+  chartAccounts?: ChartAccount[];
   organizationId: string | null;
   onSuccess?: () => void;
   onError?: () => void;
   trigger?: React.ReactNode;
 }
 
-const MonthlySummaryDialog = ({ categories, organizationId, onSuccess, onError, trigger }: Props) => {
+const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, onSuccess, onError, trigger }: Props) => {
   const now = new Date();
   const [open, setOpen] = useState(false);
   const [month, setMonth] = useState<string>(String(now.getMonth() + 1));
@@ -31,7 +34,7 @@ const MonthlySummaryDialog = ({ categories, organizationId, onSuccess, onError, 
   const handleExport = async () => {
     setLoading(true);
     try {
-      await exportMonthlySummary(categories, organizationId, Number(year), Number(month));
+      await exportMonthlySummary(categories, organizationId, Number(year), Number(month), chartAccounts);
       onSuccess?.();
       setOpen(false);
     } catch {
@@ -57,7 +60,7 @@ const MonthlySummaryDialog = ({ categories, organizationId, onSuccess, onError, 
         </DialogHeader>
         <div className="space-y-3">
           <p className="text-xs text-muted-foreground">
-            Gera um Excel com as abas: Entradas por categoria, Saídas por categoria e Resumo (saldo).
+            Gera um Excel com as abas: Entradas/Saídas por categoria, Entradas/Saídas por conta contábil e Resumo (saldo).
           </p>
           <div>
             <p className="text-xs font-medium text-muted-foreground mb-1.5">Período</p>
