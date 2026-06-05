@@ -28,6 +28,7 @@ const ALL_COLUMNS: ExportColumn[] = [
   { key: 'category', label: 'Categoria' },
   { key: 'account', label: 'Conta' },
   { key: 'chart_account', label: 'Conta Contábil' },
+  { key: 'chart_account_code', label: 'Código Contábil' },
 ];
 
 const thinBorder: Partial<ExcelJS.Borders> = {
@@ -306,6 +307,11 @@ function buildListagemSheet(
         case 'chart_account': {
           const ca = chartAccounts.find(c => c.id === tx.chart_account_id);
           values.push(ca ? `${ca.code} - ${ca.name}` : '');
+          break;
+        }
+        case 'chart_account_code': {
+          const ca = chartAccounts.find(c => c.id === tx.chart_account_id);
+          values.push(ca ? ca.code : '');
           break;
         }
       }
