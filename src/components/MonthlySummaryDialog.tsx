@@ -60,7 +60,7 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
         </DialogHeader>
         <div className="space-y-3">
           <p className="text-xs text-muted-foreground">
-            Gera um Excel com as abas: Entradas por categoria, Saídas por categoria e Resumo (saldo).
+            Gera um Excel com as abas: Entradas/Saídas por categoria, Entradas/Saídas por conta contábil e Resumo (saldo).
           </p>
           <div>
             <p className="text-xs font-medium text-muted-foreground mb-1.5">Período</p>
