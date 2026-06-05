@@ -284,8 +284,66 @@ const TransactionTable = ({ transactions, categories, accounts, chartAccounts, o
 
       {/* Bulk actions */}
       {selectedIds.size > 0 && (
-        <div className="flex items-center gap-3 rounded-xl bg-muted/50 border px-4 py-2">
+        <div className="flex flex-wrap items-center gap-3 rounded-xl bg-muted/50 border px-4 py-2">
           <span className="text-sm text-muted-foreground">{selectedIds.size} selecionado(s)</span>
+
+          <Popover open={bulkCategoryOpen} onOpenChange={setBulkCategoryOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm">
+                Aplicar categoria
+                <ChevronsUpDown className="ml-1.5 h-3 w-3 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-56 p-0" align="start">
+              <Command>
+                <CommandInput placeholder="Buscar categoria..." className="h-8 text-xs" />
+                <CommandList>
+                  <CommandEmpty className="py-2 text-center text-xs text-muted-foreground">Nenhuma encontrada.</CommandEmpty>
+                  <CommandGroup>
+                    <CommandItem value="__none__" onSelect={() => handleBulkAssignCategory(null)} className="text-xs">
+                      <span className="text-muted-foreground">Sem categoria</span>
+                    </CommandItem>
+                    {categories.map(c => (
+                      <CommandItem key={c.id} value={c.name} onSelect={() => handleBulkAssignCategory(c.id)} className="text-xs">
+                        <span className="flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: c.color }} />
+                          {c.name}
+                        </span>
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
+
+          <Popover open={bulkChartOpen} onOpenChange={setBulkChartOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm">
+                Aplicar conta contábil
+                <ChevronsUpDown className="ml-1.5 h-3 w-3 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-64 p-0" align="start">
+              <Command>
+                <CommandInput placeholder="Buscar conta contábil..." className="h-8 text-xs" />
+                <CommandList>
+                  <CommandEmpty className="py-2 text-center text-xs text-muted-foreground">Nenhuma encontrada.</CommandEmpty>
+                  <CommandGroup>
+                    <CommandItem value="__none__" onSelect={() => handleBulkAssignChartAccount(null)} className="text-xs">
+                      <span className="text-muted-foreground">Sem conta contábil</span>
+                    </CommandItem>
+                    {chartAccounts.map(c => (
+                      <CommandItem key={c.id} value={`${c.code} ${c.name}`} onSelect={() => handleBulkAssignChartAccount(c.id)} className="text-xs">
+                        <span className="truncate">{c.code} - {c.name}</span>
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
+
           <Button variant="destructive" size="sm" onClick={handleBulkDelete}>
             <Trash2 className="w-4 h-4 mr-1.5" />
             Excluir selecionados
