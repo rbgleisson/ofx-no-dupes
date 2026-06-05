@@ -5,12 +5,19 @@ interface Transaction {
   date: string;
   amount: number;
   category_id: string | null;
+  chart_account_id: string | null;
 }
 
 interface Category {
   id: string;
   name: string;
   color: string;
+}
+
+interface ChartAccount {
+  id: string;
+  code: string;
+  name: string;
 }
 
 function triggerDownload(blob: Blob, fileName: string) {
@@ -26,9 +33,9 @@ export async function exportMonthlySummary(
   categories: Category[],
   organizationId: string | null,
   year: number,
-  month: number
+  month: number,
+  chartAccounts: ChartAccount[] = []
 ) {
-  // Fetch all transactions for the month
   const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
   const endDate = month === 12
     ? `${year + 1}-01-01`
@@ -36,7 +43,7 @@ export async function exportMonthlySummary(
 
   let query = supabase
     .from('transactions')
-    .select('date, amount, category_id')
+    .select('date, amount, category_id, chart_account_id')
     .gte('date', startDate)
     .lt('date', endDate)
     .order('date');
@@ -49,21 +56,30 @@ export async function exportMonthlySummary(
   if (error) throw error;
 
   const catMap = new Map(categories.map(c => [c.id, c.name]));
+  const chartMap = new Map(chartAccounts.map(c => [c.id, c]));
 
-  // Group by category
   const entriesByCategory = new Map<string, number>();
   const exitsByCategory = new Map<string, number>();
+  // key = `${code}||${name}`
+  const entriesByChart = new Map<string, number>();
+  const exitsByChart = new Map<string, number>();
   let totalEntries = 0;
   let totalExits = 0;
 
   for (const tx of (transactions || [])) {
     const catName = tx.category_id ? (catMap.get(tx.category_id) || 'Sem Categoria') : 'Sem Categoria';
+    const ca = tx.chart_account_id ? chartMap.get(tx.chart_account_id) : null;
+    const chartKey = ca ? `${ca.code}||${ca.name}` : `||Sem Conta Contábil`;
+
     if (tx.amount >= 0) {
       entriesByCategory.set(catName, (entriesByCategory.get(catName) || 0) + tx.amount);
+      entriesByChart.set(chartKey, (entriesByChart.get(chartKey) || 0) + tx.amount);
       totalEntries += tx.amount;
     } else {
-      exitsByCategory.set(catName, (exitsByCategory.get(catName) || 0) + Math.abs(tx.amount));
-      totalExits += Math.abs(tx.amount);
+      const abs = Math.abs(tx.amount);
+      exitsByCategory.set(catName, (exitsByCategory.get(catName) || 0) + abs);
+      exitsByChart.set(chartKey, (exitsByChart.get(chartKey) || 0) + abs);
+      totalExits += abs;
     }
   }
 
@@ -76,55 +92,78 @@ export async function exportMonthlySummary(
     left: { style: 'thin' }, right: { style: 'thin' },
   };
 
-  // === ENTRADAS sheet ===
-  const sheetIn = wb.addWorksheet('Entradas');
-  sheetIn.columns = [
-    { header: 'Categoria', key: 'cat', width: 35 },
-    { header: 'Valor (R$)', key: 'val', width: 18 },
-  ];
+  const buildCategorySheet = (
+    name: string,
+    headerColor: string,
+    totalColor: string,
+    totalLabel: string,
+    data: Map<string, number>,
+    total: number
+  ) => {
+    const sheet = wb.addWorksheet(name);
+    sheet.columns = [
+      { header: 'Categoria', key: 'cat', width: 35 },
+      { header: 'Valor (R$)', key: 'val', width: 18 },
+    ];
+    const h = sheet.getRow(1);
+    h.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    h.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: headerColor } };
+    h.eachCell(c => { c.border = thinBorder; c.alignment = { horizontal: 'center' }; });
 
-  const hIn = sheetIn.getRow(1);
-  hIn.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-  hIn.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF16A34A' } };
-  hIn.eachCell(c => { c.border = thinBorder; c.alignment = { horizontal: 'center' }; });
+    const sorted = [...data.entries()].sort((a, b) => b[1] - a[1]);
+    for (const [cat, val] of sorted) {
+      const row = sheet.addRow({ cat, val });
+      row.getCell(2).numFmt = '#,##0.00';
+      row.eachCell(c => { c.border = thinBorder; });
+    }
+    const totalRow = sheet.addRow({ cat: totalLabel, val: total });
+    totalRow.font = { bold: true };
+    totalRow.getCell(2).numFmt = '#,##0.00';
+    totalRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: totalColor } };
+    totalRow.eachCell(c => { c.border = thinBorder; });
+  };
 
-  const sortedEntries = [...entriesByCategory.entries()].sort((a, b) => b[1] - a[1]);
-  for (const [cat, val] of sortedEntries) {
-    const row = sheetIn.addRow({ cat, val });
-    row.getCell(2).numFmt = '#,##0.00';
-    row.eachCell(c => { c.border = thinBorder; });
-  }
+  const buildChartSheet = (
+    name: string,
+    headerColor: string,
+    totalColor: string,
+    totalLabel: string,
+    data: Map<string, number>,
+    total: number
+  ) => {
+    const sheet = wb.addWorksheet(name);
+    sheet.columns = [
+      { header: 'Código', key: 'code', width: 15 },
+      { header: 'Conta Contábil', key: 'cname', width: 40 },
+      { header: 'Valor (R$)', key: 'val', width: 18 },
+    ];
+    const h = sheet.getRow(1);
+    h.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    h.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: headerColor } };
+    h.eachCell(c => { c.border = thinBorder; c.alignment = { horizontal: 'center' }; });
 
-  const totalRowIn = sheetIn.addRow({ cat: 'TOTAL ENTRADAS', val: totalEntries });
-  totalRowIn.font = { bold: true };
-  totalRowIn.getCell(2).numFmt = '#,##0.00';
-  totalRowIn.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFBBF7D0' } };
-  totalRowIn.eachCell(c => { c.border = thinBorder; });
+    const sorted = [...data.entries()].sort((a, b) => {
+      const [codeA] = a[0].split('||');
+      const [codeB] = b[0].split('||');
+      return codeA.localeCompare(codeB);
+    });
+    for (const [key, val] of sorted) {
+      const [code, cname] = key.split('||');
+      const row = sheet.addRow({ code, cname, val });
+      row.getCell(3).numFmt = '#,##0.00';
+      row.eachCell(c => { c.border = thinBorder; });
+    }
+    const totalRow = sheet.addRow({ code: '', cname: totalLabel, val: total });
+    totalRow.font = { bold: true };
+    totalRow.getCell(3).numFmt = '#,##0.00';
+    totalRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: totalColor } };
+    totalRow.eachCell(c => { c.border = thinBorder; });
+  };
 
-  // === SAÍDAS sheet ===
-  const sheetOut = wb.addWorksheet('Saídas');
-  sheetOut.columns = [
-    { header: 'Categoria', key: 'cat', width: 35 },
-    { header: 'Valor (R$)', key: 'val', width: 18 },
-  ];
-
-  const hOut = sheetOut.getRow(1);
-  hOut.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-  hOut.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDC2626' } };
-  hOut.eachCell(c => { c.border = thinBorder; c.alignment = { horizontal: 'center' }; });
-
-  const sortedExits = [...exitsByCategory.entries()].sort((a, b) => b[1] - a[1]);
-  for (const [cat, val] of sortedExits) {
-    const row = sheetOut.addRow({ cat, val });
-    row.getCell(2).numFmt = '#,##0.00';
-    row.eachCell(c => { c.border = thinBorder; });
-  }
-
-  const totalRowOut = sheetOut.addRow({ cat: 'TOTAL SAÍDAS', val: totalExits });
-  totalRowOut.font = { bold: true };
-  totalRowOut.getCell(2).numFmt = '#,##0.00';
-  totalRowOut.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFECACA' } };
-  totalRowOut.eachCell(c => { c.border = thinBorder; });
+  buildCategorySheet('Entradas', 'FF16A34A', 'FFBBF7D0', 'TOTAL ENTRADAS', entriesByCategory, totalEntries);
+  buildCategorySheet('Saídas', 'FFDC2626', 'FFFECACA', 'TOTAL SAÍDAS', exitsByCategory, totalExits);
+  buildChartSheet('Entradas por Conta', 'FF16A34A', 'FFBBF7D0', 'TOTAL ENTRADAS', entriesByChart, totalEntries);
+  buildChartSheet('Saídas por Conta', 'FFDC2626', 'FFFECACA', 'TOTAL SAÍDAS', exitsByChart, totalExits);
 
   // === RESUMO sheet ===
   const sheetSummary = wb.addWorksheet('Resumo');
