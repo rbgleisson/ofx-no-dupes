@@ -28,6 +28,7 @@ const ALL_COLUMNS: ExportColumn[] = [
   { key: 'category', label: 'Categoria' },
   { key: 'account', label: 'Conta' },
   { key: 'chart_account', label: 'Conta Contábil' },
+  { key: 'chart_account_code', label: 'Código Contábil' },
 ];
 
 const thinBorder: Partial<ExcelJS.Borders> = {
