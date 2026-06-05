@@ -118,6 +118,45 @@ const TransactionTable = ({ transactions, categories, accounts, chartAccounts, o
     onTransactionsChange();
   };
 
+  const [bulkCategoryOpen, setBulkCategoryOpen] = useState(false);
+  const [bulkChartOpen, setBulkChartOpen] = useState(false);
+
+  const handleBulkAssignCategory = async (categoryId: string | null) => {
+    if (selectedIds.size === 0) return;
+    const ids = Array.from(selectedIds);
+    try {
+      const { error } = await supabase
+        .from('transactions')
+        .update({ category_id: categoryId })
+        .in('id', ids);
+      if (error) throw error;
+      toast.success(`Categoria aplicada em ${ids.length} lançamento(s)`);
+      setBulkCategoryOpen(false);
+      setSelectedIds(new Set());
+      onTransactionsChange();
+    } catch (err: any) {
+      toast.error('Erro ao aplicar categoria: ' + (err?.message || ''));
+    }
+  };
+
+  const handleBulkAssignChartAccount = async (chartAccountId: string | null) => {
+    if (selectedIds.size === 0) return;
+    const ids = Array.from(selectedIds);
+    try {
+      const { error } = await supabase
+        .from('transactions')
+        .update({ chart_account_id: chartAccountId })
+        .in('id', ids);
+      if (error) throw error;
+      toast.success(`Conta contábil aplicada em ${ids.length} lançamento(s)`);
+      setBulkChartOpen(false);
+      setSelectedIds(new Set());
+      onTransactionsChange();
+    } catch (err: any) {
+      toast.error('Erro ao aplicar conta contábil: ' + (err?.message || ''));
+    }
+  };
+
   const total = transactions.reduce((sum, t) => sum + Number(t.amount), 0);
   const credits = transactions.filter(t => Number(t.amount) > 0).reduce((s, t) => s + Number(t.amount), 0);
   const debits = transactions.filter(t => Number(t.amount) < 0).reduce((s, t) => s + Number(t.amount), 0);
