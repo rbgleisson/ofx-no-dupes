@@ -309,6 +309,11 @@ function buildListagemSheet(
           values.push(ca ? `${ca.code} - ${ca.name}` : '');
           break;
         }
+        case 'chart_account_code': {
+          const ca = chartAccounts.find(c => c.id === tx.chart_account_id);
+          values.push(ca ? ca.code : '');
+          break;
+        }
       }
     }
 
