@@ -38,6 +38,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { exportCategoriesAndChartAccounts, importCategoriesAndChartAccounts } from '@/lib/catalogExportImport';
 import { exportMonthlySummary } from '@/lib/monthlySummaryExport';
+import MonthlySummaryDialog from '@/components/MonthlySummaryDialog';
 import { createFullBackup } from '@/lib/backupExport';
 import MobileMenu from '@/components/MobileMenu';
 import ChangePasswordDialog from '@/components/ChangePasswordDialog';
@@ -442,18 +443,14 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
                       <div className="px-1 pb-1">
                         <ExportDialog transactions={transactions} categories={categories} accounts={accounts} chartAccounts={chartAccounts} />
                       </div>
-                      <DropdownMenuItem
-                        onClick={() => {
-                          const now = new Date();
-                          exportMonthlySummary(categories, organizationId, now.getFullYear(), now.getMonth() + 1)
-                            .then(() => setNotification({ type: 'success', message: 'Resumo mensal exportado!' }))
-                            .catch(() => setNotification({ type: 'warning', message: 'Erro ao exportar resumo.' }));
-                        }}
-                        className="cursor-pointer"
-                      >
-                        <BarChart3 className="w-4 h-4 mr-2 text-blue-600" />
-                        Resumo Mensal (Mês Atual)
-                      </DropdownMenuItem>
+                      <div className="px-1 pb-1">
+                        <MonthlySummaryDialog
+                          categories={categories}
+                          organizationId={organizationId}
+                          onSuccess={() => setNotification({ type: 'success', message: 'Resumo mensal exportado!' })}
+                          onError={() => setNotification({ type: 'warning', message: 'Erro ao exportar resumo.' })}
+                        />
+                      </div>
                     </>
                   )}
                   {(permissions.can_manage_categories || permissions.can_manage_chart_accounts) && (
