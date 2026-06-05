@@ -446,6 +446,7 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
                       <div className="px-1 pb-1">
                         <MonthlySummaryDialog
                           categories={categories}
+                          chartAccounts={chartAccounts}
                           organizationId={organizationId}
                           onSuccess={() => setNotification({ type: 'success', message: 'Resumo mensal exportado!' })}
                           onError={() => setNotification({ type: 'warning', message: 'Erro ao exportar resumo.' })}
