@@ -4,7 +4,8 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Trash2, CheckCircle, XCircle, Receipt } from 'lucide-react';
+import { Plus, Trash2, CheckCircle, XCircle, Receipt, Download } from 'lucide-react';
+import { exportInstallments } from '@/lib/installmentsExport';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Installment, fetchInstallments, payInstallment, unpayInstallment, deleteInstallmentGroup, getInstallmentSummary } from '@/lib/installmentStore';
 import { Category } from '@/components/CategoriesManager';
@@ -123,6 +124,17 @@ export default function InstallmentsTab({ categories, accounts, organizationId, 
         <div className="flex items-center gap-2">
           <Button size="sm" onClick={() => setFormOpen(true)} className="bg-emerald-600 hover:bg-emerald-700 text-white">
             <Plus className="w-4 h-4 mr-1.5" /> Nova Conta
+          </Button>
+          <Button size="sm" variant="outline" onClick={async () => {
+            try {
+              const all = await fetchInstallments(organizationId, undefined, true);
+              await exportInstallments(all, categories, accounts);
+              toast.success('Exportação concluída!');
+            } catch {
+              toast.error('Erro ao exportar.');
+            }
+          }}>
+            <Download className="w-4 h-4 mr-1.5" /> Exportar Excel
           </Button>
           <label className="flex items-center gap-1.5 text-sm text-muted-foreground cursor-pointer">
             <Checkbox checked={showPaid} onCheckedChange={v => setShowPaid(!!v)} />
