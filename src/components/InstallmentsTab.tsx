@@ -125,6 +125,17 @@ export default function InstallmentsTab({ categories, accounts, organizationId, 
           <Button size="sm" onClick={() => setFormOpen(true)} className="bg-emerald-600 hover:bg-emerald-700 text-white">
             <Plus className="w-4 h-4 mr-1.5" /> Nova Conta
           </Button>
+          <Button size="sm" variant="outline" onClick={async () => {
+            try {
+              const all = await fetchInstallments(organizationId, undefined, true);
+              await exportInstallments(all, categories, accounts);
+              toast.success('Exportação concluída!');
+            } catch {
+              toast.error('Erro ao exportar.');
+            }
+          }}>
+            <Download className="w-4 h-4 mr-1.5" /> Exportar Excel
+          </Button>
           <label className="flex items-center gap-1.5 text-sm text-muted-foreground cursor-pointer">
             <Checkbox checked={showPaid} onCheckedChange={v => setShowPaid(!!v)} />
             Mostrar pagas
