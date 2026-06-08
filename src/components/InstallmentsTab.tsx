@@ -6,7 +6,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Plus, Trash2, CheckCircle, XCircle, Receipt, Download } from 'lucide-react';
 import { exportInstallments } from '@/lib/installmentsExport';
-import { fetchInstallments as fetchAllInstallments } from '@/lib/installmentStore';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Installment, fetchInstallments, payInstallment, unpayInstallment, deleteInstallmentGroup, getInstallmentSummary } from '@/lib/installmentStore';
 import { Category } from '@/components/CategoriesManager';
