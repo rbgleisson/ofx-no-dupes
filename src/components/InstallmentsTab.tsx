@@ -128,10 +128,15 @@ export default function InstallmentsTab({ categories, accounts, organizationId, 
           <Button size="sm" variant="outline" onClick={async () => {
             try {
               const all = await fetchInstallments(organizationId, undefined, true);
+              if (!all || all.length === 0) {
+                toast.warning('Nenhuma parcela para exportar.');
+                return;
+              }
               await exportInstallments(all, categories, accounts);
-              toast.success('Exportação concluída!');
-            } catch {
-              toast.error('Erro ao exportar.');
+              toast.success(`Exportadas ${all.length} parcelas!`);
+            } catch (err: any) {
+              console.error('Export installments error:', err);
+              toast.error('Erro ao exportar: ' + (err?.message || 'desconhecido'));
             }
           }}>
             <Download className="w-4 h-4 mr-1.5" /> Exportar Excel
