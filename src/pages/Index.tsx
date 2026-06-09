@@ -37,6 +37,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { exportCategoriesAndChartAccounts, importCategoriesAndChartAccounts } from '@/lib/catalogExportImport';
+import { exportListagem } from '@/lib/excelExport';
+import { toast } from 'sonner';
 import { exportMonthlySummary } from '@/lib/monthlySummaryExport';
 import MonthlySummaryDialog from '@/components/MonthlySummaryDialog';
 import { createFullBackup } from '@/lib/backupExport';
@@ -641,7 +643,33 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
                   <TabsTrigger value="payable">A Pagar</TabsTrigger>
                   <TabsTrigger value="receivable">A Receber</TabsTrigger>
                 </TabsList>
-                <TransactionFiltersComponent filters={filters} onChange={setFilters} categories={categories} accounts={accounts} />
+                <div className="flex items-center gap-2 flex-wrap">
+                  {permissions.can_export && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={async () => {
+                        try {
+                          if (transactions.length === 0) {
+                            toast.warning('Nenhum lançamento para exportar.');
+                            return;
+                          }
+                          const allCols = new Set(['date', 'description', 'memo', 'amount', 'category', 'account', 'chart_account', 'chart_account_code']);
+                          const y = filters.year ?? 'todos';
+                          const m = filters.month ?? 'todos';
+                          await exportListagem(transactions, categories, accounts, chartAccounts, allCols, `lancamentos_${y}_${m}.xlsx`);
+                          toast.success('Exportação concluída!');
+                        } catch (err: any) {
+                          console.error('Export lançamentos error:', err);
+                          toast.error('Erro ao exportar: ' + (err?.message || ''));
+                        }
+                      }}
+                    >
+                      <Download className="w-4 h-4 mr-1.5" /> Exportar Excel
+                    </Button>
+                  )}
+                  <TransactionFiltersComponent filters={filters} onChange={setFilters} categories={categories} accounts={accounts} />
+                </div>
               </div>
 
               {(['payable', 'receivable'] as const).map((tab) => {
