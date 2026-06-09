@@ -372,6 +372,7 @@ const TransactionTable = ({ transactions, categories, accounts, chartAccounts, o
                 </th>
                 <th className="text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Categoria</th>
                 <th className="text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Conta</th>
+                <th className="text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider px-2 py-3">Código</th>
                 <th className="text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Conta Contábil</th>
                 <th className="text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3 cursor-pointer select-none hover:text-foreground transition-colors" onClick={() => toggleSort('amount')}>
                   Valor <SortIcon field="amount" />
@@ -494,6 +495,9 @@ const TransactionTable = ({ transactions, categories, accounts, chartAccounts, o
                           ))}
                         </SelectContent>
                       </Select>
+                    </td>
+                    <td className="px-2 py-3 text-xs font-mono text-muted-foreground whitespace-nowrap">
+                      {ca ? ca.code : <span className="text-muted-foreground/50">—</span>}
                     </td>
                     <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
                       <Popover open={openChartAccountPopover === tx.id} onOpenChange={(open) => setOpenChartAccountPopover(open ? tx.id : null)}>
