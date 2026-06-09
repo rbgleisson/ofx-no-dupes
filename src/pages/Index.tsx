@@ -38,6 +38,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { exportCategoriesAndChartAccounts, importCategoriesAndChartAccounts } from '@/lib/catalogExportImport';
 import { exportListagem } from '@/lib/excelExport';
+import TransactionExportDialog from '@/components/TransactionExportDialog';
 import { toast } from 'sonner';
 import { exportMonthlySummary } from '@/lib/monthlySummaryExport';
 import MonthlySummaryDialog from '@/components/MonthlySummaryDialog';
