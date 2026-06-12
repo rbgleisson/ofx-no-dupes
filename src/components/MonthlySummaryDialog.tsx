@@ -123,7 +123,14 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
   const handleExport = async () => {
     setExporting(true);
     try {
-      await exportMonthlySummary(categories, organizationId, Number(year), Number(month), chartAccounts);
+      await exportMonthlySummary(
+        categories,
+        organizationId,
+        Number(year),
+        Number(month),
+        chartAccounts,
+        (headerName || orgName || '').trim(),
+      );
       onSuccess?.();
     } catch {
       onError?.();
