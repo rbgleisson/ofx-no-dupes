@@ -450,6 +450,7 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
                           categories={categories}
                           chartAccounts={chartAccounts}
                           organizationId={organizationId}
+                          orgName={organization?.name}
                           onSuccess={() => setNotification({ type: 'success', message: 'Resumo mensal exportado!' })}
                           onError={() => setNotification({ type: 'warning', message: 'Erro ao exportar resumo.' })}
                         />
