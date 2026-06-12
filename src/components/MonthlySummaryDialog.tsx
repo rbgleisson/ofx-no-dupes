@@ -161,6 +161,7 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
         Number(month),
         chartAccounts,
         (headerName || orgName || '').trim(),
+        parsedPrevBalance,
       );
       onSuccess?.();
     } catch {
@@ -169,6 +170,8 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
       setExporting(false);
     }
   };
+
+  const finalBalance = parsedPrevBalance + stats.saldo;
 
   const monthName = MONTHS[Number(month) - 1];
 
