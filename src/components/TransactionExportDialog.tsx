@@ -26,6 +26,7 @@ const ALL_COLUMNS: ExportColumn[] = [
   { key: 'description', label: 'Descrição' },
   { key: 'memo', label: 'Memo' },
   { key: 'amount', label: 'Valor' },
+  { key: 'category_code', label: 'Código Categoria' },
   { key: 'category', label: 'Categoria' },
   { key: 'account', label: 'Conta' },
   { key: 'chart_account', label: 'Conta Contábil' },
@@ -48,7 +49,7 @@ const TransactionExportDialog = ({
   fileName,
 }: TransactionExportDialogProps) => {
   const [selected, setSelected] = useState<Set<string>>(
-    new Set(['date', 'description', 'amount', 'category', 'account', 'chart_account', 'chart_account_code'])
+    new Set(['date', 'description', 'amount', 'category_code', 'category', 'account', 'chart_account', 'chart_account_code'])
   );
   const [open, setOpen] = useState(false);
   const [exporting, setExporting] = useState(false);

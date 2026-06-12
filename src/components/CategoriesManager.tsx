@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Plus, Pencil, Trash2, Check, X, Tag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -15,6 +15,7 @@ export interface Category {
   id: string;
   name: string;
   color: string;
+  code?: string | null;
   created_at: string;
 }
 
@@ -30,9 +31,11 @@ interface CategoriesManagerProps {
 
 const CategoriesManager = ({ categories, onCategoriesChange }: CategoriesManagerProps) => {
   const [open, setOpen] = useState(false);
+  const [newCode, setNewCode] = useState('');
   const [newName, setNewName] = useState('');
   const [newColor, setNewColor] = useState(PRESET_COLORS[0]);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [editCode, setEditCode] = useState('');
   const [editName, setEditName] = useState('');
   const [editColor, setEditColor] = useState('');
 
@@ -41,8 +44,15 @@ const CategoriesManager = ({ categories, onCategoriesChange }: CategoriesManager
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
     const { data: orgId } = await supabase.rpc('get_user_org_id', { _user_id: user.id });
-    const { error } = await supabase.from('categories').insert({ name: newName.trim(), color: newColor, user_id: user.id, organization_id: orgId });
+    const { error } = await supabase.from('categories').insert({
+      name: newName.trim(),
+      color: newColor,
+      code: newCode.trim() || null,
+      user_id: user.id,
+      organization_id: orgId,
+    });
     if (!error) {
+      setNewCode('');
       setNewName('');
       setNewColor(PRESET_COLORS[0]);
       onCategoriesChange();
@@ -51,7 +61,11 @@ const CategoriesManager = ({ categories, onCategoriesChange }: CategoriesManager
 
   const handleUpdate = async (id: string) => {
     if (!editName.trim()) return;
-    const { error } = await supabase.from('categories').update({ name: editName.trim(), color: editColor }).eq('id', id);
+    const { error } = await supabase.from('categories').update({
+      name: editName.trim(),
+      color: editColor,
+      code: editCode.trim() || null,
+    }).eq('id', id);
     if (!error) {
       setEditingId(null);
       onCategoriesChange();
@@ -65,6 +79,7 @@ const CategoriesManager = ({ categories, onCategoriesChange }: CategoriesManager
 
   const startEdit = (cat: Category) => {
     setEditingId(cat.id);
+    setEditCode(cat.code || '');
     setEditName(cat.name);
     setEditColor(cat.color);
   };
@@ -84,6 +99,13 @@ const CategoriesManager = ({ categories, onCategoriesChange }: CategoriesManager
 
         {/* Add new */}
         <div className="flex items-center gap-2">
+          <Input
+            placeholder="Código"
+            value={newCode}
+            onChange={e => setNewCode(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleAdd()}
+            className="w-20 text-sm"
+          />
           <Input
             placeholder="Nova categoria..."
             value={newName}
@@ -116,6 +138,12 @@ const CategoriesManager = ({ categories, onCategoriesChange }: CategoriesManager
               {editingId === cat.id ? (
                 <>
                   <Input
+                    value={editCode}
+                    onChange={e => setEditCode(e.target.value)}
+                    placeholder="Código"
+                    className="w-20 h-8 text-sm"
+                  />
+                  <Input
                     value={editName}
                     onChange={e => setEditName(e.target.value)}
                     className="flex-1 h-8 text-sm"
@@ -141,6 +169,9 @@ const CategoriesManager = ({ categories, onCategoriesChange }: CategoriesManager
               ) : (
                 <>
                   <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: cat.color }} />
+                  {cat.code && (
+                    <span className="text-xs font-mono text-muted-foreground w-14 flex-shrink-0">{cat.code}</span>
+                  )}
                   <span className="flex-1 text-sm font-medium text-foreground">{cat.name}</span>
                   <button onClick={() => startEdit(cat)} className="text-muted-foreground hover:text-foreground transition-colors">
                     <Pencil className="w-3.5 h-3.5" />
