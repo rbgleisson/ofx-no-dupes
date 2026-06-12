@@ -47,6 +47,9 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [txs, setTxs] = useState<Tx[]>([]);
+  const [previousBalance, setPreviousBalance] = useState<number>(0);
+  const [prevBalanceInput, setPrevBalanceInput] = useState<string>('0,00');
+  const [prevBalanceEdited, setPrevBalanceEdited] = useState(false);
 
   useEffect(() => {
     if (orgName && !headerName) setHeaderName(orgName);
@@ -70,14 +73,42 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
         .gte('date', startDate)
         .lt('date', endDate);
       if (organizationId) q = q.eq('organization_id', organizationId);
-      const { data } = await q;
+
+      let prevQ = supabase
+        .from('transactions')
+        .select('amount, is_transfer')
+        .lt('date', startDate);
+      if (organizationId) prevQ = prevQ.eq('organization_id', organizationId);
+
+      const [{ data }, { data: prevData }] = await Promise.all([q, prevQ]);
       if (!cancelled) {
         setTxs((data || []) as Tx[]);
+        let prev = 0;
+        for (const t of (prevData || []) as { amount: number; is_transfer?: boolean | null }[]) {
+          if (t.is_transfer) continue;
+          prev += t.amount;
+        }
+        setPreviousBalance(prev);
+        if (!prevBalanceEdited) {
+          setPrevBalanceInput(prev.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+        }
         setLoading(false);
       }
     })();
     return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, year, month, organizationId]);
+
+  // Reset edit flag when month/year changes
+  useEffect(() => {
+    setPrevBalanceEdited(false);
+  }, [year, month]);
+
+  const parsedPrevBalance = useMemo(() => {
+    const cleaned = prevBalanceInput.replace(/\./g, '').replace(',', '.').replace(/[^\d.-]/g, '');
+    const n = parseFloat(cleaned);
+    return isNaN(n) ? 0 : n;
+  }, [prevBalanceInput]);
 
   const stats = useMemo(() => {
     const entriesByCat = new Map<string, number>();
