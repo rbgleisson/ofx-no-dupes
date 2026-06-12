@@ -322,27 +322,34 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
             {/* Carry-over balance */}
             <div className="relative overflow-hidden rounded-xl border border-cyan-400/30 bg-gradient-to-br from-cyan-950/60 via-slate-900 to-blue-950/40 p-5">
               <div className="absolute -right-12 -top-12 w-40 h-40 rounded-full bg-cyan-500/10 blur-3xl" />
-              <div className="relative flex items-center justify-between flex-wrap gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-lg bg-cyan-500/15 border border-cyan-400/30">
-                    <TrendingUp className="w-5 h-5 text-cyan-300" />
+              <div className="relative space-y-3">
+                <div className="flex items-center justify-between flex-wrap gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 rounded-lg bg-cyan-500/15 border border-cyan-400/30">
+                      <TrendingUp className="w-5 h-5 text-cyan-300" />
+                    </div>
+                    <div>
+                      <p className="text-[11px] uppercase tracking-wider text-cyan-300/70 font-medium">
+                        Saldo para o próximo mês
+                      </p>
+                      <p className="text-xs text-slate-400">
+                        {monthName}/{year} — {stats.count} lançamento{stats.count === 1 ? '' : 's'}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-[11px] uppercase tracking-wider text-cyan-300/70 font-medium">
-                      Saldo para o próximo mês
-                    </p>
-                    <p className="text-xs text-slate-400">
-                      Resultado de {monthName}/{year} — {stats.count} lançamento{stats.count === 1 ? '' : 's'}
-                    </p>
+                  <div
+                    className={cn(
+                      'text-3xl md:text-4xl font-bold tabular-nums',
+                      finalBalance >= 0 ? 'text-cyan-200' : 'text-amber-300'
+                    )}
+                  >
+                    {fmt(finalBalance)}
                   </div>
                 </div>
-                <div
-                  className={cn(
-                    'text-3xl md:text-4xl font-bold tabular-nums',
-                    stats.saldo >= 0 ? 'text-cyan-200' : 'text-amber-300'
-                  )}
-                >
-                  {fmt(stats.saldo)}
+                <div className="flex items-center justify-end gap-4 text-xs text-slate-400 border-t border-cyan-500/10 pt-2">
+                  <span>Saldo anterior: <span className="text-slate-200 tabular-nums">{fmt(parsedPrevBalance)}</span></span>
+                  <span className="text-slate-600">+</span>
+                  <span>Saldo do mês: <span className={cn('tabular-nums', stats.saldo >= 0 ? 'text-emerald-300' : 'text-rose-300')}>{fmt(stats.saldo)}</span></span>
                 </div>
               </div>
             </div>
