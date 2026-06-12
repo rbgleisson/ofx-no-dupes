@@ -15,7 +15,7 @@ interface ExportTransaction {
 }
 
 interface ChartAccount { id: string; code: string; name: string; }
-interface Category { id: string; name: string; color: string; }
+interface Category { id: string; name: string; color: string; code?: string | null; }
 interface Account { id: string; name: string; color: string; }
 
 interface ExportColumn { key: string; label: string; }
@@ -25,6 +25,7 @@ const ALL_COLUMNS: ExportColumn[] = [
   { key: 'description', label: 'Descrição' },
   { key: 'memo', label: 'Memo' },
   { key: 'amount', label: 'Valor' },
+  { key: 'category_code', label: 'Código Categoria' },
   { key: 'category', label: 'Categoria' },
   { key: 'account', label: 'Conta' },
   { key: 'chart_account', label: 'Conta Contábil' },
@@ -297,6 +298,11 @@ function buildListagemSheet(
         case 'category': {
           const cat = categories.find(c => c.id === tx.category_id);
           values.push(cat?.name || '');
+          break;
+        }
+        case 'category_code': {
+          const cat = categories.find(c => c.id === tx.category_id);
+          values.push(cat?.code || '');
           break;
         }
         case 'account': {
