@@ -48,6 +48,7 @@ export async function exportMonthlySummary(
   month: number,
   chartAccounts: ChartAccount[] = [],
   headerName: string = '',
+  previousBalanceOverride?: number | null,
 ) {
   const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
   const endDate = month === 12
@@ -64,6 +65,23 @@ export async function exportMonthlySummary(
 
   const { data: transactions, error } = await query;
   if (error) throw error;
+
+  // Previous balance: use override if provided, else compute from all prior non-transfer tx
+  let previousBalance = 0;
+  if (previousBalanceOverride !== undefined && previousBalanceOverride !== null) {
+    previousBalance = previousBalanceOverride;
+  } else {
+    let prevQ = supabase
+      .from('transactions')
+      .select('amount, is_transfer')
+      .lt('date', startDate);
+    if (organizationId) prevQ = prevQ.eq('organization_id', organizationId);
+    const { data: prevTx } = await prevQ;
+    for (const t of (prevTx || []) as { amount: number; is_transfer?: boolean | null }[]) {
+      if (t.is_transfer) continue;
+      previousBalance += t.amount;
+    }
+  }
 
   const catMap = new Map(categories.map(c => [c.id, c]));
   const chartMap = new Map(chartAccounts.map(c => [c.id, c]));
