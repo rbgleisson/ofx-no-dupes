@@ -236,6 +236,38 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
               Exportar Excel
             </Button>
           </div>
+
+          <div>
+            <p className="text-[10px] font-medium text-cyan-300/70 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+              <Wallet className="w-3 h-3" /> Saldo Anterior (editável)
+              {!prevBalanceEdited && (
+                <span className="text-[9px] text-slate-500 normal-case tracking-normal">
+                  — calculado automaticamente
+                </span>
+              )}
+            </p>
+            <Input
+              value={prevBalanceInput}
+              onChange={(e) => { setPrevBalanceInput(e.target.value); setPrevBalanceEdited(true); }}
+              onBlur={() => {
+                setPrevBalanceInput(parsedPrevBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+              }}
+              placeholder="0,00"
+              className="h-9 text-sm bg-slate-900/80 border-cyan-500/20 text-slate-100 tabular-nums"
+            />
+            {prevBalanceEdited && Math.abs(parsedPrevBalance - previousBalance) > 0.001 && (
+              <button
+                type="button"
+                onClick={() => {
+                  setPrevBalanceInput(previousBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+                  setPrevBalanceEdited(false);
+                }}
+                className="text-[10px] text-cyan-400 hover:text-cyan-300 mt-1"
+              >
+                ↺ Restaurar valor calculado ({fmt(previousBalance)})
+              </button>
+            )}
+          </div>
         </div>
 
         {loading ? (
