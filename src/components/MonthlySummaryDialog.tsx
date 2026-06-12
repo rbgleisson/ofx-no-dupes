@@ -47,6 +47,9 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [txs, setTxs] = useState<Tx[]>([]);
+  const [previousBalance, setPreviousBalance] = useState<number>(0);
+  const [prevBalanceInput, setPrevBalanceInput] = useState<string>('0,00');
+  const [prevBalanceEdited, setPrevBalanceEdited] = useState(false);
 
   useEffect(() => {
     if (orgName && !headerName) setHeaderName(orgName);
@@ -70,14 +73,42 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
         .gte('date', startDate)
         .lt('date', endDate);
       if (organizationId) q = q.eq('organization_id', organizationId);
-      const { data } = await q;
+
+      let prevQ = supabase
+        .from('transactions')
+        .select('amount, is_transfer')
+        .lt('date', startDate);
+      if (organizationId) prevQ = prevQ.eq('organization_id', organizationId);
+
+      const [{ data }, { data: prevData }] = await Promise.all([q, prevQ]);
       if (!cancelled) {
         setTxs((data || []) as Tx[]);
+        let prev = 0;
+        for (const t of (prevData || []) as { amount: number; is_transfer?: boolean | null }[]) {
+          if (t.is_transfer) continue;
+          prev += t.amount;
+        }
+        setPreviousBalance(prev);
+        if (!prevBalanceEdited) {
+          setPrevBalanceInput(prev.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+        }
         setLoading(false);
       }
     })();
     return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, year, month, organizationId]);
+
+  // Reset edit flag when month/year changes
+  useEffect(() => {
+    setPrevBalanceEdited(false);
+  }, [year, month]);
+
+  const parsedPrevBalance = useMemo(() => {
+    const cleaned = prevBalanceInput.replace(/\./g, '').replace(',', '.').replace(/[^\d.-]/g, '');
+    const n = parseFloat(cleaned);
+    return isNaN(n) ? 0 : n;
+  }, [prevBalanceInput]);
 
   const stats = useMemo(() => {
     const entriesByCat = new Map<string, number>();
@@ -130,6 +161,7 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
         Number(month),
         chartAccounts,
         (headerName || orgName || '').trim(),
+        parsedPrevBalance,
       );
       onSuccess?.();
     } catch {
@@ -138,6 +170,8 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
       setExporting(false);
     }
   };
+
+  const finalBalance = parsedPrevBalance + stats.saldo;
 
   const monthName = MONTHS[Number(month) - 1];
 
@@ -202,6 +236,38 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
               Exportar Excel
             </Button>
           </div>
+
+          <div>
+            <p className="text-[10px] font-medium text-cyan-300/70 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+              <Wallet className="w-3 h-3" /> Saldo Anterior (editável)
+              {!prevBalanceEdited && (
+                <span className="text-[9px] text-slate-500 normal-case tracking-normal">
+                  — calculado automaticamente
+                </span>
+              )}
+            </p>
+            <Input
+              value={prevBalanceInput}
+              onChange={(e) => { setPrevBalanceInput(e.target.value); setPrevBalanceEdited(true); }}
+              onBlur={() => {
+                setPrevBalanceInput(parsedPrevBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+              }}
+              placeholder="0,00"
+              className="h-9 text-sm bg-slate-900/80 border-cyan-500/20 text-slate-100 tabular-nums"
+            />
+            {prevBalanceEdited && Math.abs(parsedPrevBalance - previousBalance) > 0.001 && (
+              <button
+                type="button"
+                onClick={() => {
+                  setPrevBalanceInput(previousBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+                  setPrevBalanceEdited(false);
+                }}
+                className="text-[10px] text-cyan-400 hover:text-cyan-300 mt-1"
+              >
+                ↺ Restaurar valor calculado ({fmt(previousBalance)})
+              </button>
+            )}
+          </div>
         </div>
 
         {loading ? (
@@ -256,27 +322,34 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
             {/* Carry-over balance */}
             <div className="relative overflow-hidden rounded-xl border border-cyan-400/30 bg-gradient-to-br from-cyan-950/60 via-slate-900 to-blue-950/40 p-5">
               <div className="absolute -right-12 -top-12 w-40 h-40 rounded-full bg-cyan-500/10 blur-3xl" />
-              <div className="relative flex items-center justify-between flex-wrap gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-lg bg-cyan-500/15 border border-cyan-400/30">
-                    <TrendingUp className="w-5 h-5 text-cyan-300" />
+              <div className="relative space-y-3">
+                <div className="flex items-center justify-between flex-wrap gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 rounded-lg bg-cyan-500/15 border border-cyan-400/30">
+                      <TrendingUp className="w-5 h-5 text-cyan-300" />
+                    </div>
+                    <div>
+                      <p className="text-[11px] uppercase tracking-wider text-cyan-300/70 font-medium">
+                        Saldo para o próximo mês
+                      </p>
+                      <p className="text-xs text-slate-400">
+                        {monthName}/{year} — {stats.count} lançamento{stats.count === 1 ? '' : 's'}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-[11px] uppercase tracking-wider text-cyan-300/70 font-medium">
-                      Saldo para o próximo mês
-                    </p>
-                    <p className="text-xs text-slate-400">
-                      Resultado de {monthName}/{year} — {stats.count} lançamento{stats.count === 1 ? '' : 's'}
-                    </p>
+                  <div
+                    className={cn(
+                      'text-3xl md:text-4xl font-bold tabular-nums',
+                      finalBalance >= 0 ? 'text-cyan-200' : 'text-amber-300'
+                    )}
+                  >
+                    {fmt(finalBalance)}
                   </div>
                 </div>
-                <div
-                  className={cn(
-                    'text-3xl md:text-4xl font-bold tabular-nums',
-                    stats.saldo >= 0 ? 'text-cyan-200' : 'text-amber-300'
-                  )}
-                >
-                  {fmt(stats.saldo)}
+                <div className="flex items-center justify-end gap-4 text-xs text-slate-400 border-t border-cyan-500/10 pt-2">
+                  <span>Saldo anterior: <span className="text-slate-200 tabular-nums">{fmt(parsedPrevBalance)}</span></span>
+                  <span className="text-slate-600">+</span>
+                  <span>Saldo do mês: <span className={cn('tabular-nums', stats.saldo >= 0 ? 'text-emerald-300' : 'text-rose-300')}>{fmt(stats.saldo)}</span></span>
                 </div>
               </div>
             </div>

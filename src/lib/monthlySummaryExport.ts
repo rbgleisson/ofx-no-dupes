@@ -48,6 +48,7 @@ export async function exportMonthlySummary(
   month: number,
   chartAccounts: ChartAccount[] = [],
   headerName: string = '',
+  previousBalanceOverride?: number | null,
 ) {
   const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
   const endDate = month === 12
@@ -64,6 +65,23 @@ export async function exportMonthlySummary(
 
   const { data: transactions, error } = await query;
   if (error) throw error;
+
+  // Previous balance: use override if provided, else compute from all prior non-transfer tx
+  let previousBalance = 0;
+  if (previousBalanceOverride !== undefined && previousBalanceOverride !== null) {
+    previousBalance = previousBalanceOverride;
+  } else {
+    let prevQ = supabase
+      .from('transactions')
+      .select('amount, is_transfer')
+      .lt('date', startDate);
+    if (organizationId) prevQ = prevQ.eq('organization_id', organizationId);
+    const { data: prevTx } = await prevQ;
+    for (const t of (prevTx || []) as { amount: number; is_transfer?: boolean | null }[]) {
+      if (t.is_transfer) continue;
+      previousBalance += t.amount;
+    }
+  }
 
   const catMap = new Map(categories.map(c => [c.id, c]));
   const chartMap = new Map(chartAccounts.map(c => [c.id, c]));
@@ -340,8 +358,43 @@ export async function exportMonthlySummary(
   buildCategorySection('▲  ENTRADAS POR CATEGORIA', entriesByCategory, totalEntries, C_GREEN, C_GREEN_BG);
   buildCategorySection('▼  SAÍDAS POR CATEGORIA', exitsByCategory, totalExits, C_RED, C_RED_BG);
 
-  // === SALDO PARA PRÓXIMO MÊS (highlight) ===
+  // === SALDO ANTERIOR + SALDO PARA PRÓXIMO MÊS ===
+  const finalBalance = previousBalance + saldo;
+
+  // Saldo Anterior line
+  sheet.mergeCells(row, 2, row, 3);
+  const prevLbl = sheet.getCell(row, 2);
+  prevLbl.value = 'SALDO ANTERIOR';
+  prevLbl.font = { name: 'Calibri', size: 10, bold: true, color: { argb: C_GRAY } };
+  prevLbl.alignment = { horizontal: 'left', vertical: 'middle', indent: 1 };
+  prevLbl.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C_GRAY_LIGHT } };
+  sheet.mergeCells(row, 4, row, 5);
+  const prevVal = sheet.getCell(row, 4);
+  prevVal.value = previousBalance;
+  prevVal.numFmt = '"R$" #,##0.00';
+  prevVal.font = { name: 'Calibri', size: 11, bold: true, color: { argb: C_DARK } };
+  prevVal.alignment = { horizontal: 'right', vertical: 'middle', indent: 1 };
+  prevVal.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C_GRAY_LIGHT } };
+  sheet.getRow(row).height = 20;
   row++;
+
+  // Saldo do mês (linha resumo)
+  sheet.mergeCells(row, 2, row, 3);
+  const mLbl = sheet.getCell(row, 2);
+  mLbl.value = `(+) SALDO DE ${monthName.toUpperCase()}/${year}`;
+  mLbl.font = { name: 'Calibri', size: 10, bold: true, color: { argb: C_GRAY } };
+  mLbl.alignment = { horizontal: 'left', vertical: 'middle', indent: 1 };
+  mLbl.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C_GRAY_LIGHT } };
+  sheet.mergeCells(row, 4, row, 5);
+  const mVal = sheet.getCell(row, 4);
+  mVal.value = saldo;
+  mVal.numFmt = '"R$" #,##0.00';
+  mVal.font = { name: 'Calibri', size: 11, bold: true, color: { argb: saldo >= 0 ? C_GREEN : C_RED } };
+  mVal.alignment = { horizontal: 'right', vertical: 'middle', indent: 1 };
+  mVal.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C_GRAY_LIGHT } };
+  sheet.getRow(row).height = 20;
+  row += 2;
+
   sheet.mergeCells(row, 2, row, 5);
   const banner = sheet.getCell(row, 2);
   banner.value = `SALDO PARA O PRÓXIMO MÊS`;
@@ -353,13 +406,13 @@ export async function exportMonthlySummary(
 
   sheet.mergeCells(row, 2, row, 5);
   const bigSaldo = sheet.getCell(row, 2);
-  bigSaldo.value = saldo;
+  bigSaldo.value = finalBalance;
   bigSaldo.numFmt = '"R$" #,##0.00';
   bigSaldo.font = {
     name: 'Calibri',
     size: 28,
     bold: true,
-    color: { argb: saldo >= 0 ? C_PRIMARY_DARK : C_RED },
+    color: { argb: finalBalance >= 0 ? C_PRIMARY_DARK : C_RED },
   };
   bigSaldo.alignment = { horizontal: 'center', vertical: 'middle' };
   bigSaldo.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C_BLUE_BG } };
