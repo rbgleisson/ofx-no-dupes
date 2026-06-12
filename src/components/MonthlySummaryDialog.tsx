@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowDownCircle, ArrowUpCircle, BarChart3, Download, Loader2, TrendingUp, Wallet } from 'lucide-react';
+import { ArrowDownCircle, ArrowUpCircle, BarChart3, Download, Loader2, TrendingUp, Wallet, Building2 } from 'lucide-react';
 import { Category } from '@/components/CategoriesManager';
 import { exportMonthlySummary } from '@/lib/monthlySummaryExport';
 import { supabase } from '@/integrations/supabase/client';
@@ -21,6 +22,7 @@ interface Props {
   categories: Category[];
   chartAccounts?: ChartAccount[];
   organizationId: string | null;
+  orgName?: string | null;
   onSuccess?: () => void;
   onError?: () => void;
   trigger?: React.ReactNode;
@@ -36,14 +38,20 @@ interface Tx {
 const fmt = (v: number) =>
   v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, onSuccess, onError, trigger }: Props) => {
+const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, orgName, onSuccess, onError, trigger }: Props) => {
   const now = new Date();
   const [open, setOpen] = useState(false);
   const [month, setMonth] = useState<string>(String(now.getMonth() + 1));
   const [year, setYear] = useState<string>(String(now.getFullYear()));
+  const [headerName, setHeaderName] = useState<string>(orgName || '');
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [txs, setTxs] = useState<Tx[]>([]);
+
+  useEffect(() => {
+    if (orgName && !headerName) setHeaderName(orgName);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orgName]);
 
   const catMap = useMemo(() => new Map(categories.map(c => [c.id, c])), [categories]);
 
@@ -115,7 +123,14 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
   const handleExport = async () => {
     setExporting(true);
     try {
-      await exportMonthlySummary(categories, organizationId, Number(year), Number(month), chartAccounts);
+      await exportMonthlySummary(
+        categories,
+        organizationId,
+        Number(year),
+        Number(month),
+        chartAccounts,
+        (headerName || orgName || '').trim(),
+      );
       onSuccess?.();
     } catch {
       onError?.();
@@ -148,32 +163,45 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
           </DialogTitle>
         </DialogHeader>
 
-        {/* Period selector */}
-        <div className="flex flex-wrap items-end gap-3 pt-2">
-          <div className="flex-1 min-w-[120px]">
-            <p className="text-[10px] font-medium text-cyan-300/70 uppercase tracking-wider mb-1">Ano</p>
-            <Select value={year} onValueChange={setYear}>
-              <SelectTrigger className="h-9 text-sm bg-slate-900/80 border-cyan-500/20"><SelectValue /></SelectTrigger>
-              <SelectContent>{YEARS.map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}</SelectContent>
-            </Select>
+        {/* Controls */}
+        <div className="space-y-3 pt-2">
+          <div>
+            <p className="text-[10px] font-medium text-cyan-300/70 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+              <Building2 className="w-3 h-3" /> Nome no Cabeçalho (Excel)
+            </p>
+            <Input
+              value={headerName}
+              onChange={(e) => setHeaderName(e.target.value)}
+              placeholder="Nome da empresa / igreja"
+              className="h-9 text-sm bg-slate-900/80 border-cyan-500/20 text-slate-100"
+            />
           </div>
-          <div className="flex-1 min-w-[160px]">
-            <p className="text-[10px] font-medium text-cyan-300/70 uppercase tracking-wider mb-1">Mês</p>
-            <Select value={month} onValueChange={setMonth}>
-              <SelectTrigger className="h-9 text-sm bg-slate-900/80 border-cyan-500/20"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {MONTHS.map((m, i) => <SelectItem key={i} value={String(i + 1)}>{m}</SelectItem>)}
-              </SelectContent>
-            </Select>
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="flex-1 min-w-[120px]">
+              <p className="text-[10px] font-medium text-cyan-300/70 uppercase tracking-wider mb-1">Ano</p>
+              <Select value={year} onValueChange={setYear}>
+                <SelectTrigger className="h-9 text-sm bg-slate-900/80 border-cyan-500/20"><SelectValue /></SelectTrigger>
+                <SelectContent>{YEARS.map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="flex-1 min-w-[160px]">
+              <p className="text-[10px] font-medium text-cyan-300/70 uppercase tracking-wider mb-1">Mês</p>
+              <Select value={month} onValueChange={setMonth}>
+                <SelectTrigger className="h-9 text-sm bg-slate-900/80 border-cyan-500/20"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {MONTHS.map((m, i) => <SelectItem key={i} value={String(i + 1)}>{m}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button
+              onClick={handleExport}
+              disabled={exporting || loading}
+              className="h-9 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white border-0 shadow-lg shadow-cyan-500/20"
+            >
+              {exporting ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Download className="w-4 h-4 mr-1.5" />}
+              Exportar Excel
+            </Button>
           </div>
-          <Button
-            onClick={handleExport}
-            disabled={exporting || loading}
-            className="h-9 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white border-0 shadow-lg shadow-cyan-500/20"
-          >
-            {exporting ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Download className="w-4 h-4 mr-1.5" />}
-            Exportar Excel
-          </Button>
         </div>
 
         {loading ? (
