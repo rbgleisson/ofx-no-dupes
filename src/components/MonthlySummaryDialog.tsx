@@ -163,32 +163,45 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
           </DialogTitle>
         </DialogHeader>
 
-        {/* Period selector */}
-        <div className="flex flex-wrap items-end gap-3 pt-2">
-          <div className="flex-1 min-w-[120px]">
-            <p className="text-[10px] font-medium text-cyan-300/70 uppercase tracking-wider mb-1">Ano</p>
-            <Select value={year} onValueChange={setYear}>
-              <SelectTrigger className="h-9 text-sm bg-slate-900/80 border-cyan-500/20"><SelectValue /></SelectTrigger>
-              <SelectContent>{YEARS.map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}</SelectContent>
-            </Select>
+        {/* Controls */}
+        <div className="space-y-3 pt-2">
+          <div>
+            <p className="text-[10px] font-medium text-cyan-300/70 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+              <Building2 className="w-3 h-3" /> Nome no Cabeçalho (Excel)
+            </p>
+            <Input
+              value={headerName}
+              onChange={(e) => setHeaderName(e.target.value)}
+              placeholder="Nome da empresa / igreja"
+              className="h-9 text-sm bg-slate-900/80 border-cyan-500/20 text-slate-100"
+            />
           </div>
-          <div className="flex-1 min-w-[160px]">
-            <p className="text-[10px] font-medium text-cyan-300/70 uppercase tracking-wider mb-1">Mês</p>
-            <Select value={month} onValueChange={setMonth}>
-              <SelectTrigger className="h-9 text-sm bg-slate-900/80 border-cyan-500/20"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {MONTHS.map((m, i) => <SelectItem key={i} value={String(i + 1)}>{m}</SelectItem>)}
-              </SelectContent>
-            </Select>
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="flex-1 min-w-[120px]">
+              <p className="text-[10px] font-medium text-cyan-300/70 uppercase tracking-wider mb-1">Ano</p>
+              <Select value={year} onValueChange={setYear}>
+                <SelectTrigger className="h-9 text-sm bg-slate-900/80 border-cyan-500/20"><SelectValue /></SelectTrigger>
+                <SelectContent>{YEARS.map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="flex-1 min-w-[160px]">
+              <p className="text-[10px] font-medium text-cyan-300/70 uppercase tracking-wider mb-1">Mês</p>
+              <Select value={month} onValueChange={setMonth}>
+                <SelectTrigger className="h-9 text-sm bg-slate-900/80 border-cyan-500/20"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {MONTHS.map((m, i) => <SelectItem key={i} value={String(i + 1)}>{m}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button
+              onClick={handleExport}
+              disabled={exporting || loading}
+              className="h-9 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white border-0 shadow-lg shadow-cyan-500/20"
+            >
+              {exporting ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Download className="w-4 h-4 mr-1.5" />}
+              Exportar Excel
+            </Button>
           </div>
-          <Button
-            onClick={handleExport}
-            disabled={exporting || loading}
-            className="h-9 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white border-0 shadow-lg shadow-cyan-500/20"
-          >
-            {exporting ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Download className="w-4 h-4 mr-1.5" />}
-            Exportar Excel
-          </Button>
         </div>
 
         {loading ? (
