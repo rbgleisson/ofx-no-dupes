@@ -6,6 +6,7 @@ interface Transaction {
   amount: number;
   category_id: string | null;
   chart_account_id: string | null;
+  is_transfer?: boolean | null;
 }
 
 interface Category {
@@ -29,12 +30,24 @@ function triggerDownload(blob: Blob, fileName: string) {
   URL.revokeObjectURL(url);
 }
 
+// Converts hex color (#rrggbb or rrggbb) to ARGB for ExcelJS
+const argb = (hex: string) => {
+  const h = (hex || '#64748b').replace('#', '').padStart(6, '0').slice(0, 6);
+  return `FF${h.toUpperCase()}`;
+};
+
+const MONTHS = [
+  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
+];
+
 export async function exportMonthlySummary(
   categories: Category[],
   organizationId: string | null,
   year: number,
   month: number,
-  chartAccounts: ChartAccount[] = []
+  chartAccounts: ChartAccount[] = [],
+  headerName: string = '',
 ) {
   const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
   const endDate = month === 12
@@ -43,159 +56,407 @@ export async function exportMonthlySummary(
 
   let query = supabase
     .from('transactions')
-    .select('date, amount, category_id, chart_account_id')
+    .select('date, amount, category_id, chart_account_id, is_transfer')
     .gte('date', startDate)
     .lt('date', endDate)
     .order('date');
-
-  if (organizationId) {
-    query = query.eq('organization_id', organizationId);
-  }
+  if (organizationId) query = query.eq('organization_id', organizationId);
 
   const { data: transactions, error } = await query;
   if (error) throw error;
 
-  const catMap = new Map(categories.map(c => [c.id, c.name]));
+  const catMap = new Map(categories.map(c => [c.id, c]));
   const chartMap = new Map(chartAccounts.map(c => [c.id, c]));
 
   const entriesByCategory = new Map<string, number>();
   const exitsByCategory = new Map<string, number>();
-  // key = `${code}||${name}`
   const entriesByChart = new Map<string, number>();
   const exitsByChart = new Map<string, number>();
   let totalEntries = 0;
   let totalExits = 0;
+  let countTx = 0;
 
-  for (const tx of (transactions || [])) {
-    const catName = tx.category_id ? (catMap.get(tx.category_id) || 'Sem Categoria') : 'Sem Categoria';
+  for (const tx of (transactions || []) as Transaction[]) {
+    if (tx.is_transfer) continue;
+    countTx++;
+    const catKey = tx.category_id || '__none__';
     const ca = tx.chart_account_id ? chartMap.get(tx.chart_account_id) : null;
     const chartKey = ca ? `${ca.code}||${ca.name}` : `||Sem Conta Contábil`;
-
     if (tx.amount >= 0) {
-      entriesByCategory.set(catName, (entriesByCategory.get(catName) || 0) + tx.amount);
+      entriesByCategory.set(catKey, (entriesByCategory.get(catKey) || 0) + tx.amount);
       entriesByChart.set(chartKey, (entriesByChart.get(chartKey) || 0) + tx.amount);
       totalEntries += tx.amount;
     } else {
       const abs = Math.abs(tx.amount);
-      exitsByCategory.set(catName, (exitsByCategory.get(catName) || 0) + abs);
+      exitsByCategory.set(catKey, (exitsByCategory.get(catKey) || 0) + abs);
       exitsByChart.set(chartKey, (exitsByChart.get(chartKey) || 0) + abs);
       totalExits += abs;
     }
   }
 
-  const MONTHS = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+  const saldo = totalEntries - totalExits;
   const monthName = MONTHS[month - 1];
 
   const wb = new ExcelJS.Workbook();
-  const thinBorder: Partial<ExcelJS.Borders> = {
-    top: { style: 'thin' }, bottom: { style: 'thin' },
-    left: { style: 'thin' }, right: { style: 'thin' },
-  };
+  wb.creator = 'Coinonia';
+  wb.created = new Date();
 
-  const buildCategorySheet = (
-    name: string,
-    headerColor: string,
-    totalColor: string,
-    totalLabel: string,
-    data: Map<string, number>,
-    total: number
-  ) => {
-    const sheet = wb.addWorksheet(name);
-    sheet.columns = [
-      { header: 'Categoria', key: 'cat', width: 35 },
-      { header: 'Valor (R$)', key: 'val', width: 18 },
-    ];
-    const h = sheet.getRow(1);
-    h.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-    h.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: headerColor } };
-    h.eachCell(c => { c.border = thinBorder; c.alignment = { horizontal: 'center' }; });
+  // ========== Sheet 1: DASHBOARD (printable) ==========
+  const sheet = wb.addWorksheet('Resumo', {
+    pageSetup: {
+      paperSize: 9, // A4
+      orientation: 'portrait',
+      fitToPage: true,
+      fitToWidth: 1,
+      fitToHeight: 0,
+      margins: { left: 0.4, right: 0.4, top: 0.5, bottom: 0.5, header: 0.2, footer: 0.2 },
+      horizontalCentered: true,
+      printTitlesRow: '',
+    },
+    views: [{ showGridLines: false }],
+  });
 
-    const sorted = [...data.entries()].sort((a, b) => b[1] - a[1]);
-    for (const [cat, val] of sorted) {
-      const row = sheet.addRow({ cat, val });
-      row.getCell(2).numFmt = '#,##0.00';
-      row.eachCell(c => { c.border = thinBorder; });
-    }
-    const totalRow = sheet.addRow({ cat: totalLabel, val: total });
-    totalRow.font = { bold: true };
-    totalRow.getCell(2).numFmt = '#,##0.00';
-    totalRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: totalColor } };
-    totalRow.eachCell(c => { c.border = thinBorder; });
-  };
-
-  const buildChartSheet = (
-    name: string,
-    headerColor: string,
-    totalColor: string,
-    totalLabel: string,
-    data: Map<string, number>,
-    total: number
-  ) => {
-    const sheet = wb.addWorksheet(name);
-    sheet.columns = [
-      { header: 'Código', key: 'code', width: 15 },
-      { header: 'Conta Contábil', key: 'cname', width: 40 },
-      { header: 'Valor (R$)', key: 'val', width: 18 },
-    ];
-    const h = sheet.getRow(1);
-    h.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-    h.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: headerColor } };
-    h.eachCell(c => { c.border = thinBorder; c.alignment = { horizontal: 'center' }; });
-
-    const sorted = [...data.entries()].sort((a, b) => {
-      const [codeA] = a[0].split('||');
-      const [codeB] = b[0].split('||');
-      return codeA.localeCompare(codeB);
-    });
-    for (const [key, val] of sorted) {
-      const [code, cname] = key.split('||');
-      const row = sheet.addRow({ code, cname, val });
-      row.getCell(3).numFmt = '#,##0.00';
-      row.eachCell(c => { c.border = thinBorder; });
-    }
-    const totalRow = sheet.addRow({ code: '', cname: totalLabel, val: total });
-    totalRow.font = { bold: true };
-    totalRow.getCell(3).numFmt = '#,##0.00';
-    totalRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: totalColor } };
-    totalRow.eachCell(c => { c.border = thinBorder; });
-  };
-
-  buildCategorySheet('Entradas', 'FF16A34A', 'FFBBF7D0', 'TOTAL ENTRADAS', entriesByCategory, totalEntries);
-  buildCategorySheet('Saídas', 'FFDC2626', 'FFFECACA', 'TOTAL SAÍDAS', exitsByCategory, totalExits);
-  buildChartSheet('Entradas por Conta', 'FF16A34A', 'FFBBF7D0', 'TOTAL ENTRADAS', entriesByChart, totalEntries);
-  buildChartSheet('Saídas por Conta', 'FFDC2626', 'FFFECACA', 'TOTAL SAÍDAS', exitsByChart, totalExits);
-
-  // === RESUMO sheet ===
-  const sheetSummary = wb.addWorksheet('Resumo');
-  sheetSummary.columns = [
-    { header: 'Descrição', key: 'desc', width: 35 },
-    { header: 'Valor (R$)', key: 'val', width: 18 },
+  // Column widths (6 cols)
+  sheet.columns = [
+    { width: 4 },   // A - margin
+    { width: 32 },  // B - label
+    { width: 6 },   // C - %
+    { width: 18 },  // D - value
+    { width: 14 },  // E - bar
+    { width: 4 },   // F - margin
   ];
 
-  const hSum = sheetSummary.getRow(1);
-  hSum.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-  hSum.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF3B82F6' } };
-  hSum.eachCell(c => { c.border = thinBorder; c.alignment = { horizontal: 'center' }; });
+  const C_PRIMARY = 'FF0891B2';      // cyan-600
+  const C_PRIMARY_DARK = 'FF0E7490'; // cyan-700
+  const C_GREEN = 'FF16A34A';
+  const C_GREEN_BG = 'FFDCFCE7';
+  const C_RED = 'FFDC2626';
+  const C_RED_BG = 'FFFEE2E2';
+  const C_BLUE_BG = 'FFE0F2FE';
+  const C_GRAY = 'FF64748B';
+  const C_GRAY_LIGHT = 'FFF1F5F9';
+  const C_WHITE = 'FFFFFFFF';
+  const C_DARK = 'FF0F172A';
 
-  const r1 = sheetSummary.addRow({ desc: 'Total Entradas', val: totalEntries });
-  r1.getCell(2).numFmt = '#,##0.00';
-  r1.getCell(2).font = { color: { argb: 'FF16A34A' }, bold: true };
-  r1.eachCell(c => { c.border = thinBorder; });
+  let row = 1;
 
-  const r2 = sheetSummary.addRow({ desc: 'Total Saídas', val: totalExits });
-  r2.getCell(2).numFmt = '#,##0.00';
-  r2.getCell(2).font = { color: { argb: 'FFDC2626' }, bold: true };
-  r2.eachCell(c => { c.border = thinBorder; });
+  // === HEADER BAND ===
+  sheet.getRow(row).height = 8;
+  row++;
 
-  const saldo = totalEntries - totalExits;
-  const r3 = sheetSummary.addRow({ desc: 'Saldo', val: saldo });
-  r3.getCell(2).numFmt = '#,##0.00';
-  r3.font = { bold: true, size: 13 };
-  r3.getCell(2).font = { bold: true, size: 13, color: { argb: saldo >= 0 ? 'FF16A34A' : 'FFDC2626' } };
-  r3.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
-  r3.eachCell(c => { c.border = thinBorder; });
+  // Org name
+  sheet.mergeCells(row, 2, row, 5);
+  const orgCell = sheet.getCell(row, 2);
+  orgCell.value = headerName || 'Resumo Financeiro';
+  orgCell.font = { name: 'Calibri', size: 22, bold: true, color: { argb: C_DARK } };
+  orgCell.alignment = { horizontal: 'center', vertical: 'middle' };
+  sheet.getRow(row).height = 32;
+  row++;
+
+  // Subtitle
+  sheet.mergeCells(row, 2, row, 5);
+  const subCell = sheet.getCell(row, 2);
+  subCell.value = `Resumo Mensal • ${monthName} / ${year}`;
+  subCell.font = { name: 'Calibri', size: 12, color: { argb: C_PRIMARY_DARK }, italic: true };
+  subCell.alignment = { horizontal: 'center', vertical: 'middle' };
+  sheet.getRow(row).height = 20;
+  row++;
+
+  // Divider bar
+  sheet.mergeCells(row, 2, row, 5);
+  const div = sheet.getCell(row, 2);
+  div.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C_PRIMARY } };
+  sheet.getRow(row).height = 4;
+  row += 2;
+
+  // === KPI ROW ===
+  const kpiStart = row;
+  sheet.getRow(row).height = 22;
+  // Labels row
+  const labels = [
+    { col: 2, span: 1, text: 'ENTRADAS', color: C_GREEN, bg: C_GREEN_BG },
+    { col: 3, span: 1, text: 'SAÍDAS', color: C_RED, bg: C_RED_BG },
+    { col: 4, span: 2, text: 'SALDO DO MÊS', color: C_PRIMARY_DARK, bg: C_BLUE_BG },
+  ];
+  // We'll do KPI as 3 columns: B, C, D-E
+  sheet.mergeCells(row, 2, row, 2);
+  sheet.mergeCells(row, 3, row, 3);
+  sheet.mergeCells(row, 4, row, 5);
+  [
+    { col: 2, text: 'ENTRADAS', color: C_GREEN, bg: C_GREEN_BG },
+    { col: 3, text: 'SAÍDAS', color: C_RED, bg: C_RED_BG },
+    { col: 4, text: 'SALDO DO MÊS', color: C_PRIMARY_DARK, bg: C_BLUE_BG },
+  ].forEach(k => {
+    const c = sheet.getCell(row, k.col);
+    c.value = k.text;
+    c.font = { name: 'Calibri', size: 10, bold: true, color: { argb: k.color } };
+    c.alignment = { horizontal: 'center', vertical: 'middle' };
+    c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: k.bg } };
+    c.border = {
+      top: { style: 'medium', color: { argb: k.color } },
+      left: { style: 'thin', color: { argb: k.color } },
+      right: { style: 'thin', color: { argb: k.color } },
+    };
+  });
+  row++;
+
+  // Values row
+  sheet.mergeCells(row, 2, row, 2);
+  sheet.mergeCells(row, 3, row, 3);
+  sheet.mergeCells(row, 4, row, 5);
+  sheet.getRow(row).height = 38;
+  const kpis = [
+    { col: 2, val: totalEntries, color: C_GREEN, bg: C_GREEN_BG },
+    { col: 3, val: totalExits, color: C_RED, bg: C_RED_BG },
+    { col: 4, val: saldo, color: saldo >= 0 ? C_PRIMARY_DARK : 'FFB45309', bg: C_BLUE_BG },
+  ];
+  kpis.forEach(k => {
+    const c = sheet.getCell(row, k.col);
+    c.value = k.val;
+    c.numFmt = '"R$" #,##0.00';
+    c.font = { name: 'Calibri', size: 18, bold: true, color: { argb: k.color } };
+    c.alignment = { horizontal: 'center', vertical: 'middle' };
+    c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: k.bg } };
+    c.border = {
+      bottom: { style: 'medium', color: { argb: k.color } },
+      left: { style: 'thin', color: { argb: k.color } },
+      right: { style: 'thin', color: { argb: k.color } },
+    };
+  });
+  row += 2;
+
+  // === SECTION: Entradas por Categoria ===
+  const buildCategorySection = (
+    title: string,
+    data: Map<string, number>,
+    total: number,
+    accent: string,
+    accentBg: string,
+  ) => {
+    // Section title
+    sheet.mergeCells(row, 2, row, 5);
+    const t = sheet.getCell(row, 2);
+    t.value = title;
+    t.font = { name: 'Calibri', size: 13, bold: true, color: { argb: C_WHITE } };
+    t.alignment = { horizontal: 'left', vertical: 'middle', indent: 1 };
+    t.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: accent } };
+    sheet.getRow(row).height = 24;
+    row++;
+
+    // Table header
+    const headers = ['Categoria', '%', 'Valor (R$)', 'Distribuição'];
+    headers.forEach((h, i) => {
+      const c = sheet.getCell(row, 2 + i);
+      c.value = h;
+      c.font = { name: 'Calibri', size: 10, bold: true, color: { argb: C_DARK } };
+      c.alignment = { horizontal: i === 0 ? 'left' : 'center', vertical: 'middle', indent: i === 0 ? 1 : 0 };
+      c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C_GRAY_LIGHT } };
+      c.border = { bottom: { style: 'thin', color: { argb: C_GRAY } } };
+    });
+    sheet.getRow(row).height = 18;
+    row++;
+
+    const sorted = [...data.entries()].sort((a, b) => b[1] - a[1]);
+    if (sorted.length === 0) {
+      sheet.mergeCells(row, 2, row, 5);
+      const empty = sheet.getCell(row, 2);
+      empty.value = 'Sem lançamentos no período';
+      empty.font = { italic: true, color: { argb: C_GRAY }, size: 10 };
+      empty.alignment = { horizontal: 'center', vertical: 'middle' };
+      sheet.getRow(row).height = 24;
+      row++;
+    } else {
+      sorted.forEach(([id, val], idx) => {
+        const cat = catMap.get(id);
+        const name = cat?.name || 'Sem Categoria';
+        const color = argb(cat?.color || '#64748b');
+        const pct = total > 0 ? val / total : 0;
+        const isAlt = idx % 2 === 1;
+        const rowBg = isAlt ? 'FFFAFAFA' : C_WHITE;
+
+        sheet.getRow(row).height = 18;
+
+        // Category name with color dot
+        const nameCell = sheet.getCell(row, 2);
+        nameCell.value = `●  ${name}`;
+        nameCell.font = { name: 'Calibri', size: 10, color: { argb: color } };
+        nameCell.alignment = { horizontal: 'left', vertical: 'middle', indent: 1 };
+        nameCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: rowBg } };
+
+        const pctCell = sheet.getCell(row, 3);
+        pctCell.value = pct;
+        pctCell.numFmt = '0.0%';
+        pctCell.font = { name: 'Calibri', size: 10, color: { argb: C_GRAY } };
+        pctCell.alignment = { horizontal: 'center', vertical: 'middle' };
+        pctCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: rowBg } };
+
+        const valCell = sheet.getCell(row, 4);
+        valCell.value = val;
+        valCell.numFmt = '"R$" #,##0.00';
+        valCell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: C_DARK } };
+        valCell.alignment = { horizontal: 'right', vertical: 'middle', indent: 1 };
+        valCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: rowBg } };
+
+        // Bar visualization using REPT + block chars
+        const barCell = sheet.getCell(row, 5);
+        const blocks = Math.max(1, Math.round(pct * 20));
+        barCell.value = '█'.repeat(blocks);
+        barCell.font = { name: 'Consolas', size: 9, color: { argb: color } };
+        barCell.alignment = { horizontal: 'left', vertical: 'middle' };
+        barCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: rowBg } };
+
+        row++;
+      });
+    }
+
+    // Total row
+    const totalLabel = sheet.getCell(row, 2);
+    totalLabel.value = 'TOTAL';
+    totalLabel.font = { name: 'Calibri', size: 11, bold: true, color: { argb: C_WHITE } };
+    totalLabel.alignment = { horizontal: 'left', vertical: 'middle', indent: 1 };
+    totalLabel.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: accent } };
+
+    const pctTotal = sheet.getCell(row, 3);
+    pctTotal.value = 1;
+    pctTotal.numFmt = '0%';
+    pctTotal.font = { name: 'Calibri', size: 11, bold: true, color: { argb: C_WHITE } };
+    pctTotal.alignment = { horizontal: 'center', vertical: 'middle' };
+    pctTotal.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: accent } };
+
+    const totalCell = sheet.getCell(row, 4);
+    totalCell.value = total;
+    totalCell.numFmt = '"R$" #,##0.00';
+    totalCell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: C_WHITE } };
+    totalCell.alignment = { horizontal: 'right', vertical: 'middle', indent: 1 };
+    totalCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: accent } };
+
+    const blank = sheet.getCell(row, 5);
+    blank.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: accent } };
+
+    sheet.getRow(row).height = 22;
+    row += 2;
+  };
+
+  buildCategorySection('▲  ENTRADAS POR CATEGORIA', entriesByCategory, totalEntries, C_GREEN, C_GREEN_BG);
+  buildCategorySection('▼  SAÍDAS POR CATEGORIA', exitsByCategory, totalExits, C_RED, C_RED_BG);
+
+  // === SALDO PARA PRÓXIMO MÊS (highlight) ===
+  row++;
+  sheet.mergeCells(row, 2, row, 5);
+  const banner = sheet.getCell(row, 2);
+  banner.value = `SALDO PARA O PRÓXIMO MÊS`;
+  banner.font = { name: 'Calibri', size: 11, bold: true, color: { argb: C_WHITE } };
+  banner.alignment = { horizontal: 'center', vertical: 'middle' };
+  banner.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C_PRIMARY_DARK } };
+  sheet.getRow(row).height = 22;
+  row++;
+
+  sheet.mergeCells(row, 2, row, 5);
+  const bigSaldo = sheet.getCell(row, 2);
+  bigSaldo.value = saldo;
+  bigSaldo.numFmt = '"R$" #,##0.00';
+  bigSaldo.font = {
+    name: 'Calibri',
+    size: 28,
+    bold: true,
+    color: { argb: saldo >= 0 ? C_PRIMARY_DARK : C_RED },
+  };
+  bigSaldo.alignment = { horizontal: 'center', vertical: 'middle' };
+  bigSaldo.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C_BLUE_BG } };
+  bigSaldo.border = {
+    bottom: { style: 'medium', color: { argb: C_PRIMARY_DARK } },
+    left: { style: 'thin', color: { argb: C_PRIMARY_DARK } },
+    right: { style: 'thin', color: { argb: C_PRIMARY_DARK } },
+  };
+  sheet.getRow(row).height = 48;
+  row += 2;
+
+  // Footer note
+  sheet.mergeCells(row, 2, row, 5);
+  const footer = sheet.getCell(row, 2);
+  footer.value = `Gerado em ${new Date().toLocaleString('pt-BR')}  •  ${countTx} lançamento${countTx === 1 ? '' : 's'} no período`;
+  footer.font = { name: 'Calibri', size: 9, italic: true, color: { argb: C_GRAY } };
+  footer.alignment = { horizontal: 'center', vertical: 'middle' };
+  sheet.getRow(row).height = 18;
+
+  // Print area & header/footer
+  sheet.pageSetup.printArea = `A1:F${row}`;
+  sheet.headerFooter.oddFooter = '&C&8Página &P de &N';
+
+  // ========== Sheet 2: Por Conta Contábil (detalhe) ==========
+  if (chartAccounts.length > 0) {
+    const sh2 = wb.addWorksheet('Por Conta Contábil', {
+      pageSetup: { paperSize: 9, orientation: 'portrait', fitToPage: true, fitToWidth: 1, fitToHeight: 0 },
+      views: [{ showGridLines: false }],
+    });
+    sh2.columns = [
+      { width: 4 }, { width: 14 }, { width: 38 }, { width: 18 }, { width: 4 },
+    ];
+
+    const renderChart = (title: string, data: Map<string, number>, total: number, accent: string) => {
+      let r = sh2.lastRow ? sh2.lastRow.number + 2 : 2;
+      sh2.mergeCells(r, 2, r, 4);
+      const t = sh2.getCell(r, 2);
+      t.value = title;
+      t.font = { size: 13, bold: true, color: { argb: C_WHITE } };
+      t.alignment = { horizontal: 'left', vertical: 'middle', indent: 1 };
+      t.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: accent } };
+      sh2.getRow(r).height = 22;
+      r++;
+
+      ['Código', 'Conta Contábil', 'Valor (R$)'].forEach((h, i) => {
+        const c = sh2.getCell(r, 2 + i);
+        c.value = h;
+        c.font = { size: 10, bold: true };
+        c.alignment = { horizontal: i === 2 ? 'right' : 'left', vertical: 'middle', indent: 1 };
+        c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C_GRAY_LIGHT } };
+        c.border = { bottom: { style: 'thin', color: { argb: C_GRAY } } };
+      });
+      r++;
+
+      const sorted = [...data.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+      sorted.forEach(([key, val], idx) => {
+        const [code, name] = key.split('||');
+        const bg = idx % 2 === 1 ? 'FFFAFAFA' : C_WHITE;
+        const cCode = sh2.getCell(r, 2); cCode.value = code; cCode.alignment = { vertical: 'middle', indent: 1 }; cCode.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bg } };
+        const cName = sh2.getCell(r, 3); cName.value = name; cName.alignment = { vertical: 'middle', indent: 1 }; cName.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bg } };
+        const cVal = sh2.getCell(r, 4); cVal.value = val; cVal.numFmt = '"R$" #,##0.00'; cVal.alignment = { horizontal: 'right', vertical: 'middle', indent: 1 }; cVal.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bg } };
+        sh2.getRow(r).height = 16;
+        r++;
+      });
+
+      // Total
+      sh2.mergeCells(r, 2, r, 3);
+      const lbl = sh2.getCell(r, 2);
+      lbl.value = 'TOTAL';
+      lbl.font = { bold: true, color: { argb: C_WHITE } };
+      lbl.alignment = { horizontal: 'left', vertical: 'middle', indent: 1 };
+      lbl.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: accent } };
+      const vv = sh2.getCell(r, 4);
+      vv.value = total; vv.numFmt = '"R$" #,##0.00';
+      vv.font = { bold: true, color: { argb: C_WHITE } };
+      vv.alignment = { horizontal: 'right', vertical: 'middle', indent: 1 };
+      vv.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: accent } };
+      sh2.getRow(r).height = 20;
+    };
+
+    // Header
+    sh2.mergeCells(1, 2, 1, 4);
+    const h = sh2.getCell(1, 2);
+    h.value = `${headerName || 'Resumo Financeiro'} — Detalhe por Conta Contábil — ${monthName}/${year}`;
+    h.font = { size: 14, bold: true, color: { argb: C_DARK } };
+    h.alignment = { horizontal: 'center', vertical: 'middle' };
+    sh2.getRow(1).height = 26;
+
+    renderChart('▲  ENTRADAS POR CONTA CONTÁBIL', entriesByChart, totalEntries, C_GREEN);
+    renderChart('▼  SAÍDAS POR CONTA CONTÁBIL', exitsByChart, totalExits, C_RED);
+  }
 
   const buffer = await wb.xlsx.writeBuffer();
-  const fileName = `resumo_mensal_${monthName.toLowerCase()}_${year}.xlsx`;
-  triggerDownload(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), fileName);
+  const safe = (headerName || 'resumo').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+  const fileName = `${safe || 'resumo'}_${monthName.toLowerCase()}_${year}.xlsx`;
+  triggerDownload(
+    new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
+    fileName
+  );
 }
