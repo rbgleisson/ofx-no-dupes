@@ -22,6 +22,7 @@ interface Props {
   categories: Category[];
   chartAccounts?: ChartAccount[];
   organizationId: string | null;
+  orgName?: string | null;
   onSuccess?: () => void;
   onError?: () => void;
   trigger?: React.ReactNode;
@@ -37,14 +38,20 @@ interface Tx {
 const fmt = (v: number) =>
   v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, onSuccess, onError, trigger }: Props) => {
+const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, orgName, onSuccess, onError, trigger }: Props) => {
   const now = new Date();
   const [open, setOpen] = useState(false);
   const [month, setMonth] = useState<string>(String(now.getMonth() + 1));
   const [year, setYear] = useState<string>(String(now.getFullYear()));
+  const [headerName, setHeaderName] = useState<string>(orgName || '');
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [txs, setTxs] = useState<Tx[]>([]);
+
+  useEffect(() => {
+    if (orgName && !headerName) setHeaderName(orgName);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orgName]);
 
   const catMap = useMemo(() => new Map(categories.map(c => [c.id, c])), [categories]);
 
