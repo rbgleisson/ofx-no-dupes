@@ -44,6 +44,16 @@ const formatDate = (date: string) => {
   return `${d}/${m}/${y}`;
 };
 
+const splitCategory = (cat?: Category) => {
+  if (!cat) return { code: '', name: '' };
+  const rawName = cat.name || '';
+  const match = rawName.match(/^\s*([\w.]+)\s+-\s+(.+)$/);
+  return {
+    code: (cat.code || match?.[1] || '').trim(),
+    name: (match?.[2] || rawName).trim(),
+  };
+};
+
 // ===================== DEMONSTRATIVO =====================
 
 export async function exportDemonstrativo(
@@ -297,12 +307,12 @@ function buildListagemSheet(
         }
         case 'category': {
           const cat = categories.find(c => c.id === tx.category_id);
-          values.push(cat?.name || '');
+          values.push(splitCategory(cat).name);
           break;
         }
         case 'category_code': {
           const cat = categories.find(c => c.id === tx.category_id);
-          values.push(cat?.code || '');
+          values.push(splitCategory(cat).code);
           break;
         }
         case 'account': {
