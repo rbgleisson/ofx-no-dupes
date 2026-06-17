@@ -42,7 +42,7 @@ import { toast } from 'sonner';
 import { exportMonthlySummary } from '@/lib/monthlySummaryExport';
 import MonthlySummaryDialog from '@/components/MonthlySummaryDialog';
 import { createFullBackup } from '@/lib/backupExport';
-import MobileMenu from '@/components/MobileMenu';
+
 import ChangePasswordDialog from '@/components/ChangePasswordDialog';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
