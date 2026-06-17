@@ -397,7 +397,7 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
             </div>
           </div>
           {/* Desktop buttons */}
-          <div className="flex items-center gap-2 flex-wrap justify-end">
+          <div className="hidden lg:flex items-center gap-2 flex-wrap justify-end">
             {permissions.can_create_transactions && (
               <Button size="sm" onClick={() => { setEditingTransaction(null); setFormOpen(true); }} className="bg-emerald-600 hover:bg-emerald-700 text-white border-0">
                 <Plus className="w-4 h-4 mr-1.5" />
