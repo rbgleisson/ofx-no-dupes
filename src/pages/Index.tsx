@@ -25,7 +25,7 @@ import ChartAccountsManager, { ChartAccount } from '@/components/ChartAccountsMa
 import ExportDialog from '@/components/ExportDialog';
 import ExcelImportReviewDialog from '@/components/ExcelImportReviewDialog';
 import { ExcelRow, parseExcelFile, downloadExcelTemplate } from '@/lib/excelImport';
-import { Trash2, FileText, CheckCircle2, AlertCircle, Plus, Upload, LogOut, Download, FileSpreadsheet, HardDrive, Shield, Building, FolderDown, FolderUp, ChevronDown, BarChart3, Receipt } from 'lucide-react';
+import { Trash2, FileText, CheckCircle2, AlertCircle, Plus, Upload, LogOut, Download, FileSpreadsheet, HardDrive, Shield, Building, FolderDown, FolderUp, ChevronDown, BarChart3, Receipt, Menu } from 'lucide-react';
 import InstallmentsTab from '@/components/InstallmentsTab';
 import { fetchInstallments, getInstallmentSummary, Installment } from '@/lib/installmentStore';
 import {
@@ -36,6 +36,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '@/components/ui/sheet';
 import { exportCategoriesAndChartAccounts, importCategoriesAndChartAccounts } from '@/lib/catalogExportImport';
 import TransactionExportDialog from '@/components/TransactionExportDialog';
 import { toast } from 'sonner';
@@ -79,6 +86,7 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
   const { organization, organizationId } = useOrganization();
   const [excelReviewOpen, setExcelReviewOpen] = useState(false);
   const [excelRows, setExcelRows] = useState<ExcelRow[]>([]);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleOfxFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -389,7 +397,7 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
             </div>
           </div>
           {/* Desktop buttons */}
-          <div className="flex items-center gap-2 flex-wrap justify-end">
+          <div className="hidden lg:flex items-center gap-2 flex-wrap justify-end">
             {permissions.can_create_transactions && (
               <Button size="sm" onClick={() => { setEditingTransaction(null); setFormOpen(true); }} className="bg-emerald-600 hover:bg-emerald-700 text-white border-0">
                 <Plus className="w-4 h-4 mr-1.5" />
@@ -544,6 +552,157 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
             >
               <LogOut className="w-4 h-4" />
             </Button>
+          </div>
+
+          {/* Mobile hamburger menu */}
+          <div className="lg:hidden">
+            <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+              <SheetTrigger asChild>
+                <Button variant="outline" size="icon">
+                  <Menu className="w-5 h-5" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="w-80 overflow-y-auto">
+                <SheetHeader>
+                  <SheetTitle>Menu</SheetTitle>
+                </SheetHeader>
+                <div className="flex flex-col gap-2 mt-6">
+                  {permissions.can_create_transactions && (
+                    <Button onClick={() => { setMobileMenuOpen(false); setEditingTransaction(null); setFormOpen(true); }} className="bg-emerald-600 hover:bg-emerald-700 text-white border-0 justify-start">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Novo Lançamento
+                    </Button>
+                  )}
+
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mt-2">Cadastros</p>
+                  {permissions.can_manage_accounts && (
+                    <div className="[&>button]:w-full [&>button]:justify-start"><AccountsManager accounts={accounts} onAccountsChange={fetchAccounts} /></div>
+                  )}
+                  {permissions.can_manage_categories && (
+                    <div className="[&>button]:w-full [&>button]:justify-start"><CategoriesManager categories={categories} onCategoriesChange={fetchCategories} /></div>
+                  )}
+                  {permissions.can_manage_chart_accounts && (
+                    <div className="[&>button]:w-full [&>button]:justify-start"><ChartAccountsManager chartAccounts={chartAccounts} onChartAccountsChange={fetchChartAccounts} /></div>
+                  )}
+
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mt-2">Importações e Exportações</p>
+                  {permissions.can_import && (
+                    <>
+                      <Button variant="outline" onClick={() => { setMobileMenuOpen(false); ofxInputRef.current?.click(); }} className="justify-start">
+                        <Upload className="w-4 h-4 mr-2 text-slate-600" />
+                        Importar OFX
+                      </Button>
+                      <Button variant="outline" onClick={() => { setMobileMenuOpen(false); xlsxInputRef.current?.click(); }} className="justify-start">
+                        <FileSpreadsheet className="w-4 h-4 mr-2 text-emerald-600" />
+                        Importar Excel
+                      </Button>
+                      <Button variant="outline" onClick={() => { setMobileMenuOpen(false); downloadExcelTemplate(); }} className="justify-start">
+                        <Download className="w-4 h-4 mr-2 text-muted-foreground" />
+                        Baixar Modelo Excel
+                      </Button>
+                    </>
+                  )}
+                  {permissions.can_export && (
+                    <>
+                      <div className="[&>button]:w-full [&>button]:justify-start">
+                        <ExportDialog transactions={transactions} categories={categories} accounts={accounts} chartAccounts={chartAccounts} />
+                      </div>
+                      <div className="[&>button]:w-full [&>button]:justify-start">
+                        <MonthlySummaryDialog
+                          categories={categories}
+                          chartAccounts={chartAccounts}
+                          organizationId={organizationId}
+                          orgName={organization?.name}
+                          onSuccess={() => setNotification({ type: 'success', message: 'Resumo mensal exportado!' })}
+                          onError={() => setNotification({ type: 'warning', message: 'Erro ao exportar resumo.' })}
+                        />
+                      </div>
+                    </>
+                  )}
+                  {(permissions.can_manage_categories || permissions.can_manage_chart_accounts) && (
+                    <>
+                      <Button variant="outline" onClick={() => { setMobileMenuOpen(false); exportCategoriesAndChartAccounts(categories, chartAccounts); }} className="justify-start">
+                        <FolderDown className="w-4 h-4 mr-2 text-violet-600" />
+                        Exportar Categorias
+                      </Button>
+                      <Button variant="outline" onClick={() => { setMobileMenuOpen(false); exportCategoriesAndChartAccounts(categories, chartAccounts); }} className="justify-start">
+                        <FolderDown className="w-4 h-4 mr-2 text-amber-600" />
+                        Exportar Plano de Contas
+                      </Button>
+                      <Button variant="outline" onClick={() => { setMobileMenuOpen(false); catalogImportRef.current?.click(); }} className="justify-start">
+                        <FolderUp className="w-4 h-4 mr-2 text-violet-500" />
+                        Importar Cadastros
+                      </Button>
+                    </>
+                  )}
+
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mt-2">Sistema</p>
+                  {permissions.can_backup && (
+                    <Button
+                      variant="outline"
+                      disabled={!!backupProgress}
+                      onClick={async () => {
+                        setMobileMenuOpen(false);
+                        try {
+                          await createFullBackup(setBackupProgress);
+                          setNotification({ type: 'success', message: 'Backup gerado com sucesso!' });
+                        } catch {
+                          setNotification({ type: 'warning', message: 'Erro ao gerar backup.' });
+                        } finally {
+                          setBackupProgress(null);
+                        }
+                      }}
+                      className="justify-start"
+                      title="Backup completo (ZIP com dados + anexos)"
+                    >
+                      <HardDrive className="w-4 h-4 mr-2" />
+                      {backupProgress || 'Backup'}
+                    </Button>
+                  )}
+                  {permissions.can_clear_all && transactions.length > 0 && (
+                    <Button
+                      variant="outline"
+                      onClick={() => { setMobileMenuOpen(false); handleClear(); }}
+                      className="text-destructive hover:text-destructive hover:bg-destructive/5 border-destructive/20 justify-start"
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Limpar Tudo
+                    </Button>
+                  )}
+                  {(isOwner || isSuperAdmin) && onOpenOrgSettings && (
+                    <Button
+                      variant="outline"
+                      onClick={() => { setMobileMenuOpen(false); onOpenOrgSettings(); }}
+                      className="text-primary border-primary/30 justify-start"
+                    >
+                      <Building className="w-4 h-4 mr-2" />
+                      Empresa
+                    </Button>
+                  )}
+                  {isSuperAdmin && onOpenAdmin && (
+                    <Button
+                      variant="outline"
+                      onClick={() => { setMobileMenuOpen(false); onOpenAdmin(); }}
+                      className="text-primary border-primary/30 justify-start"
+                    >
+                      <Shield className="w-4 h-4 mr-2" />
+                      Admin
+                    </Button>
+                  )}
+                  <div className="[&>button]:w-full [&>button]:justify-start">
+                    <ChangePasswordDialog />
+                  </div>
+                  <Button
+                    variant="ghost"
+                    onClick={() => { setMobileMenuOpen(false); handleLogout(); }}
+                    className="text-muted-foreground hover:text-destructive justify-start"
+                  >
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Sair
+                  </Button>
+                </div>
+              </SheetContent>
+            </Sheet>
           </div>
 
         </div>
