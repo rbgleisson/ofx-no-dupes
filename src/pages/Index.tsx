@@ -389,7 +389,7 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
             </div>
           </div>
           {/* Desktop buttons */}
-          <div className="hidden lg:flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap justify-end">
             {permissions.can_create_transactions && (
               <Button size="sm" onClick={() => { setEditingTransaction(null); setFormOpen(true); }} className="bg-emerald-600 hover:bg-emerald-700 text-white border-0">
                 <Plus className="w-4 h-4 mr-1.5" />
@@ -546,16 +546,6 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
             </Button>
           </div>
 
-          {/* Mobile hamburger menu */}
-          <MobileMenu
-            onNewTransaction={() => { setEditingTransaction(null); setFormOpen(true); }}
-            onClear={handleClear}
-            onLogout={handleLogout}
-            showClear={transactions.length > 0}
-            accountsManager={<AccountsManager accounts={accounts} onAccountsChange={fetchAccounts} />}
-            categoriesManager={<CategoriesManager categories={categories} onCategoriesChange={fetchCategories} />}
-            chartAccountsManager={<ChartAccountsManager chartAccounts={chartAccounts} onChartAccountsChange={fetchChartAccounts} />}
-          />
         </div>
 
         {/* Notification */}
