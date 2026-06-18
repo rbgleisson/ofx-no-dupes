@@ -3,7 +3,8 @@ import { Transaction, updateTransaction, deleteTransaction } from '@/lib/transac
 import { Category } from '@/components/CategoriesManager';
 import { Account } from '@/components/AccountsManager';
 import { ChartAccount } from '@/components/ChartAccountsManager';
-import { ArrowDownLeft, ArrowUpRight, Paperclip, X, FileText, Loader2, Pencil, Trash2, Check, ChevronsUpDown, ScanLine, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeftRight } from 'lucide-react';
+import { ArrowDownLeft, ArrowUpRight, Paperclip, X, FileText, Loader2, Pencil, Trash2, Check, ChevronsUpDown, ScanLine, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeftRight, FilterX } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 import QrScannerDialog from '@/components/QrScannerDialog';
 import TransactionDetailSheet from '@/components/TransactionDetailSheet';
 import { toast } from 'sonner';
@@ -66,6 +67,26 @@ const TransactionTable = ({ transactions, categories, accounts, chartAccounts, o
   const [sortField, setSortField] = useState<'date' | 'description' | 'amount' | null>(null);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
 
+  // Column filters (per-column header filters)
+  const [colFilters, setColFilters] = useState<{
+    date: string;
+    description: string;
+    category: string;
+    account: string;
+    code: string;
+    chartAccount: string;
+    amount: string;
+    attachment: 'all' | 'yes' | 'no';
+    verified: 'all' | 'yes' | 'no';
+  }>({
+    date: '', description: '', category: '', account: '', code: '',
+    chartAccount: '', amount: '', attachment: 'all', verified: 'all',
+  });
+
+  const hasColFilters = !!(colFilters.date || colFilters.description || colFilters.category || colFilters.account || colFilters.code || colFilters.chartAccount || colFilters.amount || colFilters.attachment !== 'all' || colFilters.verified !== 'all');
+
+  const clearColFilters = () => setColFilters({ date: '', description: '', category: '', account: '', code: '', chartAccount: '', amount: '', attachment: 'all', verified: 'all' });
+
   const toggleSort = (field: 'date' | 'description' | 'amount') => {
     if (sortField === field) {
       if (sortDir === 'asc') setSortDir('desc');
@@ -76,16 +97,79 @@ const TransactionTable = ({ transactions, categories, accounts, chartAccounts, o
     }
   };
 
+  const parseAmountFilter = (raw: string): ((n: number) => boolean) | null => {
+    const s = raw.trim().replace(',', '.');
+    if (!s) return null;
+    const m = s.match(/^(>=|<=|>|<|=)?\s*(-?\d+(?:\.\d+)?)$/);
+    if (m) {
+      const op = m[1] || '=';
+      const val = parseFloat(m[2]);
+      return (n) => {
+        const a = Math.abs(n);
+        const v = Math.abs(val);
+        switch (op) {
+          case '>': return a > v;
+          case '<': return a < v;
+          case '>=': return a >= v;
+          case '<=': return a <= v;
+          default: return a.toFixed(2) === v.toFixed(2);
+        }
+      };
+    }
+    return (n) => Math.abs(n).toFixed(2).includes(s);
+  };
+
+  const filteredTransactions = useMemo(() => {
+    if (!hasColFilters) return transactions;
+    const amountPred = parseAmountFilter(colFilters.amount);
+    const dateQ = colFilters.date.trim().toLowerCase();
+    const descQ = colFilters.description.trim().toLowerCase();
+    const codeQ = colFilters.code.trim().toLowerCase();
+    return transactions.filter(tx => {
+      if (dateQ) {
+        const [y, m, d] = tx.date.split('-');
+        const formatted = `${d}/${m}/${y}`;
+        if (!formatted.toLowerCase().includes(dateQ) && !tx.date.includes(dateQ)) return false;
+      }
+      if (descQ) {
+        const hay = `${tx.description} ${tx.memo || ''}`.toLowerCase();
+        if (!hay.includes(descQ)) return false;
+      }
+      if (colFilters.category) {
+        if (colFilters.category === '__none__') { if (tx.category_id) return false; }
+        else if (tx.category_id !== colFilters.category) return false;
+      }
+      if (colFilters.account) {
+        if (colFilters.account === '__none__') { if (tx.account_id) return false; }
+        else if (tx.account_id !== colFilters.account) return false;
+      }
+      const ca = chartAccounts.find(c => c.id === (tx as any).chart_account_id);
+      if (codeQ) {
+        if (!ca || !ca.code.toLowerCase().includes(codeQ)) return false;
+      }
+      if (colFilters.chartAccount) {
+        if (colFilters.chartAccount === '__none__') { if ((tx as any).chart_account_id) return false; }
+        else if ((tx as any).chart_account_id !== colFilters.chartAccount) return false;
+      }
+      if (amountPred && !amountPred(Number(tx.amount))) return false;
+      if (colFilters.attachment === 'yes' && !tx.attachment_url) return false;
+      if (colFilters.attachment === 'no' && tx.attachment_url) return false;
+      if (colFilters.verified === 'yes' && !(tx as any).is_verified) return false;
+      if (colFilters.verified === 'no' && (tx as any).is_verified) return false;
+      return true;
+    });
+  }, [transactions, colFilters, hasColFilters, chartAccounts]);
+
   const sortedTransactions = useMemo(() => {
-    if (!sortField) return transactions;
-    return [...transactions].sort((a, b) => {
+    if (!sortField) return filteredTransactions;
+    return [...filteredTransactions].sort((a, b) => {
       let cmp = 0;
       if (sortField === 'date') cmp = a.date.localeCompare(b.date);
       else if (sortField === 'description') cmp = a.description.localeCompare(b.description, 'pt-BR', { sensitivity: 'base' });
       else if (sortField === 'amount') cmp = Number(a.amount) - Number(b.amount);
       return sortDir === 'asc' ? cmp : -cmp;
     });
-  }, [transactions, sortField, sortDir]);
+  }, [filteredTransactions, sortField, sortDir]);
 
   const SortIcon = ({ field }: { field: 'date' | 'description' | 'amount' }) => {
     if (sortField !== field) return <ArrowUpDown className="w-3 h-3 ml-1 inline opacity-40" />;
@@ -380,6 +464,96 @@ const TransactionTable = ({ transactions, categories, accounts, chartAccounts, o
                 <th className="text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Anexo</th>
                 <th className="text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider px-2 py-3" title="Conferido">✓</th>
                 <th className="text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Ações</th>
+              </tr>
+              <tr className="border-b bg-background/50">
+                <th className="px-2 py-2 text-center">
+                  {hasColFilters && (
+                    <button onClick={clearColFilters} title="Limpar filtros de coluna" className="text-muted-foreground hover:text-foreground">
+                      <FilterX className="w-3.5 h-3.5 mx-auto" />
+                    </button>
+                  )}
+                </th>
+                <th className="px-2 py-2">
+                  <Input placeholder="Filtrar..." value={colFilters.date} onChange={e => setColFilters(f => ({ ...f, date: e.target.value }))} className="h-7 text-xs" />
+                </th>
+                <th className="px-2 py-2">
+                  <Input placeholder="Filtrar descrição..." value={colFilters.description} onChange={e => setColFilters(f => ({ ...f, description: e.target.value }))} className="h-7 text-xs" />
+                </th>
+                <th className="px-2 py-2">
+                  <Select value={colFilters.category || '__all__'} onValueChange={v => setColFilters(f => ({ ...f, category: v === '__all__' ? '' : v }))}>
+                    <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Todas" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__all__">Todas</SelectItem>
+                      <SelectItem value="__none__">Sem categoria</SelectItem>
+                      {categories.map(c => (
+                        <SelectItem key={c.id} value={c.id}>
+                          <span className="flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: c.color }} />
+                            {c.name}
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </th>
+                <th className="px-2 py-2">
+                  <Select value={colFilters.account || '__all__'} onValueChange={v => setColFilters(f => ({ ...f, account: v === '__all__' ? '' : v }))}>
+                    <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Todas" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__all__">Todas</SelectItem>
+                      <SelectItem value="__none__">Sem conta</SelectItem>
+                      {accounts.map(a => (
+                        <SelectItem key={a.id} value={a.id}>
+                          <span className="flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: a.color }} />
+                            {a.name}
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </th>
+                <th className="px-2 py-2">
+                  <Input placeholder="Código..." value={colFilters.code} onChange={e => setColFilters(f => ({ ...f, code: e.target.value }))} className="h-7 text-xs" />
+                </th>
+                <th className="px-2 py-2">
+                  <Select value={colFilters.chartAccount || '__all__'} onValueChange={v => setColFilters(f => ({ ...f, chartAccount: v === '__all__' ? '' : v }))}>
+                    <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Todas" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__all__">Todas</SelectItem>
+                      <SelectItem value="__none__">Sem conta contábil</SelectItem>
+                      {chartAccounts.map(c => (
+                        <SelectItem key={c.id} value={c.id}>
+                          <span className="truncate">{c.code} - {c.name}</span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </th>
+                <th className="px-2 py-2">
+                  <Input placeholder=">100, <50, =42" value={colFilters.amount} onChange={e => setColFilters(f => ({ ...f, amount: e.target.value }))} className="h-7 text-xs text-right" />
+                </th>
+                <th className="px-2 py-2">
+                  <Select value={colFilters.attachment} onValueChange={(v: any) => setColFilters(f => ({ ...f, attachment: v }))}>
+                    <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos</SelectItem>
+                      <SelectItem value="yes">Com anexo</SelectItem>
+                      <SelectItem value="no">Sem anexo</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </th>
+                <th className="px-2 py-2">
+                  <Select value={colFilters.verified} onValueChange={(v: any) => setColFilters(f => ({ ...f, verified: v }))}>
+                    <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos</SelectItem>
+                      <SelectItem value="yes">Conferidos</SelectItem>
+                      <SelectItem value="no">Não conferidos</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </th>
+                <th className="px-2 py-2"></th>
               </tr>
             </thead>
             <tbody>
