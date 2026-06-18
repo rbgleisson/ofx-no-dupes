@@ -66,6 +66,26 @@ const TransactionTable = ({ transactions, categories, accounts, chartAccounts, o
   const [sortField, setSortField] = useState<'date' | 'description' | 'amount' | null>(null);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
 
+  // Column filters (per-column header filters)
+  const [colFilters, setColFilters] = useState<{
+    date: string;
+    description: string;
+    category: string;
+    account: string;
+    code: string;
+    chartAccount: string;
+    amount: string;
+    attachment: 'all' | 'yes' | 'no';
+    verified: 'all' | 'yes' | 'no';
+  }>({
+    date: '', description: '', category: '', account: '', code: '',
+    chartAccount: '', amount: '', attachment: 'all', verified: 'all',
+  });
+
+  const hasColFilters = !!(colFilters.date || colFilters.description || colFilters.category || colFilters.account || colFilters.code || colFilters.chartAccount || colFilters.amount || colFilters.attachment !== 'all' || colFilters.verified !== 'all');
+
+  const clearColFilters = () => setColFilters({ date: '', description: '', category: '', account: '', code: '', chartAccount: '', amount: '', attachment: 'all', verified: 'all' });
+
   const toggleSort = (field: 'date' | 'description' | 'amount') => {
     if (sortField === field) {
       if (sortDir === 'asc') setSortDir('desc');
@@ -76,16 +96,79 @@ const TransactionTable = ({ transactions, categories, accounts, chartAccounts, o
     }
   };
 
+  const parseAmountFilter = (raw: string): ((n: number) => boolean) | null => {
+    const s = raw.trim().replace(',', '.');
+    if (!s) return null;
+    const m = s.match(/^(>=|<=|>|<|=)?\s*(-?\d+(?:\.\d+)?)$/);
+    if (m) {
+      const op = m[1] || '=';
+      const val = parseFloat(m[2]);
+      return (n) => {
+        const a = Math.abs(n);
+        const v = Math.abs(val);
+        switch (op) {
+          case '>': return a > v;
+          case '<': return a < v;
+          case '>=': return a >= v;
+          case '<=': return a <= v;
+          default: return a.toFixed(2) === v.toFixed(2);
+        }
+      };
+    }
+    return (n) => Math.abs(n).toFixed(2).includes(s);
+  };
+
+  const filteredTransactions = useMemo(() => {
+    if (!hasColFilters) return transactions;
+    const amountPred = parseAmountFilter(colFilters.amount);
+    const dateQ = colFilters.date.trim().toLowerCase();
+    const descQ = colFilters.description.trim().toLowerCase();
+    const codeQ = colFilters.code.trim().toLowerCase();
+    return transactions.filter(tx => {
+      if (dateQ) {
+        const [y, m, d] = tx.date.split('-');
+        const formatted = `${d}/${m}/${y}`;
+        if (!formatted.toLowerCase().includes(dateQ) && !tx.date.includes(dateQ)) return false;
+      }
+      if (descQ) {
+        const hay = `${tx.description} ${tx.memo || ''}`.toLowerCase();
+        if (!hay.includes(descQ)) return false;
+      }
+      if (colFilters.category) {
+        if (colFilters.category === '__none__') { if (tx.category_id) return false; }
+        else if (tx.category_id !== colFilters.category) return false;
+      }
+      if (colFilters.account) {
+        if (colFilters.account === '__none__') { if (tx.account_id) return false; }
+        else if (tx.account_id !== colFilters.account) return false;
+      }
+      const ca = chartAccounts.find(c => c.id === (tx as any).chart_account_id);
+      if (codeQ) {
+        if (!ca || !ca.code.toLowerCase().includes(codeQ)) return false;
+      }
+      if (colFilters.chartAccount) {
+        if (colFilters.chartAccount === '__none__') { if ((tx as any).chart_account_id) return false; }
+        else if ((tx as any).chart_account_id !== colFilters.chartAccount) return false;
+      }
+      if (amountPred && !amountPred(Number(tx.amount))) return false;
+      if (colFilters.attachment === 'yes' && !tx.attachment_url) return false;
+      if (colFilters.attachment === 'no' && tx.attachment_url) return false;
+      if (colFilters.verified === 'yes' && !(tx as any).is_verified) return false;
+      if (colFilters.verified === 'no' && (tx as any).is_verified) return false;
+      return true;
+    });
+  }, [transactions, colFilters, hasColFilters, chartAccounts]);
+
   const sortedTransactions = useMemo(() => {
-    if (!sortField) return transactions;
-    return [...transactions].sort((a, b) => {
+    if (!sortField) return filteredTransactions;
+    return [...filteredTransactions].sort((a, b) => {
       let cmp = 0;
       if (sortField === 'date') cmp = a.date.localeCompare(b.date);
       else if (sortField === 'description') cmp = a.description.localeCompare(b.description, 'pt-BR', { sensitivity: 'base' });
       else if (sortField === 'amount') cmp = Number(a.amount) - Number(b.amount);
       return sortDir === 'asc' ? cmp : -cmp;
     });
-  }, [transactions, sortField, sortDir]);
+  }, [filteredTransactions, sortField, sortDir]);
 
   const SortIcon = ({ field }: { field: 'date' | 'description' | 'amount' }) => {
     if (sortField !== field) return <ArrowUpDown className="w-3 h-3 ml-1 inline opacity-40" />;
