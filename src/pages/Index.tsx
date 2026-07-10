@@ -419,6 +419,9 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
             {permissions.can_manage_categories && (
               <CategoriesManager categories={categories} onCategoriesChange={fetchCategories} />
             )}
+            {permissions.can_manage_categories && (
+              <ContactsManager categories={categories} />
+            )}
             {permissions.can_manage_chart_accounts && (
               <ChartAccountsManager chartAccounts={chartAccounts} onChartAccountsChange={fetchChartAccounts} />
             )}
