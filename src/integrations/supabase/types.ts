@@ -154,6 +154,57 @@ export type Database = {
           },
         ]
       }
+      contatos_recorrentes: {
+        Row: {
+          categoria_id: string | null
+          created_at: string
+          documento: string
+          documento_digits: string | null
+          id: string
+          nome: string
+          organization_id: string | null
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          categoria_id?: string | null
+          created_at?: string
+          documento: string
+          documento_digits?: string | null
+          id?: string
+          nome: string
+          organization_id?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          categoria_id?: string | null
+          created_at?: string
+          documento?: string
+          documento_digits?: string | null
+          id?: string
+          nome?: string
+          organization_id?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contatos_recorrentes_categoria_id_fkey"
+            columns: ["categoria_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contatos_recorrentes_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       installments: {
         Row: {
           account_id: string | null

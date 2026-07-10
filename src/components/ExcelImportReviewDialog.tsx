@@ -379,6 +379,16 @@ const ExcelImportReviewDialog = ({ open, onOpenChange, rows: initialRows, catego
                               </TooltipContent>
                             </Tooltip>
                           </TooltipProvider>
+                        ) : row._auto_identified ? (
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 whitespace-nowrap bg-cyan-50 text-cyan-800 border-cyan-200">
+                            <Check className="h-3 w-3 mr-0.5" />
+                            Identificado Automaticamente
+                          </Badge>
+                        ) : row.amount < 0 ? (
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 whitespace-nowrap bg-orange-50 text-orange-800 border-orange-200">
+                            <AlertTriangle className="h-3 w-3 mr-0.5" />
+                            Classificação Manual
+                          </Badge>
                         ) : (
                           <Badge variant="outline" className="text-[10px] px-1.5 py-0 whitespace-nowrap bg-emerald-50 text-emerald-700 border-emerald-200">
                             <Check className="h-3 w-3 mr-0.5" />

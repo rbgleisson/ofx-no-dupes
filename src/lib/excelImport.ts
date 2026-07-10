@@ -11,6 +11,10 @@ export interface ExcelRow {
   _fit_id?: string;
   _type?: string;
   _is_transfer?: boolean;
+  /** Marked true when a recurrent contact was matched from OFX description digits. */
+  _auto_identified?: boolean;
+  /** Name of the matched contact (used to build the friendly description). */
+  _matched_contact_name?: string;
 }
 
 export async function downloadExcelTemplate() {

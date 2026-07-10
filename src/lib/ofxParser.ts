@@ -6,6 +6,8 @@ export interface OFXTransaction {
   amount: number;
   description: string;
   memo?: string;
+  /** Only digits found in description+memo (used for CPF/CNPJ matching). */
+  descriptionDigits: string;
 }
 
 export interface OFXData {
@@ -14,6 +16,38 @@ export interface OFXData {
   accountType?: string;
   currency?: string;
   transactions: OFXTransaction[];
+}
+
+/** Extracts a contiguous run of digits from a raw OFX text (description/memo). */
+export function extractDigits(text: string): string {
+  return (text || '').replace(/\D/g, '');
+}
+
+export interface ContactMatchInput {
+  documento_digits: string;
+  nome: string;
+  categoria_id: string | null;
+}
+
+/**
+ * Given an OFX transaction and a list of registered contacts, returns the
+ * matching contact when: (a) amount is negative (debit) AND (b) the digits
+ * masked by the bank in the description/memo are contained in a contact's
+ * full CPF/CNPJ digits. Returns null otherwise.
+ */
+export function matchContactForOfxTx<T extends ContactMatchInput>(
+  tx: { amount: number; descriptionDigits: string },
+  contacts: T[],
+  minDigits = 3,
+): T | null {
+  if (tx.amount >= 0) return null;
+  const digits = tx.descriptionDigits;
+  if (!digits || digits.length < minDigits) return null;
+  for (const c of contacts) {
+    const full = c.documento_digits || '';
+    if (full.length >= minDigits && full.includes(digits)) return c;
+  }
+  return null;
 }
 
 function parseOFXDate(dateStr: string): string {
@@ -77,6 +111,7 @@ export function parseOFX(content: string): OFXData {
         amount,
         description,
         memo: memo && memo !== name ? memo : undefined,
+        descriptionDigits: extractDigits(`${name || ''} ${memo || ''}`),
       });
     }
   }

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { parseOFX } from '@/lib/ofxParser';
+import { parseOFX, matchContactForOfxTx } from '@/lib/ofxParser';
+import ContactsManager, { fetchContacts } from '@/components/ContactsManager';
 import logoImg from '@/assets/logo.png';
 import {
   Transaction,
@@ -281,20 +282,28 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
       const { data: { user: currentUser } } = await supabase.auth.getUser();
       const { transferCategoryId, investmentIncomeCategoryId, tithesOfferingsCategoryId } = await ensureSystemCategories(currentUser!.id);
 
+      // Fetch registered contacts for OFX auto-identification (debits only)
+      const contacts = await fetchContacts(orgIdData as any);
+
       // Convert to ExcelRow format and open review dialog for duplicate detection
       const rows: ExcelRow[] = uniqueByFitId.map(t => {
         const classification = classifyTransaction(t.description, t.amount, transferCategoryId, investmentIncomeCategoryId, tithesOfferingsCategoryId);
+        const matched = matchContactForOfxTx(t, contacts);
+        const description = matched ? `PIX: ${matched.nome}` : t.description;
+        const categoryId = matched?.categoria_id || classification.category_id;
         return {
           date: t.date,
           amount: t.amount,
-          description: t.description,
+          description,
           memo: t.memo || undefined,
-          category_id: classification.category_id,
+          category_id: categoryId,
           account_id: accountId,
           chart_account_id: null,
           _fit_id: t.id,
           _type: t.type,
           _is_transfer: classification.is_transfer,
+          _auto_identified: !!matched,
+          _matched_contact_name: matched?.nome,
         };
       });
 
@@ -409,6 +418,9 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
             )}
             {permissions.can_manage_categories && (
               <CategoriesManager categories={categories} onCategoriesChange={fetchCategories} />
+            )}
+            {permissions.can_manage_categories && (
+              <ContactsManager categories={categories} />
             )}
             {permissions.can_manage_chart_accounts && (
               <ChartAccountsManager chartAccounts={chartAccounts} onChartAccountsChange={fetchChartAccounts} />
@@ -580,6 +592,9 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
                   )}
                   {permissions.can_manage_categories && (
                     <div className="[&>button]:w-full [&>button]:justify-start"><CategoriesManager categories={categories} onCategoriesChange={fetchCategories} /></div>
+                  )}
+                  {permissions.can_manage_categories && (
+                    <div className="[&>button]:w-full [&>button]:justify-start"><ContactsManager categories={categories} /></div>
                   )}
                   {permissions.can_manage_chart_accounts && (
                     <div className="[&>button]:w-full [&>button]:justify-start"><ChartAccountsManager chartAccounts={chartAccounts} onChartAccountsChange={fetchChartAccounts} /></div>
