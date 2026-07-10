@@ -593,6 +593,9 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
                   {permissions.can_manage_categories && (
                     <div className="[&>button]:w-full [&>button]:justify-start"><CategoriesManager categories={categories} onCategoriesChange={fetchCategories} /></div>
                   )}
+                  {permissions.can_manage_categories && (
+                    <div className="[&>button]:w-full [&>button]:justify-start"><ContactsManager categories={categories} /></div>
+                  )}
                   {permissions.can_manage_chart_accounts && (
                     <div className="[&>button]:w-full [&>button]:justify-start"><ChartAccountsManager chartAccounts={chartAccounts} onChartAccountsChange={fetchChartAccounts} /></div>
                   )}
