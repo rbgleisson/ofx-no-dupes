@@ -111,6 +111,7 @@ export function parseOFX(content: string): OFXData {
         amount,
         description,
         memo: memo && memo !== name ? memo : undefined,
+        descriptionDigits: extractDigits(`${name || ''} ${memo || ''}`),
       });
     }
   }
