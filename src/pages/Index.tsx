@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { parseOFX } from '@/lib/ofxParser';
+import { parseOFX, matchContactForOfxTx } from '@/lib/ofxParser';
+import ContactsManager, { fetchContacts } from '@/components/ContactsManager';
 import logoImg from '@/assets/logo.png';
 import {
   Transaction,
