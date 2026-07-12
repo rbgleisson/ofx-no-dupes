@@ -188,20 +188,61 @@ const ContactsManager = ({ categories, onChange }: Props) => {
           </div>
           <div>
             <label className="text-xs text-muted-foreground">Categoria padrão</label>
-            <Select value={categoriaId} onValueChange={setCategoriaId}>
-              <SelectTrigger><SelectValue placeholder="Selecionar..." /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__">Sem categoria</SelectItem>
-                {categories.map(c => (
-                  <SelectItem key={c.id} value={c.id}>
-                    <span className="flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full" style={{ backgroundColor: c.color }} />
-                      {c.name}
-                    </span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Popover open={catOpen} onOpenChange={setCatOpen} modal={false}>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className="flex items-center gap-1.5 h-9 w-full px-3 text-xs border rounded-md bg-background hover:bg-muted/50 transition-colors text-left"
+                >
+                  {categoriaId !== '__none__' ? (
+                    (() => {
+                      const cat = categories.find(c => c.id === categoriaId);
+                      return cat ? (
+                        <span className="truncate flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: cat.color }} />
+                          {cat.name}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">Sem categoria</span>
+                      );
+                    })()
+                  ) : (
+                    <span className="text-muted-foreground">Selecionar...</span>
+                  )}
+                  <ChevronsUpDown className="ml-auto h-3 w-3 shrink-0 opacity-50" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-52 p-0" align="start">
+                <Command>
+                  <CommandInput placeholder="Buscar categoria..." className="h-8 text-xs" />
+                  <CommandList>
+                    <CommandEmpty className="py-2 text-center text-xs text-muted-foreground">Nenhuma encontrada.</CommandEmpty>
+                    <CommandGroup>
+                      <CommandItem
+                        value="__none__"
+                        onSelect={() => { setCategoriaId('__none__'); setCatOpen(false); }}
+                        className="text-xs"
+                      >
+                        <span className="text-muted-foreground">Sem categoria</span>
+                        {categoriaId === '__none__' && <Check className="ml-auto h-3 w-3" />}
+                      </CommandItem>
+                      {categories.map(c => (
+                        <CommandItem
+                          key={c.id}
+                          value={c.name}
+                          onSelect={() => { setCategoriaId(c.id); setCatOpen(false); }}
+                          className="text-xs"
+                        >
+                          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: c.color }} />
+                          {c.name}
+                          {categoriaId === c.id && <Check className="ml-auto h-3 w-3" />}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
           <Button onClick={handleAdd} size="sm"><Plus className="w-4 h-4 mr-1" />Adicionar</Button>
         </div>
