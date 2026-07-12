@@ -81,10 +81,12 @@ const ContactsManager = ({ categories, onChange }: Props) => {
   const [nome, setNome] = useState('');
   const [documento, setDocumento] = useState('');
   const [categoriaId, setCategoriaId] = useState<string>('__none__');
+  const [catOpen, setCatOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editNome, setEditNome] = useState('');
   const [editDoc, setEditDoc] = useState('');
   const [editCat, setEditCat] = useState<string>('__none__');
+  const [editCatOpen, setEditCatOpen] = useState(false);
 
   const reload = async () => {
     const { data: { user } } = await supabase.auth.getUser();
