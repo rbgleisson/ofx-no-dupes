@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Plus, Pencil, Trash2, Check, X, Users } from 'lucide-react';
+import { Plus, Pencil, Trash2, Check, X, Users, ChevronsUpDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -12,12 +12,18 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
 import { Category } from '@/components/CategoriesManager';
 import { toast } from 'sonner';
 
@@ -75,10 +81,12 @@ const ContactsManager = ({ categories, onChange }: Props) => {
   const [nome, setNome] = useState('');
   const [documento, setDocumento] = useState('');
   const [categoriaId, setCategoriaId] = useState<string>('__none__');
+  const [catOpen, setCatOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editNome, setEditNome] = useState('');
   const [editDoc, setEditDoc] = useState('');
   const [editCat, setEditCat] = useState<string>('__none__');
+  const [editCatOpen, setEditCatOpen] = useState(false);
 
   const reload = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -180,20 +188,61 @@ const ContactsManager = ({ categories, onChange }: Props) => {
           </div>
           <div>
             <label className="text-xs text-muted-foreground">Categoria padrão</label>
-            <Select value={categoriaId} onValueChange={setCategoriaId}>
-              <SelectTrigger><SelectValue placeholder="Selecionar..." /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__">Sem categoria</SelectItem>
-                {categories.map(c => (
-                  <SelectItem key={c.id} value={c.id}>
-                    <span className="flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full" style={{ backgroundColor: c.color }} />
-                      {c.name}
-                    </span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Popover open={catOpen} onOpenChange={setCatOpen} modal={false}>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className="flex items-center gap-1.5 h-9 w-full px-3 text-xs border rounded-md bg-background hover:bg-muted/50 transition-colors text-left"
+                >
+                  {categoriaId !== '__none__' ? (
+                    (() => {
+                      const cat = categories.find(c => c.id === categoriaId);
+                      return cat ? (
+                        <span className="truncate flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: cat.color }} />
+                          {cat.name}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">Sem categoria</span>
+                      );
+                    })()
+                  ) : (
+                    <span className="text-muted-foreground">Selecionar...</span>
+                  )}
+                  <ChevronsUpDown className="ml-auto h-3 w-3 shrink-0 opacity-50" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-52 p-0" align="start">
+                <Command>
+                  <CommandInput placeholder="Buscar categoria..." className="h-8 text-xs" />
+                  <CommandList>
+                    <CommandEmpty className="py-2 text-center text-xs text-muted-foreground">Nenhuma encontrada.</CommandEmpty>
+                    <CommandGroup>
+                      <CommandItem
+                        value="__none__"
+                        onSelect={() => { setCategoriaId('__none__'); setCatOpen(false); }}
+                        className="text-xs"
+                      >
+                        <span className="text-muted-foreground">Sem categoria</span>
+                        {categoriaId === '__none__' && <Check className="ml-auto h-3 w-3" />}
+                      </CommandItem>
+                      {categories.map(c => (
+                        <CommandItem
+                          key={c.id}
+                          value={c.name}
+                          onSelect={() => { setCategoriaId(c.id); setCatOpen(false); }}
+                          className="text-xs"
+                        >
+                          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: c.color }} />
+                          {c.name}
+                          {categoriaId === c.id && <Check className="ml-auto h-3 w-3" />}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
           <Button onClick={handleAdd} size="sm"><Plus className="w-4 h-4 mr-1" />Adicionar</Button>
         </div>
@@ -212,15 +261,61 @@ const ContactsManager = ({ categories, onChange }: Props) => {
                   <div className="grid grid-cols-1 md:grid-cols-[1fr_160px_160px_auto] gap-2 items-center">
                     <Input value={editNome} onChange={e => setEditNome(e.target.value)} className="h-8 text-sm" />
                     <Input value={editDoc} onChange={e => setEditDoc(maskCpfCnpj(e.target.value))} className="h-8 text-sm" />
-                    <Select value={editCat} onValueChange={setEditCat}>
-                      <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__none__">Sem categoria</SelectItem>
-                        {categories.map(c => (
-                          <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Popover open={editCatOpen} onOpenChange={setEditCatOpen} modal={false}>
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          className="flex items-center gap-1.5 h-8 w-full px-3 text-xs border rounded-md bg-background hover:bg-muted/50 transition-colors text-left"
+                        >
+                          {editCat !== '__none__' ? (
+                            (() => {
+                              const cat = categories.find(c => c.id === editCat);
+                              return cat ? (
+                                <span className="truncate flex items-center gap-1.5">
+                                  <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: cat.color }} />
+                                  {cat.name}
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground">Sem categoria</span>
+                              );
+                            })()
+                          ) : (
+                            <span className="text-muted-foreground">Selecionar...</span>
+                          )}
+                          <ChevronsUpDown className="ml-auto h-3 w-3 shrink-0 opacity-50" />
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-52 p-0" align="start">
+                        <Command>
+                          <CommandInput placeholder="Buscar categoria..." className="h-8 text-xs" />
+                          <CommandList>
+                            <CommandEmpty className="py-2 text-center text-xs text-muted-foreground">Nenhuma encontrada.</CommandEmpty>
+                            <CommandGroup>
+                              <CommandItem
+                                value="__none__"
+                                onSelect={() => { setEditCat('__none__'); setEditCatOpen(false); }}
+                                className="text-xs"
+                              >
+                                <span className="text-muted-foreground">Sem categoria</span>
+                                {editCat === '__none__' && <Check className="ml-auto h-3 w-3" />}
+                              </CommandItem>
+                              {categories.map(c => (
+                                <CommandItem
+                                  key={c.id}
+                                  value={c.name}
+                                  onSelect={() => { setEditCat(c.id); setEditCatOpen(false); }}
+                                  className="text-xs"
+                                >
+                                  <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: c.color }} />
+                                  {c.name}
+                                  {editCat === c.id && <Check className="ml-auto h-3 w-3" />}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
                     <div className="flex gap-1">
                       <button onClick={() => handleUpdate(c.id)} className="text-emerald-600"><Check className="w-4 h-4" /></button>
                       <button onClick={() => setEditingId(null)} className="text-muted-foreground"><X className="w-4 h-4" /></button>
