@@ -185,10 +185,20 @@ const TransactionTable = ({ transactions, categories, accounts, chartAccounts, o
   };
 
   const toggleAll = () => {
-    if (selectedIds.size === transactions.length) {
-      setSelectedIds(new Set());
+    const visibleIds = sortedTransactions.map(t => t.id);
+    const allSelected = visibleIds.length > 0 && visibleIds.every(id => selectedIds.has(id));
+    if (allSelected) {
+      setSelectedIds(prev => {
+        const next = new Set(prev);
+        visibleIds.forEach(id => next.delete(id));
+        return next;
+      });
     } else {
-      setSelectedIds(new Set(transactions.map(t => t.id)));
+      setSelectedIds(prev => {
+        const next = new Set(prev);
+        visibleIds.forEach(id => next.add(id));
+        return next;
+      });
     }
   };
 
