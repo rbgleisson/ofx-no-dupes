@@ -185,10 +185,20 @@ const TransactionTable = ({ transactions, categories, accounts, chartAccounts, o
   };
 
   const toggleAll = () => {
-    if (selectedIds.size === transactions.length) {
-      setSelectedIds(new Set());
+    const visibleIds = sortedTransactions.map(t => t.id);
+    const allSelected = visibleIds.length > 0 && visibleIds.every(id => selectedIds.has(id));
+    if (allSelected) {
+      setSelectedIds(prev => {
+        const next = new Set(prev);
+        visibleIds.forEach(id => next.delete(id));
+        return next;
+      });
     } else {
-      setSelectedIds(new Set(transactions.map(t => t.id)));
+      setSelectedIds(prev => {
+        const next = new Set(prev);
+        visibleIds.forEach(id => next.add(id));
+        return next;
+      });
     }
   };
 
@@ -444,7 +454,7 @@ const TransactionTable = ({ transactions, categories, accounts, chartAccounts, o
               <tr className="border-b bg-muted/50">
                 <th className="px-4 py-3 w-10">
                   <Checkbox
-                    checked={selectedIds.size === transactions.length && transactions.length > 0}
+                    checked={sortedTransactions.length > 0 && sortedTransactions.every(t => selectedIds.has(t.id))}
                     onCheckedChange={toggleAll}
                   />
                 </th>
