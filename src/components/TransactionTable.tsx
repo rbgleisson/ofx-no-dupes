@@ -454,7 +454,7 @@ const TransactionTable = ({ transactions, categories, accounts, chartAccounts, o
               <tr className="border-b bg-muted/50">
                 <th className="px-4 py-3 w-10">
                   <Checkbox
-                    checked={selectedIds.size === transactions.length && transactions.length > 0}
+                    checked={sortedTransactions.length > 0 && sortedTransactions.every(t => selectedIds.has(t.id))}
                     onCheckedChange={toggleAll}
                   />
                 </th>
