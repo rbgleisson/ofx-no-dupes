@@ -594,11 +594,24 @@ const TransactionTable = ({ transactions, categories, accounts, chartAccounts, o
                 const amt = Number(tx.amount);
                 return (
                   <tr key={tx.id} className={`border-b last:border-0 hover:bg-muted/30 transition-colors cursor-pointer ${selectedIds.has(tx.id) ? 'bg-primary/5' : ''} ${tx.is_transfer ? 'opacity-60 bg-muted/20' : ''}`} onClick={() => setDetailTransaction(tx)}>
-                    <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
-                      <Checkbox
-                        checked={selectedIds.has(tx.id)}
-                        onCheckedChange={() => toggleSelect(tx.id)}
-                      />
+                    <td
+                      className="px-4 py-3"
+                      onClick={e => {
+                        e.stopPropagation();
+                        const target = e.target as HTMLElement;
+                        // Only intercept when clicking the checkbox area itself
+                        if (target.closest('[data-row-checkbox]')) {
+                          e.preventDefault();
+                          toggleSelect(tx.id, e.shiftKey);
+                        }
+                      }}
+                    >
+                      <span data-row-checkbox className="inline-block" style={{ userSelect: 'none' }}>
+                        <Checkbox
+                          checked={selectedIds.has(tx.id)}
+                          onCheckedChange={() => { /* handled by td onClick to capture shiftKey */ }}
+                        />
+                      </span>
                     </td>
                     <td className="px-4 py-3 text-sm font-mono text-muted-foreground whitespace-nowrap">
                       {formatDate(tx.date)}
