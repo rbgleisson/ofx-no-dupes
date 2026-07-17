@@ -176,12 +176,32 @@ const TransactionTable = ({ transactions, categories, accounts, chartAccounts, o
     return sortDir === 'asc' ? <ArrowUp className="w-3 h-3 ml-1 inline" /> : <ArrowDown className="w-3 h-3 ml-1 inline" />;
   };
 
-  const toggleSelect = (id: string) => {
+  const [lastSelectedId, setLastSelectedId] = useState<string | null>(null);
+
+  const toggleSelect = (id: string, shiftKey = false) => {
+    if (shiftKey && lastSelectedId && lastSelectedId !== id) {
+      const ids = sortedTransactions.map(t => t.id);
+      const a = ids.indexOf(lastSelectedId);
+      const b = ids.indexOf(id);
+      if (a !== -1 && b !== -1) {
+        const [start, end] = a < b ? [a, b] : [b, a];
+        const rangeIds = ids.slice(start, end + 1);
+        const shouldSelect = !selectedIds.has(id);
+        setSelectedIds(prev => {
+          const next = new Set(prev);
+          rangeIds.forEach(rid => { if (shouldSelect) next.add(rid); else next.delete(rid); });
+          return next;
+        });
+        setLastSelectedId(id);
+        return;
+      }
+    }
     setSelectedIds(prev => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id); else next.add(id);
       return next;
     });
+    setLastSelectedId(id);
   };
 
   const toggleAll = () => {
