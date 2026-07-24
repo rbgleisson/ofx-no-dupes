@@ -613,7 +613,7 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
 
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mt-2">Cadastros</p>
                   {permissions.can_manage_accounts && (
-                    <div className="[&>button]:w-full [&>button]:justify-start"><AccountsManager accounts={accounts} onAccountsChange={fetchAccounts} /></div>
+                    <div className="[&>button]:w-full [&>button]:justify-start"><AccountsManager accounts={accounts} onAccountsChange={() => { fetchAccounts(); loadTransactions(); loadInstallmentSummary(); }} transactions={transactions} installments={allInstallments} /></div>
                   )}
                   {permissions.can_manage_categories && (
                     <div className="[&>button]:w-full [&>button]:justify-start"><CategoriesManager categories={categories} onCategoriesChange={fetchCategories} /></div>
