@@ -29,6 +29,7 @@ import { ExcelRow, parseExcelFile, downloadExcelTemplate } from '@/lib/excelImpo
 import { Trash2, FileText, CheckCircle2, AlertCircle, Plus, Upload, LogOut, Download, FileSpreadsheet, HardDrive, Shield, Building, FolderDown, FolderUp, ChevronDown, BarChart3, Receipt, Menu } from 'lucide-react';
 import InstallmentsTab from '@/components/InstallmentsTab';
 import InvestmentsTab from '@/components/InvestmentsTab';
+import AccountBalanceCards from '@/components/AccountBalanceCards';
 import { fetchInstallments, getInstallmentSummary, Installment } from '@/lib/installmentStore';
 import {
   DropdownMenu,
