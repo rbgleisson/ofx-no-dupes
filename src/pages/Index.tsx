@@ -78,6 +78,25 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
   const [installmentSummary, setInstallmentSummary] = useState({ totalPayable: 0, totalReceivable: 0, countPayable: 0, countReceivable: 0 });
   const [notification, setNotification] = useState<{ type: 'success' | 'warning'; message: string } | null>(null);
   const [formOpen, setFormOpen] = useState(false);
+
+  // Categories treated as internal transfer (by name), so manually-classified
+  // transactions also get excluded from Entradas/Despesas Reais and included in Investimentos.
+  const transferCategoryIds = useMemo(() => {
+    return new Set(
+      categories
+        .filter(c => /transfer[eê]ncia\s+interna/i.test(c.name || ''))
+        .map(c => c.id)
+    );
+  }, [categories]);
+
+  const effectiveTransactions = useMemo(() => {
+    if (transferCategoryIds.size === 0) return transactions;
+    return transactions.map(t =>
+      !t.is_transfer && t.category_id && transferCategoryIds.has(t.category_id)
+        ? { ...t, is_transfer: true }
+        : t
+    );
+  }, [transactions, transferCategoryIds]);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [backupProgress, setBackupProgress] = useState<string | null>(null);
   const ofxInputRef = useRef<HTMLInputElement>(null);
