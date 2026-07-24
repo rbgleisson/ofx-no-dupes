@@ -793,12 +793,15 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
         })()}
 
         {/* Main Tabs: Transactions vs Installments */}
-        <Tabs value={mainTab} onValueChange={v => setMainTab(v as 'transactions' | 'installments')} className="space-y-4">
+        <Tabs value={mainTab} onValueChange={v => setMainTab(v as 'transactions' | 'installments' | 'investments')} className="space-y-4">
           <TabsList>
             <TabsTrigger value="transactions">Lançamentos</TabsTrigger>
             <TabsTrigger value="installments">
               <Receipt className="w-4 h-4 mr-1.5" />
               Contas a Pagar/Receber
+            </TabsTrigger>
+            <TabsTrigger value="investments">
+              💰 Investimentos
             </TabsTrigger>
           </TabsList>
 
