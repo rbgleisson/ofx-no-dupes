@@ -875,6 +875,10 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
               onTransactionsChange={() => { loadTransactions(); loadInstallmentSummary(); }}
             />
           </TabsContent>
+
+          <TabsContent value="investments">
+            <InvestmentsTab transactions={transactions} accounts={accounts} />
+          </TabsContent>
         </Tabs>
 
         {/* Form Dialog */}
