@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { parseOFX, matchContactForOfxTx } from '@/lib/ofxParser';
 import ContactsManager, { fetchContacts } from '@/components/ContactsManager';
 import logoImg from '@/assets/logo.png';
@@ -78,6 +78,25 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
   const [installmentSummary, setInstallmentSummary] = useState({ totalPayable: 0, totalReceivable: 0, countPayable: 0, countReceivable: 0 });
   const [notification, setNotification] = useState<{ type: 'success' | 'warning'; message: string } | null>(null);
   const [formOpen, setFormOpen] = useState(false);
+
+  // Categories treated as internal transfer (by name), so manually-classified
+  // transactions also get excluded from Entradas/Despesas Reais and included in Investimentos.
+  const transferCategoryIds = useMemo(() => {
+    return new Set(
+      categories
+        .filter(c => /transfer[eê]ncia\s+interna/i.test(c.name || ''))
+        .map(c => c.id)
+    );
+  }, [categories]);
+
+  const effectiveTransactions = useMemo(() => {
+    if (transferCategoryIds.size === 0) return transactions;
+    return transactions.map(t =>
+      !t.is_transfer && t.category_id && transferCategoryIds.has(t.category_id)
+        ? { ...t, is_transfer: true }
+        : t
+    );
+  }, [transactions, transferCategoryIds]);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [backupProgress, setBackupProgress] = useState<string | null>(null);
   const ofxInputRef = useRef<HTMLInputElement>(null);
@@ -744,11 +763,11 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
 
         {/* Summary Cards */}
         {permissions.can_view_totals && transactions.length > 0 && (() => {
-          const nonTransfer = transactions.filter(t => !t.is_transfer);
+          const nonTransfer = effectiveTransactions.filter(t => !t.is_transfer);
           const totalReceber = nonTransfer.filter(t => Number(t.amount) >= 0).reduce((s, t) => s + Number(t.amount), 0);
           const totalPagar = nonTransfer.filter(t => Number(t.amount) < 0).reduce((s, t) => s + Math.abs(Number(t.amount)), 0);
           const saldo = totalReceber - totalPagar;
-          const totalTransfer = transactions.filter(t => t.is_transfer).reduce((s, t) => s + Math.abs(Number(t.amount)), 0);
+          const totalTransfer = effectiveTransactions.filter(t => t.is_transfer).reduce((s, t) => s + Math.abs(Number(t.amount)), 0);
           const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
           return (
             <>
@@ -877,7 +896,7 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
           </TabsContent>
 
           <TabsContent value="investments">
-            <InvestmentsTab transactions={transactions} accounts={accounts} />
+            <InvestmentsTab transactions={effectiveTransactions} accounts={accounts} />
           </TabsContent>
         </Tabs>
 
