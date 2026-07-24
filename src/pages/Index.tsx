@@ -896,7 +896,7 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
           </TabsContent>
 
           <TabsContent value="investments">
-            <InvestmentsTab transactions={transactions} accounts={accounts} />
+            <InvestmentsTab transactions={effectiveTransactions} accounts={accounts} />
           </TabsContent>
         </Tabs>
 
