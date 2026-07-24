@@ -76,6 +76,7 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
   const [activeTab, setActiveTab] = useState<'payable' | 'receivable'>('payable');
   const [mainTab, setMainTab] = useState<'transactions' | 'installments' | 'investments'>('transactions');
   const [installmentSummary, setInstallmentSummary] = useState({ totalPayable: 0, totalReceivable: 0, countPayable: 0, countReceivable: 0 });
+  const [allInstallments, setAllInstallments] = useState<Installment[]>([]);
   const [notification, setNotification] = useState<{ type: 'success' | 'warning'; message: string } | null>(null);
   const [formOpen, setFormOpen] = useState(false);
 
