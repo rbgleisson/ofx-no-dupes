@@ -29,6 +29,7 @@ import { ExcelRow, parseExcelFile, downloadExcelTemplate } from '@/lib/excelImpo
 import { Trash2, FileText, CheckCircle2, AlertCircle, Plus, Upload, LogOut, Download, FileSpreadsheet, HardDrive, Shield, Building, FolderDown, FolderUp, ChevronDown, BarChart3, Receipt, Menu } from 'lucide-react';
 import InstallmentsTab from '@/components/InstallmentsTab';
 import InvestmentsTab from '@/components/InvestmentsTab';
+import AccountBalanceCards from '@/components/AccountBalanceCards';
 import { fetchInstallments, getInstallmentSummary, Installment } from '@/lib/installmentStore';
 import {
   DropdownMenu,
@@ -76,6 +77,7 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
   const [activeTab, setActiveTab] = useState<'payable' | 'receivable'>('payable');
   const [mainTab, setMainTab] = useState<'transactions' | 'installments' | 'investments'>('transactions');
   const [installmentSummary, setInstallmentSummary] = useState({ totalPayable: 0, totalReceivable: 0, countPayable: 0, countReceivable: 0 });
+  const [allInstallments, setAllInstallments] = useState<Installment[]>([]);
   const [notification, setNotification] = useState<{ type: 'success' | 'warning'; message: string } | null>(null);
   const [formOpen, setFormOpen] = useState(false);
 
@@ -205,8 +207,11 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
 
   const loadInstallmentSummary = useCallback(async () => {
     try {
-      const data = await fetchInstallments(organizationId, undefined, false);
-      setInstallmentSummary(getInstallmentSummary(data));
+      const unpaid = await fetchInstallments(organizationId, undefined, false);
+      const paid = await fetchInstallments(organizationId, undefined, true);
+      setInstallmentSummary(getInstallmentSummary(unpaid));
+      // Combine all (fetchInstallments with showPaid=true returns both paid + unpaid)
+      setAllInstallments(paid);
     } catch {}
   }, [organizationId]);
 
@@ -434,7 +439,7 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
               </Button>
             )}
             {permissions.can_manage_accounts && (
-              <AccountsManager accounts={accounts} onAccountsChange={fetchAccounts} />
+              <AccountsManager accounts={accounts} onAccountsChange={() => { fetchAccounts(); loadTransactions(); loadInstallmentSummary(); }} transactions={transactions} installments={allInstallments} />
             )}
             {permissions.can_manage_categories && (
               <CategoriesManager categories={categories} onCategoriesChange={fetchCategories} />
@@ -608,7 +613,7 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
 
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mt-2">Cadastros</p>
                   {permissions.can_manage_accounts && (
-                    <div className="[&>button]:w-full [&>button]:justify-start"><AccountsManager accounts={accounts} onAccountsChange={fetchAccounts} /></div>
+                    <div className="[&>button]:w-full [&>button]:justify-start"><AccountsManager accounts={accounts} onAccountsChange={() => { fetchAccounts(); loadTransactions(); loadInstallmentSummary(); }} transactions={transactions} installments={allInstallments} /></div>
                   )}
                   {permissions.can_manage_categories && (
                     <div className="[&>button]:w-full [&>button]:justify-start"><CategoriesManager categories={categories} onCategoriesChange={fetchCategories} /></div>
@@ -760,6 +765,11 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
           </div>
         )}
 
+
+        {/* Per-account balance cards */}
+        {permissions.can_view_totals && accounts.length > 0 && (
+          <AccountBalanceCards accounts={accounts} transactions={transactions} installments={allInstallments} />
+        )}
 
         {/* Summary Cards */}
         {permissions.can_view_totals && transactions.length > 0 && (() => {

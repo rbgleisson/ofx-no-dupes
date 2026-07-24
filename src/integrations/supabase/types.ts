@@ -14,12 +14,74 @@ export type Database = {
   }
   public: {
     Tables: {
+      account_adjustments: {
+        Row: {
+          account_id: string
+          created_at: string
+          delta: number
+          id: string
+          new_balance: number
+          note: string | null
+          organization_id: string
+          previous_balance: number
+          transaction_id: string | null
+          user_id: string
+        }
+        Insert: {
+          account_id: string
+          created_at?: string
+          delta: number
+          id?: string
+          new_balance: number
+          note?: string | null
+          organization_id: string
+          previous_balance: number
+          transaction_id?: string | null
+          user_id: string
+        }
+        Update: {
+          account_id?: string
+          created_at?: string
+          delta?: number
+          id?: string
+          new_balance?: number
+          note?: string | null
+          organization_id?: string
+          previous_balance?: number
+          transaction_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "account_adjustments_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "account_adjustments_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "account_adjustments_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       accounts: {
         Row: {
           color: string
           created_at: string
           id: string
           name: string
+          opening_balance: number
           organization_id: string | null
           user_id: string | null
         }
@@ -28,6 +90,7 @@ export type Database = {
           created_at?: string
           id?: string
           name: string
+          opening_balance?: number
           organization_id?: string | null
           user_id?: string | null
         }
@@ -36,6 +99,7 @@ export type Database = {
           created_at?: string
           id?: string
           name?: string
+          opening_balance?: number
           organization_id?: string | null
           user_id?: string | null
         }
