@@ -206,8 +206,11 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
 
   const loadInstallmentSummary = useCallback(async () => {
     try {
-      const data = await fetchInstallments(organizationId, undefined, false);
-      setInstallmentSummary(getInstallmentSummary(data));
+      const unpaid = await fetchInstallments(organizationId, undefined, false);
+      const paid = await fetchInstallments(organizationId, undefined, true);
+      setInstallmentSummary(getInstallmentSummary(unpaid));
+      // Combine all (fetchInstallments with showPaid=true returns both paid + unpaid)
+      setAllInstallments(paid);
     } catch {}
   }, [organizationId]);
 
