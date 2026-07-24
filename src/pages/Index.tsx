@@ -28,6 +28,7 @@ import ExcelImportReviewDialog from '@/components/ExcelImportReviewDialog';
 import { ExcelRow, parseExcelFile, downloadExcelTemplate } from '@/lib/excelImport';
 import { Trash2, FileText, CheckCircle2, AlertCircle, Plus, Upload, LogOut, Download, FileSpreadsheet, HardDrive, Shield, Building, FolderDown, FolderUp, ChevronDown, BarChart3, Receipt, Menu } from 'lucide-react';
 import InstallmentsTab from '@/components/InstallmentsTab';
+import InvestmentsTab from '@/components/InvestmentsTab';
 import { fetchInstallments, getInstallmentSummary, Installment } from '@/lib/installmentStore';
 import {
   DropdownMenu,
@@ -73,7 +74,7 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
     month: now.getMonth() + 1,
   });
   const [activeTab, setActiveTab] = useState<'payable' | 'receivable'>('payable');
-  const [mainTab, setMainTab] = useState<'transactions' | 'installments'>('transactions');
+  const [mainTab, setMainTab] = useState<'transactions' | 'installments' | 'investments'>('transactions');
   const [installmentSummary, setInstallmentSummary] = useState({ totalPayable: 0, totalReceivable: 0, countPayable: 0, countReceivable: 0 });
   const [notification, setNotification] = useState<{ type: 'success' | 'warning'; message: string } | null>(null);
   const [formOpen, setFormOpen] = useState(false);
@@ -792,12 +793,15 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
         })()}
 
         {/* Main Tabs: Transactions vs Installments */}
-        <Tabs value={mainTab} onValueChange={v => setMainTab(v as 'transactions' | 'installments')} className="space-y-4">
+        <Tabs value={mainTab} onValueChange={v => setMainTab(v as 'transactions' | 'installments' | 'investments')} className="space-y-4">
           <TabsList>
             <TabsTrigger value="transactions">Lançamentos</TabsTrigger>
             <TabsTrigger value="installments">
               <Receipt className="w-4 h-4 mr-1.5" />
               Contas a Pagar/Receber
+            </TabsTrigger>
+            <TabsTrigger value="investments">
+              💰 Investimentos
             </TabsTrigger>
           </TabsList>
 
@@ -870,6 +874,10 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
               organizationId={organizationId ?? null}
               onTransactionsChange={() => { loadTransactions(); loadInstallmentSummary(); }}
             />
+          </TabsContent>
+
+          <TabsContent value="investments">
+            <InvestmentsTab transactions={transactions} accounts={accounts} />
           </TabsContent>
         </Tabs>
 
