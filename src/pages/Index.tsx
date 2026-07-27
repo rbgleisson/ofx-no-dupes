@@ -26,10 +26,10 @@ import ChartAccountsManager, { ChartAccount } from '@/components/ChartAccountsMa
 import ExportDialog from '@/components/ExportDialog';
 import ExcelImportReviewDialog from '@/components/ExcelImportReviewDialog';
 import { ExcelRow, parseExcelFile, downloadExcelTemplate } from '@/lib/excelImport';
-import { Trash2, FileText, CheckCircle2, AlertCircle, Plus, Upload, LogOut, Download, FileSpreadsheet, HardDrive, Shield, Building, FolderDown, FolderUp, ChevronDown, BarChart3, Receipt, Menu } from 'lucide-react';
+import { Trash2, FileText, CheckCircle2, AlertCircle, Plus, Upload, LogOut, Download, FileSpreadsheet, HardDrive, Shield, Building, FolderDown, FolderUp, ChevronDown, BarChart3, Receipt, Menu, Wallet } from 'lucide-react';
 import InstallmentsTab from '@/components/InstallmentsTab';
 import InvestmentsTab from '@/components/InvestmentsTab';
-import AccountBalanceCards from '@/components/AccountBalanceCards';
+import AccountBalancesSheet from '@/components/AccountBalancesSheet';
 import { fetchInstallments, getInstallmentSummary, Installment } from '@/lib/installmentStore';
 import {
   DropdownMenu,
@@ -441,6 +441,9 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
             {permissions.can_manage_accounts && (
               <AccountsManager accounts={accounts} onAccountsChange={() => { fetchAccounts(); loadTransactions(); loadInstallmentSummary(); }} transactions={transactions} installments={allInstallments} />
             )}
+            {permissions.can_view_totals && accounts.length > 0 && (
+              <AccountBalancesSheet accounts={accounts} transactions={transactions} installments={allInstallments} />
+            )}
             {permissions.can_manage_categories && (
               <CategoriesManager categories={categories} onCategoriesChange={fetchCategories} />
             )}
@@ -615,6 +618,22 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
                   {permissions.can_manage_accounts && (
                     <div className="[&>button]:w-full [&>button]:justify-start"><AccountsManager accounts={accounts} onAccountsChange={() => { fetchAccounts(); loadTransactions(); loadInstallmentSummary(); }} transactions={transactions} installments={allInstallments} /></div>
                   )}
+                  {permissions.can_view_totals && accounts.length > 0 && (
+                    <div className="[&>button]:w-full [&>button]:justify-start">
+                      <AccountBalancesSheet
+                        accounts={accounts}
+                        transactions={transactions}
+                        installments={allInstallments}
+                        onOpen={() => setMobileMenuOpen(false)}
+                        trigger={
+                          <Button variant="outline" className="justify-start">
+                            <Wallet className="w-4 h-4 mr-2 text-primary" />
+                            Saldo de Contas
+                          </Button>
+                        }
+                      />
+                    </div>
+                  )}
                   {permissions.can_manage_categories && (
                     <div className="[&>button]:w-full [&>button]:justify-start"><CategoriesManager categories={categories} onCategoriesChange={fetchCategories} /></div>
                   )}
@@ -766,10 +785,6 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
         )}
 
 
-        {/* Per-account balance cards */}
-        {permissions.can_view_totals && accounts.length > 0 && (
-          <AccountBalanceCards accounts={accounts} transactions={transactions} installments={allInstallments} />
-        )}
 
         {/* Summary Cards */}
         {permissions.can_view_totals && transactions.length > 0 && (() => {
