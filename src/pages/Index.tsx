@@ -441,6 +441,9 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
             {permissions.can_manage_accounts && (
               <AccountsManager accounts={accounts} onAccountsChange={() => { fetchAccounts(); loadTransactions(); loadInstallmentSummary(); }} transactions={transactions} installments={allInstallments} />
             )}
+            {permissions.can_view_totals && accounts.length > 0 && (
+              <AccountBalancesSheet accounts={accounts} transactions={transactions} installments={allInstallments} />
+            )}
             {permissions.can_manage_categories && (
               <CategoriesManager categories={categories} onCategoriesChange={fetchCategories} />
             )}
