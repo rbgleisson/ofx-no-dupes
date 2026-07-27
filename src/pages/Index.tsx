@@ -766,10 +766,6 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
         )}
 
 
-        {/* Per-account balance cards */}
-        {permissions.can_view_totals && accounts.length > 0 && (
-          <AccountBalanceCards accounts={accounts} transactions={transactions} installments={allInstallments} />
-        )}
 
         {/* Summary Cards */}
         {permissions.can_view_totals && transactions.length > 0 && (() => {
