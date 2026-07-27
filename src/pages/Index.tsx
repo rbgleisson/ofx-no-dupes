@@ -618,6 +618,22 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
                   {permissions.can_manage_accounts && (
                     <div className="[&>button]:w-full [&>button]:justify-start"><AccountsManager accounts={accounts} onAccountsChange={() => { fetchAccounts(); loadTransactions(); loadInstallmentSummary(); }} transactions={transactions} installments={allInstallments} /></div>
                   )}
+                  {permissions.can_view_totals && accounts.length > 0 && (
+                    <div className="[&>button]:w-full [&>button]:justify-start">
+                      <AccountBalancesSheet
+                        accounts={accounts}
+                        transactions={transactions}
+                        installments={allInstallments}
+                        onOpen={() => setMobileMenuOpen(false)}
+                        trigger={
+                          <Button variant="outline" className="justify-start">
+                            <Wallet className="w-4 h-4 mr-2 text-primary" />
+                            Saldo de Contas
+                          </Button>
+                        }
+                      />
+                    </div>
+                  )}
                   {permissions.can_manage_categories && (
                     <div className="[&>button]:w-full [&>button]:justify-start"><CategoriesManager categories={categories} onCategoriesChange={fetchCategories} /></div>
                   )}
