@@ -3,7 +3,9 @@ import { Transaction, updateTransaction, deleteTransaction } from '@/lib/transac
 import { Category } from '@/components/CategoriesManager';
 import { Account } from '@/components/AccountsManager';
 import { ChartAccount } from '@/components/ChartAccountsManager';
-import { ArrowDownLeft, ArrowUpRight, Paperclip, X, FileText, Loader2, Pencil, Trash2, Check, ChevronsUpDown, ScanLine, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeftRight, FilterX } from 'lucide-react';
+import { ArrowDownLeft, ArrowUpRight, Paperclip, X, FileText, Loader2, Pencil, Trash2, Check, ChevronsUpDown, ScanLine, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeftRight, FilterX, FileSpreadsheet } from 'lucide-react';
+import { exportExtrato } from '@/lib/extratoExport';
+
 import { Input } from '@/components/ui/input';
 import QrScannerDialog from '@/components/QrScannerDialog';
 import TransactionDetailSheet from '@/components/TransactionDetailSheet';
@@ -66,6 +68,8 @@ const TransactionTable = ({ transactions, categories, accounts, chartAccounts, o
   const [detailTransaction, setDetailTransaction] = useState<Transaction | null>(null);
   const [sortField, setSortField] = useState<'date' | 'description' | 'amount' | null>(null);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  const [exportingExtrato, setExportingExtrato] = useState(false);
+
 
   // Column filters (per-column header filters)
   const [colFilters, setColFilters] = useState<{
@@ -170,6 +174,28 @@ const TransactionTable = ({ transactions, categories, accounts, chartAccounts, o
       return sortDir === 'asc' ? cmp : -cmp;
     });
   }, [filteredTransactions, sortField, sortDir]);
+
+  const handleExportExtrato = async () => {
+    if (sortedTransactions.length === 0) {
+      toast.warning('Nenhum lançamento na tela para exportar.');
+      return;
+    }
+    setExportingExtrato(true);
+    try {
+      const rows = sortField
+        ? sortedTransactions
+        : [...sortedTransactions].sort((a, b) => a.date.localeCompare(b.date));
+      const stamp = new Date().toISOString().slice(0, 10);
+      await exportExtrato(rows, categories, accounts, chartAccounts, `extrato_${stamp}.xlsx`);
+      toast.success('Extrato exportado!');
+    } catch (err: any) {
+      console.error('Export extrato error:', err);
+      toast.error('Erro ao exportar extrato: ' + (err?.message || ''));
+    } finally {
+      setExportingExtrato(false);
+    }
+  };
+
 
   const SortIcon = ({ field }: { field: 'date' | 'description' | 'amount' }) => {
     if (sortField !== field) return <ArrowUpDown className="w-3 h-3 ml-1 inline opacity-40" />;
@@ -395,8 +421,16 @@ const TransactionTable = ({ transactions, categories, accounts, chartAccounts, o
         onEdit={onEditTransaction}
       />
 
+      {/* Extrato export */}
+      <div className="flex justify-end">
+        <Button variant="outline" size="sm" onClick={handleExportExtrato} disabled={exportingExtrato || sortedTransactions.length === 0}>
+          <FileSpreadsheet className="w-4 h-4 mr-1.5" />
+          {exportingExtrato ? 'Exportando...' : `Exportar Extrato (${sortedTransactions.length})`}
+        </Button>
+      </div>
 
       {/* Bulk actions */}
+
       {selectedIds.size > 0 && (
         <div className="flex flex-wrap items-center gap-3 rounded-xl bg-muted/50 border px-4 py-2">
           <span className="text-sm text-muted-foreground">{selectedIds.size} selecionado(s)</span>
