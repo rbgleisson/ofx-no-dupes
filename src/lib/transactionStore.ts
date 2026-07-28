@@ -111,10 +111,18 @@ export async function fetchTransactions(filters?: TransactionFilters, organizati
     query = query.eq('account_id', filters.account_id);
   }
 
-  const { data, error } = await query;
-  if (error) throw error;
+  // Paginate to bypass PostgREST's default 1000-row cap so annual/all-time totals are complete
+  const pageSize = 1000;
+  const all: any[] = [];
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await query.range(from, from + pageSize - 1);
+    if (error) throw error;
+    const rows = data || [];
+    all.push(...rows);
+    if (rows.length < pageSize) break;
+  }
 
-  return (data || []).map(normalizeTransaction);
+  return all.map(normalizeTransaction);
 }
 
 export async function importTransactions(
