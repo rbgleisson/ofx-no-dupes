@@ -3,7 +3,9 @@ import { Transaction, updateTransaction, deleteTransaction } from '@/lib/transac
 import { Category } from '@/components/CategoriesManager';
 import { Account } from '@/components/AccountsManager';
 import { ChartAccount } from '@/components/ChartAccountsManager';
-import { ArrowDownLeft, ArrowUpRight, Paperclip, X, FileText, Loader2, Pencil, Trash2, Check, ChevronsUpDown, ScanLine, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeftRight, FilterX } from 'lucide-react';
+import { ArrowDownLeft, ArrowUpRight, Paperclip, X, FileText, Loader2, Pencil, Trash2, Check, ChevronsUpDown, ScanLine, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeftRight, FilterX, FileSpreadsheet } from 'lucide-react';
+import { exportExtrato } from '@/lib/extratoExport';
+
 import { Input } from '@/components/ui/input';
 import QrScannerDialog from '@/components/QrScannerDialog';
 import TransactionDetailSheet from '@/components/TransactionDetailSheet';
@@ -66,6 +68,8 @@ const TransactionTable = ({ transactions, categories, accounts, chartAccounts, o
   const [detailTransaction, setDetailTransaction] = useState<Transaction | null>(null);
   const [sortField, setSortField] = useState<'date' | 'description' | 'amount' | null>(null);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  const [exportingExtrato, setExportingExtrato] = useState(false);
+
 
   // Column filters (per-column header filters)
   const [colFilters, setColFilters] = useState<{
