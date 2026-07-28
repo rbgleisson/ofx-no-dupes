@@ -68,53 +68,65 @@ async function getOrgId(): Promise<string> {
 }
 
 export async function fetchTransactions(filters?: TransactionFilters, organizationId?: string | null): Promise<Transaction[]> {
-  let query = supabase.from('transactions').select('*').order('date', { ascending: false });
+  const buildQuery = () => {
+    let query = supabase.from('transactions').select('*').order('date', { ascending: false }).order('id', { ascending: false });
 
-  if (organizationId) {
-    query = query.eq('organization_id', organizationId);
-  }
-
-  if (filters?.year) {
-    const year = filters.year;
-    const month = filters.month;
-    const day = filters.day;
-
-    let startDate: string;
-    let endDate: string;
-
-    if (month && day) {
-      const start = new Date(Date.UTC(year, month - 1, day));
-      const end = new Date(start);
-      end.setUTCDate(end.getUTCDate() + 1);
-      startDate = toYmd(start);
-      endDate = toYmd(end);
-    } else if (month) {
-      const start = new Date(Date.UTC(year, month - 1, 1));
-      const end = month === 12
-        ? new Date(Date.UTC(year + 1, 0, 1))
-        : new Date(Date.UTC(year, month, 1));
-      startDate = toYmd(start);
-      endDate = toYmd(end);
-    } else {
-      startDate = `${year}-01-01`;
-      endDate = `${year + 1}-01-01`;
+    if (organizationId) {
+      query = query.eq('organization_id', organizationId);
     }
 
-    query = query.gte('date', startDate).lt('date', endDate);
+    if (filters?.year) {
+      const year = filters.year;
+      const month = filters.month;
+      const day = filters.day;
+
+      let startDate: string;
+      let endDate: string;
+
+      if (month && day) {
+        const start = new Date(Date.UTC(year, month - 1, day));
+        const end = new Date(start);
+        end.setUTCDate(end.getUTCDate() + 1);
+        startDate = toYmd(start);
+        endDate = toYmd(end);
+      } else if (month) {
+        const start = new Date(Date.UTC(year, month - 1, 1));
+        const end = month === 12
+          ? new Date(Date.UTC(year + 1, 0, 1))
+          : new Date(Date.UTC(year, month, 1));
+        startDate = toYmd(start);
+        endDate = toYmd(end);
+      } else {
+        startDate = `${year}-01-01`;
+        endDate = `${year + 1}-01-01`;
+      }
+
+      query = query.gte('date', startDate).lt('date', endDate);
+    }
+
+    if (filters?.category_id) {
+      query = query.eq('category_id', filters.category_id);
+    }
+
+    if (filters?.account_id) {
+      query = query.eq('account_id', filters.account_id);
+    }
+
+    return query;
+  };
+
+  // Paginate to bypass the 1000-row API cap so annual / all-time totals are complete
+  const pageSize = 1000;
+  const all: any[] = [];
+  for (let from = 0; from < 100000; from += pageSize) {
+    const { data, error } = await buildQuery().range(from, from + pageSize - 1);
+    if (error) throw error;
+    const rows = data || [];
+    all.push(...rows);
+    if (rows.length < pageSize) break;
   }
 
-  if (filters?.category_id) {
-    query = query.eq('category_id', filters.category_id);
-  }
-
-  if (filters?.account_id) {
-    query = query.eq('account_id', filters.account_id);
-  }
-
-  const { data, error } = await query;
-  if (error) throw error;
-
-  return (data || []).map(normalizeTransaction);
+  return all.map(normalizeTransaction);
 }
 
 export async function importTransactions(
