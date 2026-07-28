@@ -175,6 +175,28 @@ const TransactionTable = ({ transactions, categories, accounts, chartAccounts, o
     });
   }, [filteredTransactions, sortField, sortDir]);
 
+  const handleExportExtrato = async () => {
+    if (sortedTransactions.length === 0) {
+      toast.warning('Nenhum lançamento na tela para exportar.');
+      return;
+    }
+    setExportingExtrato(true);
+    try {
+      const rows = sortField
+        ? sortedTransactions
+        : [...sortedTransactions].sort((a, b) => a.date.localeCompare(b.date));
+      const stamp = new Date().toISOString().slice(0, 10);
+      await exportExtrato(rows, categories, accounts, chartAccounts, `extrato_${stamp}.xlsx`);
+      toast.success('Extrato exportado!');
+    } catch (err: any) {
+      console.error('Export extrato error:', err);
+      toast.error('Erro ao exportar extrato: ' + (err?.message || ''));
+    } finally {
+      setExportingExtrato(false);
+    }
+  };
+
+
   const SortIcon = ({ field }: { field: 'date' | 'description' | 'amount' }) => {
     if (sortField !== field) return <ArrowUpDown className="w-3 h-3 ml-1 inline opacity-40" />;
     return sortDir === 'asc' ? <ArrowUp className="w-3 h-3 ml-1 inline" /> : <ArrowDown className="w-3 h-3 ml-1 inline" />;
