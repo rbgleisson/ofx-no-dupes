@@ -109,6 +109,8 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
   const { organization, organizationId } = useOrganization();
   const [excelReviewOpen, setExcelReviewOpen] = useState(false);
   const [excelRows, setExcelRows] = useState<ExcelRow[]>([]);
+  const [importExisting, setImportExisting] = useState<Transaction[] | null>(null);
+
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleOfxFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
