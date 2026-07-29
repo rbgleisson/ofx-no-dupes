@@ -1,0 +1,1 @@
+UPDATE public.accounts SET opening_balance = 16112.96, opening_balance_date = '2025-01-01' WHERE id = '86fb4d5f-d7ce-4086-94f5-8de025ddd1bd';
