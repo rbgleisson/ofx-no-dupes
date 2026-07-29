@@ -174,7 +174,7 @@ const AccountsManager = ({ accounts, onAccountsChange, transactions = [], instal
           <DialogDescription>Cadastre contas, defina o saldo inicial e ajuste manualmente o saldo atual quando necessário.</DialogDescription>
         </DialogHeader>
 
-        <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto_auto] gap-2 items-end">
+        <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto_auto_auto] gap-2 items-end">
           <div>
             <Label className="text-xs">Nome</Label>
             <Input placeholder="Nova conta..." value={newName} onChange={e => setNewName(e.target.value)} />
@@ -183,6 +183,11 @@ const AccountsManager = ({ accounts, onAccountsChange, transactions = [], instal
             <Label className="text-xs">Saldo inicial</Label>
             <Input value={newOpening} onChange={e => setNewOpening(e.target.value)} className="w-32" placeholder="0,00" />
           </div>
+          <div>
+            <Label className="text-xs">A partir de</Label>
+            <Input type="date" value={newOpeningDate} onChange={e => setNewOpeningDate(e.target.value)} className="w-40" />
+          </div>
+
           <div>
             <Label className="text-xs block mb-1">Cor</Label>
             <div className="flex gap-1">
