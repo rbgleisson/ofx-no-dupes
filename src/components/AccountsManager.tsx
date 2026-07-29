@@ -79,6 +79,7 @@ const AccountsManager = ({ accounts, onAccountsChange, transactions = [], instal
       name: newName.trim(),
       color: newColor,
       opening_balance: round2(parseAmount(newOpening)),
+      opening_balance_date: newOpeningDate || null,
       user_id: user.id,
       organization_id: orgId,
     } as any);
@@ -86,7 +87,9 @@ const AccountsManager = ({ accounts, onAccountsChange, transactions = [], instal
       setNewName('');
       setNewColor(PRESET_COLORS[0]);
       setNewOpening('0');
+      setNewOpeningDate('');
       onAccountsChange();
+
     } else {
       toast.error('Erro ao adicionar conta: ' + error.message);
     }
