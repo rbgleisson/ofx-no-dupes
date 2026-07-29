@@ -47,10 +47,13 @@ const AccountsManager = ({ accounts, onAccountsChange, transactions = [], instal
   const [newName, setNewName] = useState('');
   const [newColor, setNewColor] = useState(PRESET_COLORS[0]);
   const [newOpening, setNewOpening] = useState<string>('0');
+  const [newOpeningDate, setNewOpeningDate] = useState<string>('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [editColor, setEditColor] = useState('');
   const [editOpening, setEditOpening] = useState<string>('0');
+  const [editOpeningDate, setEditOpeningDate] = useState<string>('');
+
 
   const [adjustAccount, setAdjustAccount] = useState<Account | null>(null);
   const [adjustValue, setAdjustValue] = useState<string>('');
