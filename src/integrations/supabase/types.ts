@@ -82,6 +82,7 @@ export type Database = {
           id: string
           name: string
           opening_balance: number
+          opening_balance_date: string | null
           organization_id: string | null
           user_id: string | null
         }
@@ -91,6 +92,7 @@ export type Database = {
           id?: string
           name: string
           opening_balance?: number
+          opening_balance_date?: string | null
           organization_id?: string | null
           user_id?: string | null
         }
@@ -100,6 +102,7 @@ export type Database = {
           id?: string
           name?: string
           opening_balance?: number
+          opening_balance_date?: string | null
           organization_id?: string | null
           user_id?: string | null
         }
