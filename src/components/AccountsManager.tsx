@@ -101,7 +101,9 @@ const AccountsManager = ({ accounts, onAccountsChange, transactions = [], instal
       name: editName.trim(),
       color: editColor,
       opening_balance: round2(parseAmount(editOpening)),
+      opening_balance_date: editOpeningDate || null,
     } as any).eq('id', id);
+
     if (!error) {
       setEditingId(null);
       onAccountsChange();
