@@ -216,6 +216,8 @@ const AccountsManager = ({ accounts, onAccountsChange, transactions = [], instal
                   <div className="flex flex-wrap items-center gap-2">
                     <Input value={editName} onChange={e => setEditName(e.target.value)} className="flex-1 min-w-[140px] h-8 text-sm" />
                     <Input value={editOpening} onChange={e => setEditOpening(e.target.value)} className="w-28 h-8 text-sm" placeholder="Saldo inicial" />
+                    <Input type="date" value={editOpeningDate} onChange={e => setEditOpeningDate(e.target.value)} className="w-36 h-8 text-sm" title="Saldo inicial a partir de" />
+
                     <div className="flex gap-1">
                       {PRESET_COLORS.map(c => (
                         <button key={c} type="button" onClick={() => setEditColor(c)}
