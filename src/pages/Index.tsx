@@ -958,7 +958,7 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
           categories={categories}
           accounts={accounts}
           chartAccounts={chartAccounts}
-          existingTransactions={transactions}
+          existingTransactions={importExisting ?? transactions}
           onConfirm={handleExcelConfirm}
         />
       </div>
