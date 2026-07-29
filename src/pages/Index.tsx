@@ -109,6 +109,8 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
   const { organization, organizationId } = useOrganization();
   const [excelReviewOpen, setExcelReviewOpen] = useState(false);
   const [excelRows, setExcelRows] = useState<ExcelRow[]>([]);
+  const [importExisting, setImportExisting] = useState<Transaction[] | null>(null);
+
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleOfxFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -285,23 +287,23 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
       }
       const existingFitIds = new Set(allFitIds);
 
-      // Filter by composite id AND raw fitId, then deduplicate within the batch
+      // Deduplicate only within the same file (identical composite key repeated)
       const seenIds = new Set<string>();
-      const uniqueByFitId = data.transactions.filter(t => {
-        // Check against DB (composite id stored as fit_id)
-        if (existingFitIds.has(t.id)) return false;
-        // Also check raw fitId if non-empty (some banks reuse fitIds)
-        if (t.fitId && existingFitIds.has(t.fitId)) return false;
-        // Deduplicate within the same batch
+      const batchUnique = data.transactions.filter(t => {
         if (seenIds.has(t.id)) return false;
         seenIds.add(t.id);
         return true;
       });
 
+      // Rows already in the DB (exact same composite fit_id) are flagged, not discarded
+      const alreadyInDb = batchUnique.filter(t => existingFitIds.has(t.id)).length;
+      const uniqueByFitId = batchUnique;
+
       if (uniqueByFitId.length === 0) {
-        setNotification({ type: 'warning', message: `Todas as ${data.transactions.length} transações já existem (fit_id duplicado).` });
+        setNotification({ type: 'warning', message: `Nenhuma transação encontrada no arquivo.` });
         return;
       }
+
 
       // Auto-categorize transactions
       const { data: { user: currentUser } } = await supabase.auth.getUser();
@@ -332,13 +334,25 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
         };
       });
 
+      // Load existing transactions covering the file's date range so duplicate
+      // detection works even when the screen is filtered to another month
+      const dates = rows.map(r => r.date).filter(Boolean).sort();
+      if (dates.length > 0) {
+        let q = supabase.from('transactions').select('*').gte('date', dates[0]).lte('date', dates[dates.length - 1]);
+        if (orgIdData) q = q.eq('organization_id', orgIdData);
+        const { data: rangeTx } = await q;
+        setImportExisting((rangeTx || []) as any);
+      } else {
+        setImportExisting(null);
+      }
+
       setExcelRows(rows);
       setExcelReviewOpen(true);
 
-      if (data.transactions.length > uniqueByFitId.length) {
-        const skipped = data.transactions.length - uniqueByFitId.length;
-        setNotification({ type: 'warning', message: `${skipped} transações com fit_id duplicado foram removidas automaticamente.` });
+      if (alreadyInDb > 0) {
+        setNotification({ type: 'warning', message: `${alreadyInDb} de ${rows.length} lançamentos já existem no sistema e vieram desmarcados. Revise e confirme.` });
       }
+
     } catch (err: any) {
       console.error('OFX import error:', err);
       const msg = err?.message || '';
@@ -944,7 +958,7 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
           categories={categories}
           accounts={accounts}
           chartAccounts={chartAccounts}
-          existingTransactions={transactions}
+          existingTransactions={importExisting ?? transactions}
           onConfirm={handleExcelConfirm}
         />
       </div>
