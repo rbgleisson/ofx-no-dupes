@@ -234,7 +234,10 @@ const AccountsManager = ({ accounts, onAccountsChange, transactions = [], instal
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-medium text-foreground truncate">{acc.name}</div>
                       <div className="text-xs text-muted-foreground">
-                        Inicial: {fmt(Number(acc.opening_balance ?? 0))} · Saldo atual: <span className={realized < 0 ? 'text-red-500' : 'text-emerald-600'}>{fmt(realized)}</span>
+                        Inicial: {fmt(Number(acc.opening_balance ?? 0))}
+                        {acc.opening_balance_date ? ` (desde ${String(acc.opening_balance_date).slice(0,10).split('-').reverse().join('/')})` : ''}
+                        {' · '}Saldo atual: <span className={realized < 0 ? 'text-red-500' : 'text-emerald-600'}>{fmt(realized)}</span>
+
                       </div>
                     </div>
                     <button onClick={() => openAdjust(acc)} title="Ajuste manual de saldo" className="text-muted-foreground hover:text-blue-600 transition-colors">
