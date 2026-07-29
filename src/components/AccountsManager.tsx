@@ -24,7 +24,9 @@ export interface Account {
   color: string;
   created_at: string;
   opening_balance?: number;
+  opening_balance_date?: string | null;
 }
+
 
 const PRESET_COLORS = [
   '#6366f1', '#ec4899', '#f59e0b', '#10b981',
