@@ -332,13 +332,25 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
         };
       });
 
+      // Load existing transactions covering the file's date range so duplicate
+      // detection works even when the screen is filtered to another month
+      const dates = rows.map(r => r.date).filter(Boolean).sort();
+      if (dates.length > 0) {
+        let q = supabase.from('transactions').select('*').gte('date', dates[0]).lte('date', dates[dates.length - 1]);
+        if (orgIdData) q = q.eq('organization_id', orgIdData);
+        const { data: rangeTx } = await q;
+        setImportExisting((rangeTx || []) as any);
+      } else {
+        setImportExisting(null);
+      }
+
       setExcelRows(rows);
       setExcelReviewOpen(true);
 
-      if (data.transactions.length > uniqueByFitId.length) {
-        const skipped = data.transactions.length - uniqueByFitId.length;
-        setNotification({ type: 'warning', message: `${skipped} transações com fit_id duplicado foram removidas automaticamente.` });
+      if (alreadyInDb > 0) {
+        setNotification({ type: 'warning', message: `${alreadyInDb} de ${rows.length} lançamentos já existem no sistema e vieram desmarcados. Revise e confirme.` });
       }
+
     } catch (err: any) {
       console.error('OFX import error:', err);
       const msg = err?.message || '';
