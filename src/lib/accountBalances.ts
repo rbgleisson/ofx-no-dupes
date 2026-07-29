@@ -26,14 +26,17 @@ export function computeAccountBalances(
 ): AccountBalance[] {
   return accounts.map(acc => {
     const opening = round2(Number((acc as any).opening_balance ?? 0));
+    const since: string | null = (acc as any).opening_balance_date ?? null;
     let income = 0;
     let expense = 0;
     for (const t of transactions) {
       if (t.account_id !== acc.id) continue;
+      if (since && String(t.date).slice(0, 10) < since) continue;
       const amt = Number(t.amount) || 0;
       if (amt >= 0) income += amt;
       else expense += Math.abs(amt);
     }
+
     income = round2(income);
     expense = round2(expense);
     const realized = round2(opening + income - expense);

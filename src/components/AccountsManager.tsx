@@ -24,7 +24,9 @@ export interface Account {
   color: string;
   created_at: string;
   opening_balance?: number;
+  opening_balance_date?: string | null;
 }
+
 
 const PRESET_COLORS = [
   '#6366f1', '#ec4899', '#f59e0b', '#10b981',
@@ -45,10 +47,13 @@ const AccountsManager = ({ accounts, onAccountsChange, transactions = [], instal
   const [newName, setNewName] = useState('');
   const [newColor, setNewColor] = useState(PRESET_COLORS[0]);
   const [newOpening, setNewOpening] = useState<string>('0');
+  const [newOpeningDate, setNewOpeningDate] = useState<string>('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [editColor, setEditColor] = useState('');
   const [editOpening, setEditOpening] = useState<string>('0');
+  const [editOpeningDate, setEditOpeningDate] = useState<string>('');
+
 
   const [adjustAccount, setAdjustAccount] = useState<Account | null>(null);
   const [adjustValue, setAdjustValue] = useState<string>('');
@@ -74,6 +79,7 @@ const AccountsManager = ({ accounts, onAccountsChange, transactions = [], instal
       name: newName.trim(),
       color: newColor,
       opening_balance: round2(parseAmount(newOpening)),
+      opening_balance_date: newOpeningDate || null,
       user_id: user.id,
       organization_id: orgId,
     } as any);
@@ -81,7 +87,9 @@ const AccountsManager = ({ accounts, onAccountsChange, transactions = [], instal
       setNewName('');
       setNewColor(PRESET_COLORS[0]);
       setNewOpening('0');
+      setNewOpeningDate('');
       onAccountsChange();
+
     } else {
       toast.error('Erro ao adicionar conta: ' + error.message);
     }
@@ -93,7 +101,9 @@ const AccountsManager = ({ accounts, onAccountsChange, transactions = [], instal
       name: editName.trim(),
       color: editColor,
       opening_balance: round2(parseAmount(editOpening)),
+      opening_balance_date: editOpeningDate || null,
     } as any).eq('id', id);
+
     if (!error) {
       setEditingId(null);
       onAccountsChange();
@@ -112,6 +122,8 @@ const AccountsManager = ({ accounts, onAccountsChange, transactions = [], instal
     setEditName(acc.name);
     setEditColor(acc.color);
     setEditOpening(String(acc.opening_balance ?? 0).replace('.', ','));
+    setEditOpeningDate(acc.opening_balance_date ? String(acc.opening_balance_date).slice(0, 10) : '');
+
   };
 
   const openAdjust = async (acc: Account) => {
@@ -162,7 +174,7 @@ const AccountsManager = ({ accounts, onAccountsChange, transactions = [], instal
           <DialogDescription>Cadastre contas, defina o saldo inicial e ajuste manualmente o saldo atual quando necessário.</DialogDescription>
         </DialogHeader>
 
-        <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto_auto] gap-2 items-end">
+        <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto_auto_auto] gap-2 items-end">
           <div>
             <Label className="text-xs">Nome</Label>
             <Input placeholder="Nova conta..." value={newName} onChange={e => setNewName(e.target.value)} />
@@ -171,6 +183,11 @@ const AccountsManager = ({ accounts, onAccountsChange, transactions = [], instal
             <Label className="text-xs">Saldo inicial</Label>
             <Input value={newOpening} onChange={e => setNewOpening(e.target.value)} className="w-32" placeholder="0,00" />
           </div>
+          <div>
+            <Label className="text-xs">A partir de</Label>
+            <Input type="date" value={newOpeningDate} onChange={e => setNewOpeningDate(e.target.value)} className="w-40" />
+          </div>
+
           <div>
             <Label className="text-xs block mb-1">Cor</Label>
             <div className="flex gap-1">
@@ -199,6 +216,8 @@ const AccountsManager = ({ accounts, onAccountsChange, transactions = [], instal
                   <div className="flex flex-wrap items-center gap-2">
                     <Input value={editName} onChange={e => setEditName(e.target.value)} className="flex-1 min-w-[140px] h-8 text-sm" />
                     <Input value={editOpening} onChange={e => setEditOpening(e.target.value)} className="w-28 h-8 text-sm" placeholder="Saldo inicial" />
+                    <Input type="date" value={editOpeningDate} onChange={e => setEditOpeningDate(e.target.value)} className="w-36 h-8 text-sm" title="Saldo inicial a partir de" />
+
                     <div className="flex gap-1">
                       {PRESET_COLORS.map(c => (
                         <button key={c} type="button" onClick={() => setEditColor(c)}
@@ -215,7 +234,10 @@ const AccountsManager = ({ accounts, onAccountsChange, transactions = [], instal
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-medium text-foreground truncate">{acc.name}</div>
                       <div className="text-xs text-muted-foreground">
-                        Inicial: {fmt(Number(acc.opening_balance ?? 0))} · Saldo atual: <span className={realized < 0 ? 'text-red-500' : 'text-emerald-600'}>{fmt(realized)}</span>
+                        Inicial: {fmt(Number(acc.opening_balance ?? 0))}
+                        {acc.opening_balance_date ? ` (desde ${String(acc.opening_balance_date).slice(0,10).split('-').reverse().join('/')})` : ''}
+                        {' · '}Saldo atual: <span className={realized < 0 ? 'text-red-500' : 'text-emerald-600'}>{fmt(realized)}</span>
+
                       </div>
                     </div>
                     <button onClick={() => openAdjust(acc)} title="Ajuste manual de saldo" className="text-muted-foreground hover:text-blue-600 transition-colors">
