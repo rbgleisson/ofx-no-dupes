@@ -122,6 +122,8 @@ const AccountsManager = ({ accounts, onAccountsChange, transactions = [], instal
     setEditName(acc.name);
     setEditColor(acc.color);
     setEditOpening(String(acc.opening_balance ?? 0).replace('.', ','));
+    setEditOpeningDate(acc.opening_balance_date ? String(acc.opening_balance_date).slice(0, 10) : '');
+
   };
 
   const openAdjust = async (acc: Account) => {
