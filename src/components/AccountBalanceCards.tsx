@@ -45,7 +45,11 @@ export default function AccountBalanceCards({ accounts, transactions, installmen
               <span className={`text-xs font-semibold ${projected < 0 ? 'text-red-500' : 'text-blue-600'}`}>{fmt(projected)}</span>
             </div>
             <div className="mt-2 flex items-center justify-between text-[10px] text-muted-foreground">
-              <span>Inicial: {fmt(opening)}</span>
+              <span>
+                Inicial: {fmt(opening)}
+                {account.opening_balance_date ? ` (desde ${String(account.opening_balance_date).slice(0,10).split('-').reverse().join('/')})` : ''}
+              </span>
+
               <span className="flex items-center gap-2">
                 <span className="flex items-center gap-0.5 text-emerald-600"><TrendingUp className="w-3 h-3" />{fmt(pendingIn)}</span>
                 <span className="flex items-center gap-0.5 text-red-500"><TrendingDown className="w-3 h-3" />{fmt(pendingOut)}</span>
