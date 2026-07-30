@@ -46,6 +46,7 @@ interface TransactionFormDialogProps {
     account_id?: string | null;
     chart_account_id?: string | null;
     attachment_url?: string | null;
+    is_transfer?: boolean;
   }) => void;
 }
 
@@ -71,6 +72,7 @@ const TransactionFormDialog = ({
   const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
+  const [isTransfer, setIsTransfer] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const extractDataFromFile = async (file: File) => {
@@ -132,6 +134,7 @@ const TransactionFormDialog = ({
       setAccountId(transaction.account_id || '__none__');
       setChartAccountId((transaction as any).chart_account_id || '__none__');
       setAttachmentFile(null);
+      setIsTransfer(!!transaction.is_transfer);
     } else {
       setDate(new Date().toISOString().split('T')[0]);
       setAmount('');
@@ -141,6 +144,7 @@ const TransactionFormDialog = ({
       setAccountId('__none__');
       setChartAccountId('__none__');
       setAttachmentFile(null);
+      setIsTransfer(false);
     }
   }, [transaction, open]);
 
@@ -167,6 +171,7 @@ const TransactionFormDialog = ({
         account_id: accountId === '__none__' ? null : accountId,
         chart_account_id: chartAccountId === '__none__' ? null : chartAccountId,
         attachment_url,
+        is_transfer: isTransfer,
       });
       onOpenChange(false);
     } finally {
@@ -351,6 +356,21 @@ const TransactionFormDialog = ({
                 Anexar documento
               </Button>
             )}
+          </div>
+          <div className="flex items-start gap-2 rounded-md border border-input p-3">
+            <input
+              id="is-transfer"
+              type="checkbox"
+              className="mt-0.5 h-4 w-4 accent-primary"
+              checked={isTransfer}
+              onChange={e => setIsTransfer(e.target.checked)}
+            />
+            <label htmlFor="is-transfer" className="text-xs leading-snug cursor-pointer">
+              <span className="font-medium">Movimentação interna (transferência/aplicação)</span>
+              <span className="block text-muted-foreground">
+                Desmarque para que o valor conte como entrada/saída real no dashboard.
+              </span>
+            </label>
           </div>
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="outline" size="sm" onClick={() => onOpenChange(false)}>Cancelar</Button>

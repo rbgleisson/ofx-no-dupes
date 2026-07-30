@@ -435,6 +435,7 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
     account_id?: string | null;
     chart_account_id?: string | null;
     attachment_url?: string | null;
+    is_transfer?: boolean;
   }) => {
     try {
       if (editingTransaction) {
