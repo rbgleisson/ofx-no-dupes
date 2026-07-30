@@ -228,6 +228,8 @@ const TransactionFormDialog = ({
                 Saída
               </button>
             </div>
+          </div>
+
 
           <div>
             <label className="text-xs font-medium text-muted-foreground mb-1 block">Descrição</label>
