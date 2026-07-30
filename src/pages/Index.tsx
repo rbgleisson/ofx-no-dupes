@@ -130,9 +130,8 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
         }, 0);
         const movement = history.reduce((sum, transaction) => {
           if (transaction.date >= periodStart) return sum;
-          const isTransfer = transaction.is_transfer
-            || Boolean(transaction.category_id && transferCategoryIds.has(transaction.category_id));
-          if (isTransfer) return sum;
+          if (transaction.is_transfer) return sum;
+
           const openingDate = transaction.account_id
             ? openingByAccount.get(transaction.account_id)
             : null;
