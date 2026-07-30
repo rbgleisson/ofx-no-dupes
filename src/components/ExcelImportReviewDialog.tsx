@@ -170,9 +170,18 @@ const ExcelImportReviewDialog = ({ open, onOpenChange, rows: initialRows, catego
     setRows(prev => prev.map((r, i) => i === index ? { ...r, _is_transfer: !r._is_transfer } : r));
   };
 
+  const setRowSign = (index: number, asEntrada: boolean) => {
+    setRows(prev => prev.map((r, i) => {
+      if (i !== index) return r;
+      const abs = Math.abs(r.amount);
+      return { ...r, amount: asEntrada ? abs : -abs, _is_transfer: asEntrada ? false : r._is_transfer };
+    }));
+  };
+
   const clearAllTransfers = () => {
     setRows(prev => prev.map(r => ({ ...r, _is_transfer: false })));
   };
+
 
 
   const removeDuplicates = () => {
@@ -347,6 +356,8 @@ const ExcelImportReviewDialog = ({ open, onOpenChange, rows: initialRows, catego
                   <th className="text-left text-xs font-semibold text-muted-foreground uppercase px-3 py-2">Status</th>
                   <th className="text-left text-xs font-semibold text-muted-foreground uppercase px-3 py-2">Data</th>
                   <th className="text-right text-xs font-semibold text-muted-foreground uppercase px-3 py-2">Valor</th>
+                  <th className="text-center text-xs font-semibold text-muted-foreground uppercase px-3 py-2 whitespace-nowrap">Tipo</th>
+
                   <th className="text-left text-xs font-semibold text-muted-foreground uppercase px-3 py-2">Descrição</th>
                   <th className="text-left text-xs font-semibold text-muted-foreground uppercase px-3 py-2">Categoria</th>
                   <th className="text-left text-xs font-semibold text-muted-foreground uppercase px-3 py-2">Conta</th>
@@ -417,6 +428,27 @@ const ExcelImportReviewDialog = ({ open, onOpenChange, rows: initialRows, catego
                       <td className={`px-3 py-2 font-mono text-xs font-semibold text-right whitespace-nowrap ${row.amount >= 0 ? 'text-emerald-600' : 'text-destructive'}`}>
                         {formatCurrency(row.amount)}
                       </td>
+                      <td className="px-3 py-2 text-center whitespace-nowrap">
+                        <div className="inline-flex rounded-md border overflow-hidden">
+                          <button
+                            type="button"
+                            onClick={() => setRowSign(i, true)}
+                            className={`px-2 py-1 text-[11px] transition-colors ${row.amount >= 0 ? 'bg-emerald-500/15 text-emerald-600 font-semibold' : 'text-muted-foreground hover:bg-muted/50'}`}
+                            title="Marcar como entrada"
+                          >
+                            Entrada
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setRowSign(i, false)}
+                            className={`px-2 py-1 text-[11px] border-l transition-colors ${row.amount < 0 ? 'bg-destructive/15 text-destructive font-semibold' : 'text-muted-foreground hover:bg-muted/50'}`}
+                            title="Marcar como saída"
+                          >
+                            Saída
+                          </button>
+                        </div>
+                      </td>
+
                       <td className="px-3 py-2 text-xs max-w-[200px]">
                         <p className="truncate">{row.description}</p>
                         {row.memo && <p className="text-muted-foreground truncate text-[11px]">{row.memo}</p>}
