@@ -134,6 +134,7 @@ const TransactionFormDialog = ({
       setAccountId(transaction.account_id || '__none__');
       setChartAccountId((transaction as any).chart_account_id || '__none__');
       setAttachmentFile(null);
+      setIsTransfer(!!transaction.is_transfer);
     } else {
       setDate(new Date().toISOString().split('T')[0]);
       setAmount('');
@@ -143,6 +144,7 @@ const TransactionFormDialog = ({
       setAccountId('__none__');
       setChartAccountId('__none__');
       setAttachmentFile(null);
+      setIsTransfer(false);
     }
   }, [transaction, open]);
 
