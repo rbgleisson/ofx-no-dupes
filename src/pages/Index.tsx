@@ -100,6 +100,8 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
         : t
     );
   }, [transactions, transferCategoryIds]);
+  const { permissions, isAdmin, isSuperAdmin, isOwner } = usePermissions();
+  const { organization, organizationId } = useOrganization();
 
   useEffect(() => {
     const loadPreviousBalance = async () => {
@@ -155,8 +157,6 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
   const xlsxInputRef = useRef<HTMLInputElement>(null);
   const catalogImportRef = useRef<HTMLInputElement>(null);
   const loadRequestRef = useRef(0);
-  const { permissions, isAdmin, isSuperAdmin, isOwner } = usePermissions();
-  const { organization, organizationId } = useOrganization();
   const [excelReviewOpen, setExcelReviewOpen] = useState(false);
   const [excelRows, setExcelRows] = useState<ExcelRow[]>([]);
   const [importExisting, setImportExisting] = useState<Transaction[] | null>(null);
