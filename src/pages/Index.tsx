@@ -66,6 +66,7 @@ interface IndexProps {
 
 const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [previousBalance, setPreviousBalance] = useState(0);
   const [categories, setCategories] = useState<Category[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [chartAccounts, setChartAccounts] = useState<ChartAccount[]>([]);
@@ -99,6 +100,55 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
         : t
     );
   }, [transactions, transferCategoryIds]);
+
+  useEffect(() => {
+    const loadPreviousBalance = async () => {
+      if (!filters.year) {
+        setPreviousBalance(0);
+        return;
+      }
+
+      const month = filters.month ?? 1;
+      const day = filters.day ?? 1;
+      const periodStart = `${filters.year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
+      try {
+        const history = await fetchTransactions(
+          { account_id: filters.account_id },
+          organizationId,
+        );
+        const selectedAccounts = filters.account_id
+          ? accounts.filter(account => account.id === filters.account_id)
+          : accounts;
+        const openingByAccount = new Map(
+          selectedAccounts.map(account => [account.id, account.opening_balance_date || null]),
+        );
+        const opening = selectedAccounts.reduce((sum, account) => {
+          const openingDate = account.opening_balance_date;
+          return !openingDate || openingDate <= periodStart
+            ? sum + Number(account.opening_balance || 0)
+            : sum;
+        }, 0);
+        const movement = history.reduce((sum, transaction) => {
+          if (transaction.date >= periodStart) return sum;
+          const isTransfer = transaction.is_transfer
+            || Boolean(transaction.category_id && transferCategoryIds.has(transaction.category_id));
+          if (isTransfer) return sum;
+          const openingDate = transaction.account_id
+            ? openingByAccount.get(transaction.account_id)
+            : null;
+          if (openingDate && transaction.date < openingDate) return sum;
+          return sum + Number(transaction.amount || 0);
+        }, 0);
+        setPreviousBalance(Math.round((opening + movement + Number.EPSILON) * 100) / 100);
+      } catch (error) {
+        console.error('Error loading previous balance:', error);
+        setPreviousBalance(0);
+      }
+    };
+
+    void loadPreviousBalance();
+  }, [accounts, filters.account_id, filters.day, filters.month, filters.year, organizationId, transferCategoryIds]);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [backupProgress, setBackupProgress] = useState<string | null>(null);
   const ofxInputRef = useRef<HTMLInputElement>(null);
@@ -805,7 +855,8 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
           const nonTransfer = effectiveTransactions.filter(t => !t.is_transfer);
           const totalReceber = nonTransfer.filter(t => Number(t.amount) >= 0).reduce((s, t) => s + Number(t.amount), 0);
           const totalPagar = nonTransfer.filter(t => Number(t.amount) < 0).reduce((s, t) => s + Math.abs(Number(t.amount)), 0);
-          const saldo = totalReceber - totalPagar;
+          const movimentoPeriodo = totalReceber - totalPagar;
+          const saldo = previousBalance + movimentoPeriodo;
           const totalTransfer = effectiveTransactions.filter(t => t.is_transfer).reduce((s, t) => s + Math.abs(Number(t.amount)), 0);
           const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
           return (
@@ -820,8 +871,9 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
                   <p className="text-lg font-bold text-red-600">{fmt(-totalPagar)}</p>
                 </div>
                 <div className={`rounded-xl border p-4 ${saldo >= 0 ? 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800' : 'bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-800'}`}>
-                  <p className="text-xs font-medium text-muted-foreground mb-1">Saldo</p>
+                  <p className="text-xs font-medium text-muted-foreground mb-1">Saldo acumulado</p>
                   <p className={`text-lg font-bold ${saldo >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>{fmt(saldo)}</p>
+                  <p className="text-[10px] text-muted-foreground mt-1">Anterior: {fmt(previousBalance)} · Movimento: {fmt(movimentoPeriodo)}</p>
                 </div>
                 <div className="rounded-xl border p-4 bg-gray-50 dark:bg-gray-950/30 border-gray-200 dark:border-gray-800">
                   <p className="text-xs font-medium text-muted-foreground mb-1">Movimentações Internas</p>
