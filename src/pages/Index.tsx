@@ -92,14 +92,11 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
     );
   }, [categories]);
 
-  const effectiveTransactions = useMemo(() => {
-    if (transferCategoryIds.size === 0) return transactions;
-    return transactions.map(t =>
-      !t.is_transfer && t.category_id && transferCategoryIds.has(t.category_id)
-        ? { ...t, is_transfer: true }
-        : t
-    );
-  }, [transactions, transferCategoryIds]);
+  // The `is_transfer` flag is the single source of truth: if the user unmarks a
+  // transaction as internal (or marks it as Entrada), it counts as real cashflow
+  // even when its category is "Transferência Interna".
+  const effectiveTransactions = transactions;
+
   const { permissions, isAdmin, isSuperAdmin, isOwner } = usePermissions();
   const { organization, organizationId } = useOrganization();
 
