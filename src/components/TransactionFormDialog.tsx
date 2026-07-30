@@ -171,6 +171,7 @@ const TransactionFormDialog = ({
         account_id: accountId === '__none__' ? null : accountId,
         chart_account_id: chartAccountId === '__none__' ? null : chartAccountId,
         attachment_url,
+        is_transfer: isTransfer,
       });
       onOpenChange(false);
     } finally {
