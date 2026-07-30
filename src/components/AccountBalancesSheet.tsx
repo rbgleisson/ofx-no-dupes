@@ -32,26 +32,29 @@ export default function AccountBalancesSheet({
   installments,
   trigger,
   onOpen,
+  onAccountsChange,
 }: AccountBalancesSheetProps) {
   const [open, setOpen] = useState(false);
   const [allTx, setAllTx] = useState<Transaction[] | null>(null);
   const [loading, setLoading] = useState(false);
   const { organizationId } = useOrganization();
 
+  const reload = async () => {
+    setLoading(true);
+    try {
+      const data = await fetchTransactions(undefined, organizationId);
+      setAllTx(data);
+    } catch {
+      setAllTx(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleOpenChange = async (next: boolean) => {
     setOpen(next);
     if (next && onOpen) onOpen();
-    if (next) {
-      setLoading(true);
-      try {
-        const data = await fetchTransactions(undefined, organizationId);
-        setAllTx(data);
-      } catch {
-        setAllTx(null);
-      } finally {
-        setLoading(false);
-      }
-    }
+    if (next) await reload();
   };
 
   return (
@@ -64,11 +67,11 @@ export default function AccountBalancesSheet({
           </Button>
         )}
       </SheetTrigger>
-      <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto">
+      <SheetContent side="right" className="w-full sm:max-w-3xl overflow-y-auto">
         <SheetHeader>
           <SheetTitle>Saldo de Contas</SheetTitle>
         </SheetHeader>
-        <div className="mt-6">
+        <div className="mt-6 pb-10">
           {loading && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
               <Loader2 className="w-4 h-4 animate-spin" /> Calculando saldos com todo o histórico...
@@ -79,7 +82,10 @@ export default function AccountBalancesSheet({
             transactions={allTx ?? transactions}
             installments={installments}
           />
+          <OpeningBalancesEditor accounts={accounts} onSaved={() => { onAccountsChange?.(); reload(); }} />
+          <MonthlyBalancesTable accounts={accounts} transactions={allTx ?? transactions} />
         </div>
+
       </SheetContent>
     </Sheet>
   );
