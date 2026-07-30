@@ -510,7 +510,15 @@ const ExcelImportReviewDialog = ({ open, onOpenChange, rows: initialRows, catego
                           </PopoverContent>
                         </Popover>
                       </td>
+                      <td className="px-3 py-2 text-center">
+                        <Checkbox
+                          checked={!!row._is_transfer}
+                          onCheckedChange={() => toggleTransfer(i)}
+                          title="Movimentação interna (não conta como entrada/saída real)"
+                        />
+                      </td>
                     </tr>
+
                   );
                 })}
               </tbody>
