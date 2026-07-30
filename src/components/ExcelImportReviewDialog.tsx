@@ -324,6 +324,12 @@ const ExcelImportReviewDialog = ({ open, onOpenChange, rows: initialRows, catego
               </Select>
               <Button size="sm" variant="outline" className="h-8 text-xs" onClick={applyBulkAccount}>Aplicar</Button>
             </div>
+            <div className="flex items-center gap-2">
+              <Button size="sm" variant="outline" className="h-8 text-xs" onClick={clearAllTransfers}>
+                Desmarcar todas as internas
+              </Button>
+            </div>
+
           </div>
         </div>
 
