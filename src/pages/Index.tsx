@@ -82,15 +82,8 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
   const [notification, setNotification] = useState<{ type: 'success' | 'warning'; message: string } | null>(null);
   const [formOpen, setFormOpen] = useState(false);
 
-  // Categories treated as internal transfer (by name), so manually-classified
-  // transactions also get excluded from Entradas/Despesas Reais and included in Investimentos.
-  const transferCategoryIds = useMemo(() => {
-    return new Set(
-      categories
-        .filter(c => /transfer[eê]ncia\s+interna/i.test(c.name || ''))
-        .map(c => c.id)
-    );
-  }, [categories]);
+
+
 
   // The `is_transfer` flag is the single source of truth: if the user unmarks a
   // transaction as internal (or marks it as Entrada), it counts as real cashflow
