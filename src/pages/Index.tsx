@@ -689,6 +689,8 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
                         transactions={transactions}
                         installments={allInstallments}
                         onOpen={() => setMobileMenuOpen(false)}
+                        onAccountsChange={() => { fetchAccounts(); loadTransactions(); }}
+
                         trigger={
                           <Button variant="outline" className="justify-start">
                             <Wallet className="w-4 h-4 mr-2 text-primary" />
