@@ -82,24 +82,14 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
   const [notification, setNotification] = useState<{ type: 'success' | 'warning'; message: string } | null>(null);
   const [formOpen, setFormOpen] = useState(false);
 
-  // Categories treated as internal transfer (by name), so manually-classified
-  // transactions also get excluded from Entradas/Despesas Reais and included in Investimentos.
-  const transferCategoryIds = useMemo(() => {
-    return new Set(
-      categories
-        .filter(c => /transfer[eê]ncia\s+interna/i.test(c.name || ''))
-        .map(c => c.id)
-    );
-  }, [categories]);
 
-  const effectiveTransactions = useMemo(() => {
-    if (transferCategoryIds.size === 0) return transactions;
-    return transactions.map(t =>
-      !t.is_transfer && t.category_id && transferCategoryIds.has(t.category_id)
-        ? { ...t, is_transfer: true }
-        : t
-    );
-  }, [transactions, transferCategoryIds]);
+
+
+  // The `is_transfer` flag is the single source of truth: if the user unmarks a
+  // transaction as internal (or marks it as Entrada), it counts as real cashflow
+  // even when its category is "Transferência Interna".
+  const effectiveTransactions = transactions;
+
   const { permissions, isAdmin, isSuperAdmin, isOwner } = usePermissions();
   const { organization, organizationId } = useOrganization();
 
@@ -133,9 +123,8 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
         }, 0);
         const movement = history.reduce((sum, transaction) => {
           if (transaction.date >= periodStart) return sum;
-          const isTransfer = transaction.is_transfer
-            || Boolean(transaction.category_id && transferCategoryIds.has(transaction.category_id));
-          if (isTransfer) return sum;
+          if (transaction.is_transfer) return sum;
+
           const openingDate = transaction.account_id
             ? openingByAccount.get(transaction.account_id)
             : null;
@@ -150,7 +139,7 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
     };
 
     void loadPreviousBalance();
-  }, [accounts, filters.account_id, filters.day, filters.month, filters.year, organizationId, transferCategoryIds]);
+  }, [accounts, filters.account_id, filters.day, filters.month, filters.year, organizationId]);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [backupProgress, setBackupProgress] = useState<string | null>(null);
   const ofxInputRef = useRef<HTMLInputElement>(null);
