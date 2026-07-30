@@ -506,7 +506,7 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
               <AccountsManager accounts={accounts} onAccountsChange={() => { fetchAccounts(); loadTransactions(); loadInstallmentSummary(); }} transactions={transactions} installments={allInstallments} />
             )}
             {permissions.can_view_totals && accounts.length > 0 && (
-              <AccountBalancesSheet accounts={accounts} transactions={transactions} installments={allInstallments} />
+              <AccountBalancesSheet accounts={accounts} transactions={transactions} installments={allInstallments} onAccountsChange={() => { fetchAccounts(); loadTransactions(); }} />
             )}
             {permissions.can_manage_categories && (
               <CategoriesManager categories={categories} onCategoriesChange={fetchCategories} />
@@ -689,6 +689,8 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
                         transactions={transactions}
                         installments={allInstallments}
                         onOpen={() => setMobileMenuOpen(false)}
+                        onAccountsChange={() => { fetchAccounts(); loadTransactions(); }}
+
                         trigger={
                           <Button variant="outline" className="justify-start">
                             <Wallet className="w-4 h-4 mr-2 text-primary" />
