@@ -9,6 +9,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { Wallet, Loader2 } from 'lucide-react';
 import AccountBalanceCards from './AccountBalanceCards';
+import MonthlyBalancesTable from './MonthlyBalancesTable';
+import OpeningBalancesEditor from './OpeningBalancesEditor';
 import type { Account } from './AccountsManager';
 import { fetchTransactions, type Transaction } from '@/lib/transactionStore';
 import type { Installment } from '@/lib/installmentStore';
@@ -20,7 +22,9 @@ interface AccountBalancesSheetProps {
   installments: Installment[];
   trigger?: React.ReactNode;
   onOpen?: () => void;
+  onAccountsChange?: () => void;
 }
+
 
 export default function AccountBalancesSheet({
   accounts,
