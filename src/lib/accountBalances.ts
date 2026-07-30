@@ -137,3 +137,55 @@ export async function fetchAdjustments(accountId: string): Promise<AccountAdjust
     delta: Number(r.delta),
   }));
 }
+
+export interface MonthlyBalanceRow {
+  month: string;      // YYYY-MM
+  income: number;
+  expense: number;
+  net: number;
+  cumulative: number; // opening + net of all months up to this one
+}
+
+/**
+ * Month-by-month evolution for one account (or all accounts combined).
+ * Respects each account's opening_balance / opening_balance_date.
+ */
+export function computeMonthlySeries(
+  accounts: Account[],
+  transactions: Transaction[],
+  accountId: string | 'all'
+): MonthlyBalanceRow[] {
+  const selected = accountId === 'all' ? accounts : accounts.filter(a => a.id === accountId);
+  if (!selected.length) return [];
+  const ids = new Set(selected.map(a => a.id));
+
+  const opening = round2(selected.reduce((s, a) => s + Number((a as any).opening_balance ?? 0), 0));
+  const sinceByAccount = new Map<string, string | null>(
+    selected.map(a => [a.id, ((a as any).opening_balance_date ?? null) as string | null])
+  );
+
+  const buckets = new Map<string, { income: number; expense: number }>();
+  for (const t of transactions) {
+    if (!t.account_id || !ids.has(t.account_id)) continue;
+    const d = String(t.date).slice(0, 10);
+    const since = sinceByAccount.get(t.account_id) ?? null;
+    if (since && d < since) continue;
+    const key = d.slice(0, 7);
+    const b = buckets.get(key) ?? { income: 0, expense: 0 };
+    const amt = Number(t.amount) || 0;
+    if (amt >= 0) b.income += amt;
+    else b.expense += Math.abs(amt);
+    buckets.set(key, b);
+  }
+
+  const months = Array.from(buckets.keys()).sort();
+  let running = opening;
+  return months.map(month => {
+    const b = buckets.get(month)!;
+    const income = round2(b.income);
+    const expense = round2(b.expense);
+    const net = round2(income - expense);
+    running = round2(running + net);
+    return { month, income, expense, net, cumulative: running };
+  });
+}
