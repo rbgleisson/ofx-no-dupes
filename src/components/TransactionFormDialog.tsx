@@ -46,6 +46,7 @@ interface TransactionFormDialogProps {
     account_id?: string | null;
     chart_account_id?: string | null;
     attachment_url?: string | null;
+    is_transfer?: boolean;
   }) => void;
 }
 
@@ -71,6 +72,7 @@ const TransactionFormDialog = ({
   const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
+  const [isTransfer, setIsTransfer] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const extractDataFromFile = async (file: File) => {
