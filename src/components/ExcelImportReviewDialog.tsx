@@ -345,6 +345,8 @@ const ExcelImportReviewDialog = ({ open, onOpenChange, rows: initialRows, catego
                   <th className="text-left text-xs font-semibold text-muted-foreground uppercase px-3 py-2">Categoria</th>
                   <th className="text-left text-xs font-semibold text-muted-foreground uppercase px-3 py-2">Conta</th>
                   <th className="text-left text-xs font-semibold text-muted-foreground uppercase px-3 py-2">Conta Contábil</th>
+                  <th className="text-center text-xs font-semibold text-muted-foreground uppercase px-3 py-2 whitespace-nowrap">Interna</th>
+
                 </tr>
               </thead>
               <tbody>
