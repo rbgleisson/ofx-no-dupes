@@ -170,9 +170,18 @@ const ExcelImportReviewDialog = ({ open, onOpenChange, rows: initialRows, catego
     setRows(prev => prev.map((r, i) => i === index ? { ...r, _is_transfer: !r._is_transfer } : r));
   };
 
+  const setRowSign = (index: number, asEntrada: boolean) => {
+    setRows(prev => prev.map((r, i) => {
+      if (i !== index) return r;
+      const abs = Math.abs(r.amount);
+      return { ...r, amount: asEntrada ? abs : -abs, _is_transfer: asEntrada ? false : r._is_transfer };
+    }));
+  };
+
   const clearAllTransfers = () => {
     setRows(prev => prev.map(r => ({ ...r, _is_transfer: false })));
   };
+
 
 
   const removeDuplicates = () => {
