@@ -166,6 +166,15 @@ const ExcelImportReviewDialog = ({ open, onOpenChange, rows: initialRows, catego
     setRows(prev => prev.map((r, i) => i === index ? { ...r, [field]: value } : r));
   };
 
+  const toggleTransfer = (index: number) => {
+    setRows(prev => prev.map((r, i) => i === index ? { ...r, _is_transfer: !r._is_transfer } : r));
+  };
+
+  const clearAllTransfers = () => {
+    setRows(prev => prev.map(r => ({ ...r, _is_transfer: false })));
+  };
+
+
   const removeDuplicates = () => {
     const keep = rows.filter((_, i) => !duplicateMatches[i].isDuplicate);
     setRows(keep);
