@@ -204,6 +204,32 @@ const TransactionFormDialog = ({
             </div>
           </div>
           <div>
+            <label className="text-xs font-medium text-muted-foreground mb-1 block">Tipo</label>
+            <div className="inline-flex rounded-md border overflow-hidden w-full">
+              <button
+                type="button"
+                onClick={() => {
+                  const n = Math.abs(parseFloat(amount || '0'));
+                  if (!isNaN(n)) setAmount(n.toString());
+                  setIsTransfer(false);
+                }}
+                className={`flex-1 px-3 py-2 text-xs transition-colors ${parseFloat(amount || '0') >= 0 ? 'bg-emerald-500/15 text-emerald-600 font-semibold' : 'text-muted-foreground hover:bg-muted/50'}`}
+              >
+                Entrada
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const n = Math.abs(parseFloat(amount || '0'));
+                  if (!isNaN(n)) setAmount((-n).toString());
+                }}
+                className={`flex-1 px-3 py-2 text-xs border-l transition-colors ${parseFloat(amount || '0') < 0 ? 'bg-destructive/15 text-destructive font-semibold' : 'text-muted-foreground hover:bg-muted/50'}`}
+              >
+                Saída
+              </button>
+            </div>
+
+          <div>
             <label className="text-xs font-medium text-muted-foreground mb-1 block">Descrição</label>
             <Input value={description} onChange={e => setDescription(e.target.value)} placeholder="Descrição do lançamento" required />
           </div>
