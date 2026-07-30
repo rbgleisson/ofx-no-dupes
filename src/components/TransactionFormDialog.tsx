@@ -357,6 +357,21 @@ const TransactionFormDialog = ({
               </Button>
             )}
           </div>
+          <div className="flex items-start gap-2 rounded-md border border-input p-3">
+            <input
+              id="is-transfer"
+              type="checkbox"
+              className="mt-0.5 h-4 w-4 accent-primary"
+              checked={isTransfer}
+              onChange={e => setIsTransfer(e.target.checked)}
+            />
+            <label htmlFor="is-transfer" className="text-xs leading-snug cursor-pointer">
+              <span className="font-medium">Movimentação interna (transferência/aplicação)</span>
+              <span className="block text-muted-foreground">
+                Desmarque para que o valor conte como entrada/saída real no dashboard.
+              </span>
+            </label>
+          </div>
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="outline" size="sm" onClick={() => onOpenChange(false)}>Cancelar</Button>
             <Button type="submit" size="sm" disabled={isUploading}>
