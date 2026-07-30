@@ -123,7 +123,6 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
         }, 0);
         const movement = history.reduce((sum, transaction) => {
           if (transaction.date >= periodStart) return sum;
-          if (transaction.is_transfer) return sum;
 
           const openingDate = transaction.account_id
             ? openingByAccount.get(transaction.account_id)
@@ -847,7 +846,9 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
           const nonTransfer = effectiveTransactions.filter(t => !t.is_transfer);
           const totalReceber = nonTransfer.filter(t => Number(t.amount) >= 0).reduce((s, t) => s + Number(t.amount), 0);
           const totalPagar = nonTransfer.filter(t => Number(t.amount) < 0).reduce((s, t) => s + Math.abs(Number(t.amount)), 0);
-          const movimentoPeriodo = totalReceber - totalPagar;
+           // O saldo bancário deve refletir todos os lançamentos do extrato,
+           // inclusive aplicações e resgates marcados como movimentação interna.
+           const movimentoPeriodo = effectiveTransactions.reduce((sum, transaction) => sum + Number(transaction.amount || 0), 0);
           const saldo = previousBalance + movimentoPeriodo;
           const totalTransfer = effectiveTransactions.filter(t => t.is_transfer).reduce((s, t) => s + Math.abs(Number(t.amount)), 0);
           const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
