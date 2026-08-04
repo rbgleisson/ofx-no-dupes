@@ -846,33 +846,54 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
           const nonTransfer = effectiveTransactions.filter(t => !t.is_transfer);
           const totalReceber = nonTransfer.filter(t => Number(t.amount) >= 0).reduce((s, t) => s + Number(t.amount), 0);
           const totalPagar = nonTransfer.filter(t => Number(t.amount) < 0).reduce((s, t) => s + Math.abs(Number(t.amount)), 0);
+          // Totais do extrato: incluem aplicações/resgates (movimentações internas)
+          const entradasExtrato = effectiveTransactions.filter(t => Number(t.amount) >= 0).reduce((s, t) => s + Number(t.amount), 0);
+          const saidasExtrato = effectiveTransactions.filter(t => Number(t.amount) < 0).reduce((s, t) => s + Math.abs(Number(t.amount)), 0);
            // O saldo bancário deve refletir todos os lançamentos do extrato,
            // inclusive aplicações e resgates marcados como movimentação interna.
            const movimentoPeriodo = effectiveTransactions.reduce((sum, transaction) => sum + Number(transaction.amount || 0), 0);
           const saldo = previousBalance + movimentoPeriodo;
-          const totalTransfer = effectiveTransactions.filter(t => t.is_transfer).reduce((s, t) => s + Math.abs(Number(t.amount)), 0);
+          const transferIn = effectiveTransactions.filter(t => t.is_transfer && Number(t.amount) >= 0).reduce((s, t) => s + Number(t.amount), 0);
+          const transferOut = effectiveTransactions.filter(t => t.is_transfer && Number(t.amount) < 0).reduce((s, t) => s + Math.abs(Number(t.amount)), 0);
+          const totalTransfer = transferIn + transferOut;
           const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
           return (
             <>
-              <div className="hidden sm:grid grid-cols-4 gap-4 mb-6">
+              <div className="hidden sm:grid grid-cols-3 gap-4 mb-4">
                 <div className="rounded-xl border p-4 bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800">
-                  <p className="text-xs font-medium text-muted-foreground mb-1">Entradas</p>
-                  <p className="text-lg font-bold text-emerald-600">{fmt(totalReceber)}</p>
+                  <p className="text-xs font-medium text-muted-foreground mb-1">Entradas do extrato</p>
+                  <p className="text-lg font-bold text-emerald-600">{fmt(entradasExtrato)}</p>
+                  <p className="text-[10px] text-muted-foreground mt-1">Inclui resgates/internas: {fmt(transferIn)}</p>
                 </div>
                 <div className="rounded-xl border p-4 bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800">
-                  <p className="text-xs font-medium text-muted-foreground mb-1">Despesas Reais</p>
-                  <p className="text-lg font-bold text-red-600">{fmt(-totalPagar)}</p>
+                  <p className="text-xs font-medium text-muted-foreground mb-1">Saídas do extrato</p>
+                  <p className="text-lg font-bold text-red-600">{fmt(-saidasExtrato)}</p>
+                  <p className="text-[10px] text-muted-foreground mt-1">Inclui aplicações/internas: {fmt(transferOut)}</p>
                 </div>
                 <div className={`rounded-xl border p-4 ${saldo >= 0 ? 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800' : 'bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-800'}`}>
                   <p className="text-xs font-medium text-muted-foreground mb-1">Saldo acumulado</p>
                   <p className={`text-lg font-bold ${saldo >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>{fmt(saldo)}</p>
                   <p className="text-[10px] text-muted-foreground mt-1">Anterior: {fmt(previousBalance)} · Movimento: {fmt(movimentoPeriodo)}</p>
                 </div>
+              </div>
+              <div className="hidden sm:grid grid-cols-3 gap-4 mb-6">
+                <div className="rounded-xl border p-4 bg-teal-50 dark:bg-teal-950/30 border-teal-200 dark:border-teal-800">
+                  <p className="text-xs font-medium text-muted-foreground mb-1">Receitas Reais</p>
+                  <p className="text-lg font-bold text-teal-600">{fmt(totalReceber)}</p>
+                  <p className="text-[10px] text-muted-foreground mt-1">Sem aplicações, resgates e transferências</p>
+                </div>
+                <div className="rounded-xl border p-4 bg-rose-50 dark:bg-rose-950/30 border-rose-200 dark:border-rose-800">
+                  <p className="text-xs font-medium text-muted-foreground mb-1">Despesas Reais</p>
+                  <p className="text-lg font-bold text-rose-600">{fmt(-totalPagar)}</p>
+                  <p className="text-[10px] text-muted-foreground mt-1">Sem aplicações, resgates e transferências</p>
+                </div>
                 <div className="rounded-xl border p-4 bg-gray-50 dark:bg-gray-950/30 border-gray-200 dark:border-gray-800">
-                  <p className="text-xs font-medium text-muted-foreground mb-1">Movimentações Internas</p>
-                  <p className="text-lg font-bold text-gray-500">{fmt(totalTransfer)}</p>
+                  <p className="text-xs font-medium text-muted-foreground mb-1">Resultado Real · Internas</p>
+                  <p className={`text-lg font-bold ${totalReceber - totalPagar >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{fmt(totalReceber - totalPagar)}</p>
+                  <p className="text-[10px] text-muted-foreground mt-1">Movimentações internas: {fmt(totalTransfer)}</p>
                 </div>
               </div>
+
               {(installmentSummary.countPayable > 0 || installmentSummary.countReceivable > 0) && (
                 <div className="hidden sm:grid grid-cols-2 gap-4 mb-6">
                   <div className="rounded-xl border p-4 bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-800 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setMainTab('installments')}>
