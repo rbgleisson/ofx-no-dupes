@@ -66,6 +66,7 @@ const ExportDialog = ({ transactions, categories, accounts, chartAccounts }: Exp
   const [companyName, setCompanyName] = useState('');
   const [exporting, setExporting] = useState(false);
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
+  const [onlyReal, setOnlyReal] = useState(true);
 
   useEffect(() => {
     if (!open) return;
