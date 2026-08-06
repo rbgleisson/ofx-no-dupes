@@ -102,8 +102,19 @@ export function classifyTransaction(
     return { category_id: transferCategoryId, is_transfer: true };
   }
 
-  const upper = description.toUpperCase();
-  if (amount < 0 && upper.includes('PIX') && (upper.includes('MESMA TITULARIDADE') || upper.includes('PROPRIO') || upper.includes('PRÓPRIO'))) {
+  const upper = description
+    .toUpperCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+  // Same-ownership movements (PIX/TED/transfers between own accounts) are never
+  // real income or expense — flag them as internal transfers in both directions.
+  const sameOwnership =
+    upper.includes('MESMA TIT') ||
+    upper.includes('MESMA TITULARIDADE') ||
+    upper.includes('PROPRIO') ||
+    upper.includes('CONTA PROPRIA') ||
+    upper.includes('MSM TIT');
+  if (sameOwnership) {
     return { category_id: transferCategoryId, is_transfer: true };
   }
 
