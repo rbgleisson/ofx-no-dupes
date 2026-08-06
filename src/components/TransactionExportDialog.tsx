@@ -53,6 +53,11 @@ const TransactionExportDialog = ({
   );
   const [open, setOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [onlyReal, setOnlyReal] = useState(true);
+
+  const exportable = onlyReal
+    ? transactions.filter((t) => !(t as any).is_transfer)
+    : transactions;
 
   const toggle = (key: string) => {
     setSelected((prev) => {
@@ -64,7 +69,7 @@ const TransactionExportDialog = ({
   };
 
   const handleExport = async () => {
-    if (transactions.length === 0) {
+    if (exportable.length === 0) {
       toast.warning('Nenhum lançamento para exportar.');
       return;
     }
@@ -74,7 +79,7 @@ const TransactionExportDialog = ({
     }
     setExporting(true);
     try {
-      await exportListagem(transactions, categories, accounts, chartAccounts, selected, fileName);
+      await exportListagem(exportable, categories, accounts, chartAccounts, selected, fileName);
       toast.success('Exportação concluída!');
       setOpen(false);
     } catch (err: any) {
@@ -99,8 +104,19 @@ const TransactionExportDialog = ({
         </DialogHeader>
 
         <p className="text-xs text-muted-foreground">
-          {transactions.length} lançamento{transactions.length !== 1 ? 's' : ''} serão exportados.
+          {exportable.length} lançamento{exportable.length !== 1 ? 's' : ''} serão exportados.
         </p>
+
+        <label className="flex items-start gap-2 cursor-pointer rounded-lg px-2 py-1.5 hover:bg-muted/50 transition-colors">
+          <Checkbox checked={onlyReal} onCheckedChange={() => setOnlyReal((v) => !v)} className="mt-0.5" />
+          <span className="text-xs leading-snug">
+            Somente receitas e despesas reais
+            <span className="block text-muted-foreground">
+              Exclui aplicações, resgates e transferências internas (mesma titularidade/CNPJ).
+            </span>
+          </span>
+        </label>
+
 
         <div>
           <p className="text-xs font-medium text-muted-foreground mb-1.5">Colunas</p>

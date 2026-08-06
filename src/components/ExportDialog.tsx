@@ -66,6 +66,7 @@ const ExportDialog = ({ transactions, categories, accounts, chartAccounts }: Exp
   const [companyName, setCompanyName] = useState('');
   const [exporting, setExporting] = useState(false);
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
+  const [onlyReal, setOnlyReal] = useState(true);
 
   useEffect(() => {
     if (!open) return;
@@ -92,6 +93,7 @@ const ExportDialog = ({ transactions, categories, accounts, chartAccounts }: Exp
 
   const getFilteredTransactions = () => {
     let filtered = allTransactions;
+    if (onlyReal) filtered = filtered.filter(tx => !(tx as any).is_transfer);
     const year = exportYear !== '__all__' ? Number(exportYear) : null;
     const month = exportMonth !== '__all__' ? Number(exportMonth) : null;
 
@@ -223,6 +225,15 @@ const ExportDialog = ({ transactions, categories, accounts, chartAccounts }: Exp
             </Select>
           </div>
         </div>
+        {/* Somente movimentos reais */}
+        <label className="flex items-start gap-2 cursor-pointer rounded-lg px-2 py-1.5 hover:bg-muted/50 transition-colors">
+          <Checkbox checked={onlyReal} onCheckedChange={() => setOnlyReal(v => !v)} className="mt-0.5" />
+          <span className="text-xs leading-snug">
+            Somente receitas e despesas reais
+            <span className="block text-muted-foreground">Exclui aplicações, resgates e transferências internas (mesma titularidade/CNPJ).</span>
+          </span>
+        </label>
+
 
         {/* Colunas (only for listagem) */}
         {exportType === 'listagem' && (
