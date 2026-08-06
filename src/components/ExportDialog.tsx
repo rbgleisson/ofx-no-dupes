@@ -93,6 +93,7 @@ const ExportDialog = ({ transactions, categories, accounts, chartAccounts }: Exp
 
   const getFilteredTransactions = () => {
     let filtered = allTransactions;
+    if (onlyReal) filtered = filtered.filter(tx => !(tx as any).is_transfer);
     const year = exportYear !== '__all__' ? Number(exportYear) : null;
     const month = exportMonth !== '__all__' ? Number(exportMonth) : null;
 
