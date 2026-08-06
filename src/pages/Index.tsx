@@ -352,7 +352,7 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
 
       // Convert to ExcelRow format and open review dialog for duplicate detection
       const rows: ExcelRow[] = uniqueByFitId.map(t => {
-        const classification = classifyTransaction(t.description, t.amount, transferCategoryId, investmentIncomeCategoryId, tithesOfferingsCategoryId);
+        const classification = classifyTransaction(`${t.description} ${t.memo || ''}`, t.amount, transferCategoryId, investmentIncomeCategoryId, tithesOfferingsCategoryId);
         const matched = matchContactForOfxTx(t, contacts);
         const description = matched ? `PIX: ${matched.nome}` : t.description;
         const categoryId = matched?.categoria_id || classification.category_id;
