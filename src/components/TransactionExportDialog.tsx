@@ -53,6 +53,11 @@ const TransactionExportDialog = ({
   );
   const [open, setOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [onlyReal, setOnlyReal] = useState(true);
+
+  const exportable = onlyReal
+    ? transactions.filter((t) => !(t as any).is_transfer)
+    : transactions;
 
   const toggle = (key: string) => {
     setSelected((prev) => {
