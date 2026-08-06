@@ -68,6 +68,7 @@ const TransactionExportDialog = ({
     });
   };
 
+  const handleExport = async () => {
     if (exportable.length === 0) {
       toast.warning('Nenhum lançamento para exportar.');
       return;
