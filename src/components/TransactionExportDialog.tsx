@@ -68,8 +68,7 @@ const TransactionExportDialog = ({
     });
   };
 
-  const handleExport = async () => {
-    if (transactions.length === 0) {
+    if (exportable.length === 0) {
       toast.warning('Nenhum lançamento para exportar.');
       return;
     }
@@ -79,7 +78,7 @@ const TransactionExportDialog = ({
     }
     setExporting(true);
     try {
-      await exportListagem(transactions, categories, accounts, chartAccounts, selected, fileName);
+      await exportListagem(exportable, categories, accounts, chartAccounts, selected, fileName);
       toast.success('Exportação concluída!');
       setOpen(false);
     } catch (err: any) {
