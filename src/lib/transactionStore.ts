@@ -192,3 +192,119 @@ export async function clearTransactions(): Promise<void> {
   const { error } = await supabase.from('transactions').delete().neq('id', '00000000-0000-0000-0000-000000000000');
   if (error) throw error;
 }
+
+/** Fields that a re-import may legitimately refresh on an existing transaction. */
+type UpsertRow = {
+  fit_id?: string | null;
+  type?: string | null;
+  date: string;
+  amount: number;
+  description: string;
+  memo?: string | null;
+  category_id?: string | null;
+  account_id?: string | null;
+  chart_account_id?: string | null;
+  is_transfer?: boolean;
+  /** When set, this specific existing transaction is updated instead of inserted. */
+  _update_id?: string | null;
+};
+
+export interface UpsertResult {
+  inserted: number;
+  updated: number;
+}
+
+/**
+ * Imports transactions without ever deleting existing rows.
+ * A row whose fit_id already exists (or that points at an explicit _update_id)
+ * updates the existing transaction. `attachment_url` is NEVER written here, so
+ * attachments already linked are always preserved.
+ */
+export async function upsertTransactionsByFitId(rows: UpsertRow[]): Promise<UpsertResult> {
+  if (rows.length === 0) return { inserted: 0, updated: 0 };
+  const userId = await getUserId();
+  const orgId = await getOrgId();
+
+  // Map existing fit_id -> id for this organization
+  const existingMap = new Map<string, string>();
+  const pageSize = 1000;
+  for (let from = 0; from < 100000; from += pageSize) {
+    const { data, error } = await supabase
+      .from('transactions')
+      .select('id, fit_id')
+      .eq('organization_id', orgId)
+      .range(from, from + pageSize - 1);
+    if (error) throw error;
+    const page = data || [];
+    page.forEach(t => { if (t.fit_id) existingMap.set(t.fit_id, t.id); });
+    if (page.length < pageSize) break;
+  }
+
+  const toInsert: any[] = [];
+  const toUpdate: { id: string; values: any }[] = [];
+
+  for (const row of rows) {
+    const { _update_id, ...rest } = row;
+    const targetId = _update_id || (rest.fit_id ? existingMap.get(rest.fit_id) : undefined);
+    if (targetId) {
+      // attachment_url intentionally omitted — never overwritten by an import
+      toUpdate.push({
+        id: targetId,
+        values: {
+          date: rest.date,
+          amount: rest.amount,
+          description: rest.description,
+          memo: rest.memo ?? null,
+          category_id: rest.category_id ?? null,
+          account_id: rest.account_id ?? null,
+          chart_account_id: rest.chart_account_id ?? null,
+          is_transfer: rest.is_transfer ?? false,
+          ...(rest.type ? { type: rest.type } : {}),
+        },
+      });
+    } else {
+      toInsert.push({ ...rest, user_id: userId, organization_id: orgId });
+    }
+  }
+
+  const batchSize = 100;
+  for (let i = 0; i < toInsert.length; i += batchSize) {
+    const { error } = await supabase.from('transactions').insert(toInsert.slice(i, i + batchSize));
+    if (error) throw error;
+  }
+
+  for (const u of toUpdate) {
+    const { error } = await supabase.from('transactions').update(u.values).eq('id', u.id);
+    if (error) throw error;
+  }
+
+  return { inserted: toInsert.length, updated: toUpdate.length };
+}
+
+/** Returns how many of the given transaction ids currently have an attachment linked. */
+export async function countAttachments(ids: string[]): Promise<number> {
+  if (ids.length === 0) return 0;
+  let total = 0;
+  const chunk = 200;
+  for (let i = 0; i < ids.length; i += chunk) {
+    const { data, error } = await supabase
+      .from('transactions')
+      .select('id, attachment_url')
+      .in('id', ids.slice(i, i + chunk));
+    if (error) throw error;
+    total += (data || []).filter(t => !!t.attachment_url).length;
+  }
+  return total;
+}
+
+/** Counts all transactions of the current organization that have an attachment linked. */
+export async function countAllAttachments(): Promise<number> {
+  const orgId = await getOrgId();
+  const { count, error } = await supabase
+    .from('transactions')
+    .select('id', { count: 'exact', head: true })
+    .eq('organization_id', orgId)
+    .not('attachment_url', 'is', null);
+  if (error) throw error;
+  return count || 0;
+}

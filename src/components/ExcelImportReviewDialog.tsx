@@ -6,7 +6,7 @@ import { ChartAccount } from '@/components/ChartAccountsManager';
 import { Transaction } from '@/lib/transactionStore';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Check, ChevronsUpDown, AlertTriangle, Trash2, EyeOff, Eye, ArrowLeftRight } from 'lucide-react';
+import { Check, ChevronsUpDown, AlertTriangle, Trash2, RefreshCw, EyeOff, Eye, ArrowLeftRight } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
@@ -191,6 +191,28 @@ const ExcelImportReviewDialog = ({ open, onOpenChange, rows: initialRows, catego
     setSelected(new Set(keep.map((_, i) => i)));
   };
 
+  const setRowUpdateMode = (index: number, on: boolean) => {
+    const matched = duplicateMatches[index]?.matchedTransaction;
+    setRows(prev => prev.map((r, i) => i === index ? { ...r, _update_id: on && matched ? matched.id : null } : r));
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (on) next.add(index); else next.delete(index);
+      return next;
+    });
+  };
+
+  const markAllDuplicatesAsUpdate = () => {
+    setRows(prev => prev.map((r, i) => {
+      const matched = duplicateMatches[i]?.matchedTransaction;
+      return matched ? { ...r, _update_id: matched.id } : r;
+    }));
+    setSelected(prev => {
+      const next = new Set(prev);
+      duplicateMatches.forEach((m, i) => { if (m.matchedTransaction) next.add(i); });
+      return next;
+    });
+  };
+
   const deselectAllDuplicates = () => {
     setSelected(prev => {
       const next = new Set(prev);
@@ -250,7 +272,7 @@ const ExcelImportReviewDialog = ({ open, onOpenChange, rows: initialRows, catego
               <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-amber-50 border border-amber-200 text-amber-800 text-xs">
                 <AlertTriangle className="h-4 w-4 flex-shrink-0" />
                 <span className="flex-1">
-                  <strong>{duplicateCount}</strong> possíveis duplicatas encontradas e desmarcadas por padrão:
+                  <strong>{duplicateCount}</strong> possíveis duplicatas encontradas e desmarcadas por padrão (você pode atualizar o lançamento existente em vez de criar outro — nunca é preciso apagar):
                   {exactCount > 0 && <span className="ml-1">🔴 {exactCount} exatas</span>}
                   {probableCount > 0 && <span className="ml-1">🟠 {probableCount} prováveis</span>}
                   {possibleCount > 0 && <span className="ml-1">🟡 {possibleCount} possíveis</span>}
@@ -269,11 +291,11 @@ const ExcelImportReviewDialog = ({ open, onOpenChange, rows: initialRows, catego
                 <Button
                   size="sm"
                   variant="outline"
-                  className="h-7 text-xs gap-1 text-destructive border-destructive/30 hover:bg-destructive/10"
-                  onClick={removeDuplicates}
+                  className="h-7 text-xs gap-1"
+                  onClick={markAllDuplicatesAsUpdate}
                 >
-                  <Trash2 className="h-3 w-3" />
-                  Remover todas as duplicatas da lista
+                  <RefreshCw className="h-3 w-3" />
+                  Atualizar existentes (mantém anexos)
                 </Button>
                 <Button
                   size="sm"
@@ -385,6 +407,16 @@ const ExcelImportReviewDialog = ({ open, onOpenChange, rows: initialRows, catego
                         />
                       </td>
                       <td className="px-3 py-2">
+                        {match.isDuplicate && match.matchedTransaction && (
+                          <button
+                            type="button"
+                            onClick={() => setRowUpdateMode(i, !row._update_id)}
+                            className={`mb-1 block w-full rounded border px-1.5 py-0.5 text-[10px] transition-colors ${row._update_id ? 'bg-primary/15 border-primary/40 text-primary font-semibold' : 'text-muted-foreground hover:bg-muted/50'}`}
+                            title="Atualiza o lançamento já existente (data, valor, descrição, categoria e conta). O anexo vinculado é preservado."
+                          >
+                            {row._update_id ? '✓ Atualizar existente' : 'Atualizar existente'}
+                          </button>
+                        )}
                         {match.isDuplicate ? (
                           <TooltipProvider>
                             <Tooltip>

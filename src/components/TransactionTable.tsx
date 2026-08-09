@@ -1,5 +1,5 @@
 import { useState, useRef, useMemo } from 'react';
-import { Transaction, updateTransaction, deleteTransaction } from '@/lib/transactionStore';
+import { Transaction, updateTransaction, deleteTransaction, countAttachments } from '@/lib/transactionStore';
 import { Category } from '@/components/CategoriesManager';
 import { Account } from '@/components/AccountsManager';
 import { ChartAccount } from '@/components/ChartAccountsManager';
@@ -250,7 +250,13 @@ const TransactionTable = ({ transactions, categories, accounts, chartAccounts, o
 
   const handleBulkDelete = async () => {
     if (selectedIds.size === 0) return;
-    if (!confirm(`Tem certeza que deseja excluir ${selectedIds.size} lançamento(s)?`)) return;
+    const ids = Array.from(selectedIds);
+    let withAttachments = 0;
+    try { withAttachments = await countAttachments(ids); } catch {}
+    if (withAttachments > 0) {
+      if (!confirm(`⚠️ ${withAttachments} de ${ids.length} lançamento(s) selecionados possuem ANEXO vinculado.\n\nAo excluir, o vínculo com o anexo é perdido permanentemente. Se o objetivo é acertar o saldo, prefira editar o lançamento ou reimportar o OFX (os existentes são atualizados e os anexos preservados).\n\nConfirma mesmo assim a exclusão?`)) return;
+    }
+    if (!confirm(`Tem certeza que deseja excluir ${ids.length} lançamento(s)?`)) return;
     for (const id of selectedIds) {
       await deleteTransaction(id);
     }
@@ -358,6 +364,8 @@ const TransactionTable = ({ transactions, categories, accounts, chartAccounts, o
   };
 
   const handleDelete = async (txId: string) => {
+    const tx = transactions.find(t => t.id === txId);
+    if (tx?.attachment_url && !confirm('⚠️ Este lançamento possui ANEXO vinculado. Ao excluir, o vínculo será perdido. Deseja continuar?')) return;
     if (!confirm('Tem certeza que deseja excluir este lançamento?')) return;
     await deleteTransaction(txId);
     onTransactionsChange();
