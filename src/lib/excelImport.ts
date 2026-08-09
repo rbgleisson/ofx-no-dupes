@@ -15,6 +15,8 @@ export interface ExcelRow {
   _auto_identified?: boolean;
   /** Name of the matched contact (used to build the friendly description). */
   _matched_contact_name?: string;
+  /** When set, the import updates this existing transaction instead of inserting a new one. */
+  _update_id?: string | null;
 }
 
 export async function downloadExcelTemplate() {
