@@ -8,6 +8,8 @@ import {
   fetchTransactions,
   importTransactions,
   clearTransactions,
+  upsertTransactionsByFitId,
+  countAllAttachments,
   addTransaction,
   addTransactionsBulk,
   updateTransaction,
@@ -185,24 +187,30 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { setNotification({ type: 'warning', message: 'Usuário não autenticado.' }); return; }
 
-      const toInsert = rows.map(r => ({
+      const toUpsert = rows.map(r => ({
         date: r.date,
         amount: r.amount,
         description: r.description,
-        memo: r.memo || undefined,
+        memo: r.memo || null,
         category_id: r.category_id || null,
         account_id: r.account_id || null,
         chart_account_id: r.chart_account_id || null,
         is_transfer: r._is_transfer || false,
+        _update_id: r._update_id || null,
         ...(r._fit_id ? { fit_id: r._fit_id, type: r._type } : {}),
       }));
 
-      await addTransactionsBulk(toInsert);
+      // Never deletes: existing rows (same FITID or marked to update) are updated
+      // in place and their attachment_url is preserved.
+      const { inserted, updated } = await upsertTransactionsByFitId(toUpsert);
 
       setExcelReviewOpen(false);
       await fetchCategories();
       await loadTransactions();
-      setNotification({ type: 'success', message: `${toInsert.length} transações importadas.` });
+      setNotification({
+        type: 'success',
+        message: `${inserted} transações importadas${updated > 0 ? ` e ${updated} atualizadas (anexos preservados)` : ''}.`,
+      });
     } catch {
       setNotification({ type: 'warning', message: 'Erro ao importar transações.' });
     }
@@ -404,6 +412,12 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
 
   const handleClear = async () => {
     if (!confirm('⚠️ ATENÇÃO: Isso vai remover TODOS os lançamentos permanentemente. Deseja continuar?')) return;
+    let withAttachments = 0;
+    try { withAttachments = await countAllAttachments(); } catch {}
+    if (withAttachments > 0 && !confirm(`⚠️ ${withAttachments} lançamento(s) possuem ANEXO vinculado. Ao excluir, o vínculo do anexo será perdido. Em vez de apagar tudo, você pode reimportar o OFX — lançamentos existentes são atualizados e os anexos preservados.\n\nDeseja mesmo continuar?`)) {
+      setNotification({ type: 'warning', message: 'Operação cancelada.' });
+      return;
+    }
     const typed = prompt('Para confirmar, digite a palavra "APAGAR" abaixo:');
     if (typed?.trim().toUpperCase() !== 'APAGAR') {
       setNotification({ type: 'warning', message: 'Operação cancelada. A palavra digitada não confere.' });
