@@ -364,6 +364,8 @@ const TransactionTable = ({ transactions, categories, accounts, chartAccounts, o
   };
 
   const handleDelete = async (txId: string) => {
+    const tx = transactions.find(t => t.id === txId);
+    if (tx?.attachment_url && !confirm('⚠️ Este lançamento possui ANEXO vinculado. Ao excluir, o vínculo será perdido. Deseja continuar?')) return;
     if (!confirm('Tem certeza que deseja excluir este lançamento?')) return;
     await deleteTransaction(txId);
     onTransactionsChange();
