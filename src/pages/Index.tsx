@@ -230,7 +230,6 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
       console.error('Error confirming transaction import:', error);
       const message = error instanceof Error ? error.message : '';
       setNotification({ type: 'warning', message: `Erro ao importar transações${message ? `: ${message}` : '.'}` });
-      throw error;
     }
   };
 
