@@ -181,6 +181,48 @@ export async function addTransactionsBulk(txs: Omit<Transaction, 'id' | 'created
 export async function updateTransaction(id: string, updates: Partial<Transaction>): Promise<void> {
   const { error } = await supabase.from('transactions').update(updates).eq('id', id);
   if (error) throw error;
+  if ('attachment_url' in updates) {
+    await syncAttachmentLink(id, updates.attachment_url ?? null);
+  }
+}
+
+/**
+ * Keeps a permanent FITID -> attachment link so a future re-import can restore
+ * the document even if the transaction row was deleted in between.
+ */
+export async function syncAttachmentLink(transactionId: string, url: string | null): Promise<void> {
+  const { data } = await supabase
+    .from('transactions')
+    .select('fit_id, account_id, organization_id')
+    .eq('id', transactionId)
+    .maybeSingle();
+  if (!data?.fit_id || !data.organization_id) return;
+
+  const base = () => {
+    let q = supabase
+      .from('attachment_links')
+      .select('id')
+      .eq('organization_id', data.organization_id!)
+      .eq('fit_id', data.fit_id!);
+    return data.account_id ? q.eq('account_id', data.account_id) : q.is('account_id', null);
+  };
+
+  const { data: existing } = await base().maybeSingle();
+
+  if (url) {
+    if (existing) {
+      await supabase.from('attachment_links').update({ attachment_url: url }).eq('id', existing.id);
+    } else {
+      await supabase.from('attachment_links').insert({
+        organization_id: data.organization_id,
+        account_id: data.account_id,
+        fit_id: data.fit_id,
+        attachment_url: url,
+      });
+    }
+  } else if (existing) {
+    await supabase.from('attachment_links').delete().eq('id', existing.id);
+  }
 }
 
 export async function deleteTransaction(id: string): Promise<void> {
@@ -235,12 +277,12 @@ export async function upsertTransactionsByFitId(rows: UpsertRow[]): Promise<Upse
 
   // Map existing fit_id -> candidates for this organization
   const existingMap = new Map<string, { id: string; account_id: string | null }[]>();
-  const existingById = new Map<string, { category_id: string | null; chart_account_id: string | null }>();
+  const existingById = new Map<string, { category_id: string | null; chart_account_id: string | null; attachment_url: string | null }>();
   const pageSize = 1000;
   for (let from = 0; from < 100000; from += pageSize) {
     const { data, error } = await supabase
       .from('transactions')
-      .select('id, fit_id, account_id, category_id, chart_account_id')
+      .select('id, fit_id, account_id, category_id, chart_account_id, attachment_url')
       .eq('organization_id', orgId)
       .range(from, from + pageSize - 1);
     if (error) throw error;
@@ -251,7 +293,7 @@ export async function upsertTransactionsByFitId(rows: UpsertRow[]): Promise<Upse
         list.push({ id: t.id, account_id: t.account_id });
         existingMap.set(t.fit_id, list);
       }
-      existingById.set(t.id, { category_id: t.category_id, chart_account_id: t.chart_account_id });
+      existingById.set(t.id, { category_id: t.category_id, chart_account_id: t.chart_account_id, attachment_url: t.attachment_url });
     });
     if (page.length < pageSize) break;
   }
@@ -267,12 +309,29 @@ export async function upsertTransactionsByFitId(rows: UpsertRow[]): Promise<Upse
     return list[0].id;
   };
 
+  // FITID -> anexo salvo anteriormente (sobrevive à exclusão do lançamento)
+  const linkMap = new Map<string, string>();
+  {
+    const { data: links } = await supabase
+      .from('attachment_links')
+      .select('fit_id, account_id, attachment_url')
+      .eq('organization_id', orgId);
+    (links || []).forEach(l => {
+      linkMap.set(`${l.fit_id}|${l.account_id ?? ''}`, l.attachment_url);
+    });
+  }
+  const findLink = (fitId?: string | null, accountId?: string | null): string | undefined => {
+    if (!fitId) return undefined;
+    return linkMap.get(`${fitId}|${accountId ?? ''}`) ?? linkMap.get(`${fitId}|`);
+  };
+
   const toInsert: any[] = [];
   const toUpdate: { id: string; values: any }[] = [];
 
   for (const row of rows) {
     const { _update_id, ...rest } = row;
     const targetId = _update_id || findExisting(rest.fit_id, rest.account_id ?? null);
+    const restoredAttachment = findLink(rest.fit_id, rest.account_id ?? null);
 
     if (targetId) {
       // attachment_url intentionally omitted — never overwritten by an import
@@ -290,11 +349,17 @@ export async function upsertTransactionsByFitId(rows: UpsertRow[]): Promise<Upse
           chart_account_id: rest.chart_account_id ?? prev?.chart_account_id ?? null,
           is_transfer: rest.is_transfer ?? false,
           ...(rest.type ? { type: rest.type } : {}),
+          ...(prev?.attachment_url || !restoredAttachment ? {} : { attachment_url: restoredAttachment }),
         },
       });
 
     } else {
-      toInsert.push({ ...rest, user_id: userId, organization_id: orgId });
+      toInsert.push({
+        ...rest,
+        user_id: userId,
+        organization_id: orgId,
+        ...(restoredAttachment ? { attachment_url: restoredAttachment } : {}),
+      });
     }
   }
 

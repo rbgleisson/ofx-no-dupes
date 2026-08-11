@@ -116,6 +116,51 @@ export type Database = {
           },
         ]
       }
+      attachment_links: {
+        Row: {
+          account_id: string | null
+          attachment_url: string
+          created_at: string
+          fit_id: string
+          id: string
+          organization_id: string
+          updated_at: string
+        }
+        Insert: {
+          account_id?: string | null
+          attachment_url: string
+          created_at?: string
+          fit_id: string
+          id?: string
+          organization_id: string
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string | null
+          attachment_url?: string
+          created_at?: string
+          fit_id?: string
+          id?: string
+          organization_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attachment_links_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attachment_links_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       authorized_emails: {
         Row: {
           created_at: string
