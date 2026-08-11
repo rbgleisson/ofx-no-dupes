@@ -181,22 +181,28 @@ export async function addTransactionsBulk(txs: Omit<Transaction, 'id' | 'created
 export async function updateTransaction(id: string, updates: Partial<Transaction>): Promise<void> {
   const { error } = await supabase.from('transactions').update(updates).eq('id', id);
   if (error) throw error;
-  if ('attachment_url' in updates) {
-    await syncAttachmentLink(id, updates.attachment_url ?? null);
+  if ('attachment_url' in updates || 'category_id' in updates || 'chart_account_id' in updates) {
+    await syncAttachmentLink(id);
   }
 }
 
 /**
- * Keeps a permanent FITID -> attachment link so a future re-import can restore
- * the document even if the transaction row was deleted in between.
+ * Keeps a permanent FITID -> (anexo, categoria, conta contábil) link so a future
+ * re-import can restore everything even if the transaction row was deleted.
  */
-export async function syncAttachmentLink(transactionId: string, url: string | null): Promise<void> {
+export async function syncAttachmentLink(transactionId: string, _url?: string | null): Promise<void> {
   const { data } = await supabase
     .from('transactions')
-    .select('fit_id, account_id, organization_id')
+    .select('fit_id, account_id, organization_id, attachment_url, category_id, chart_account_id')
     .eq('id', transactionId)
     .maybeSingle();
   if (!data?.fit_id || !data.organization_id) return;
+
+  const values = {
+    attachment_url: data.attachment_url ?? null,
+    category_id: data.category_id ?? null,
+    chart_account_id: data.chart_account_id ?? null,
+  };
 
   const base = () => {
     let q = supabase
@@ -208,20 +214,21 @@ export async function syncAttachmentLink(transactionId: string, url: string | nu
   };
 
   const { data: existing } = await base().maybeSingle();
+  const hasValue = values.attachment_url || values.category_id || values.chart_account_id;
 
-  if (url) {
-    if (existing) {
-      await supabase.from('attachment_links').update({ attachment_url: url }).eq('id', existing.id);
+  if (existing) {
+    if (hasValue) {
+      await supabase.from('attachment_links').update(values).eq('id', existing.id);
     } else {
-      await supabase.from('attachment_links').insert({
-        organization_id: data.organization_id,
-        account_id: data.account_id,
-        fit_id: data.fit_id,
-        attachment_url: url,
-      });
+      await supabase.from('attachment_links').delete().eq('id', existing.id);
     }
-  } else if (existing) {
-    await supabase.from('attachment_links').delete().eq('id', existing.id);
+  } else if (hasValue) {
+    await supabase.from('attachment_links').insert({
+      organization_id: data.organization_id,
+      account_id: data.account_id,
+      fit_id: data.fit_id,
+      ...values,
+    });
   }
 }
 
