@@ -277,12 +277,12 @@ export async function upsertTransactionsByFitId(rows: UpsertRow[]): Promise<Upse
 
   // Map existing fit_id -> candidates for this organization
   const existingMap = new Map<string, { id: string; account_id: string | null }[]>();
-  const existingById = new Map<string, { category_id: string | null; chart_account_id: string | null }>();
+  const existingById = new Map<string, { category_id: string | null; chart_account_id: string | null; attachment_url: string | null }>();
   const pageSize = 1000;
   for (let from = 0; from < 100000; from += pageSize) {
     const { data, error } = await supabase
       .from('transactions')
-      .select('id, fit_id, account_id, category_id, chart_account_id')
+      .select('id, fit_id, account_id, category_id, chart_account_id, attachment_url')
       .eq('organization_id', orgId)
       .range(from, from + pageSize - 1);
     if (error) throw error;
@@ -293,7 +293,7 @@ export async function upsertTransactionsByFitId(rows: UpsertRow[]): Promise<Upse
         list.push({ id: t.id, account_id: t.account_id });
         existingMap.set(t.fit_id, list);
       }
-      existingById.set(t.id, { category_id: t.category_id, chart_account_id: t.chart_account_id });
+      existingById.set(t.id, { category_id: t.category_id, chart_account_id: t.chart_account_id, attachment_url: t.attachment_url });
     });
     if (page.length < pageSize) break;
   }
