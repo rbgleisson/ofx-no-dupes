@@ -205,14 +205,32 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
       const { inserted, updated } = await upsertTransactionsByFitId(toUpsert);
 
       setExcelReviewOpen(false);
+      setImportExisting(null);
       await fetchCategories();
-      await loadTransactions();
+      const firstRow = rows[0];
+      const sameAccount = firstRow?.account_id && rows.every(row => row.account_id === firstRow.account_id);
+      const sameMonth = firstRow && rows.every(row => row.date.slice(0, 7) === firstRow.date.slice(0, 7));
+      if (firstRow && sameMonth) {
+        const [year, month] = firstRow.date.split('-').map(Number);
+        setFilters(current => ({
+          ...current,
+          day: undefined,
+          year,
+          month,
+          account_id: sameAccount ? firstRow.account_id || undefined : current.account_id,
+        }));
+      } else {
+        await loadTransactions();
+      }
       setNotification({
         type: 'success',
-        message: `${inserted} transações importadas${updated > 0 ? ` e ${updated} atualizadas (anexos preservados)` : ''}.`,
+        message: `${inserted} transações importadas${updated > 0 ? ` e ${updated} atualizadas (anexos, categorias e contas contábeis preservados)` : ''}.`,
       });
-    } catch {
-      setNotification({ type: 'warning', message: 'Erro ao importar transações.' });
+    } catch (error) {
+      console.error('Error confirming transaction import:', error);
+      const message = error instanceof Error ? error.message : '';
+      setNotification({ type: 'warning', message: `Erro ao importar transações${message ? `: ${message}` : '.'}` });
+      throw error;
     }
   };
 

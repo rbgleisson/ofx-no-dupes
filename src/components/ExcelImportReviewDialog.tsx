@@ -45,7 +45,7 @@ interface Props {
   accounts: Account[];
   chartAccounts: ChartAccount[];
   existingTransactions: Transaction[];
-  onConfirm: (rows: ExcelRow[]) => void;
+  onConfirm: (rows: ExcelRow[]) => Promise<void>;
 }
 
 interface DuplicateMatch {
@@ -119,6 +119,7 @@ const ExcelImportReviewDialog = ({ open, onOpenChange, rows: initialRows, catego
   const [openCatPopover, setOpenCatPopover] = useState<number | null>(null);
   const [openChartPopover, setOpenChartPopover] = useState<number | null>(null);
   const [hideDuplicates, setHideDuplicates] = useState(false);
+  const [isConfirming, setIsConfirming] = useState(false);
 
   // Sync when dialog opens with new data
   const [prevRows, setPrevRows] = useState(initialRows);
@@ -255,9 +256,15 @@ const ExcelImportReviewDialog = ({ open, onOpenChange, rows: initialRows, catego
 
   const selectedCount = selected.size;
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
+    if (isConfirming) return;
     const selectedRows = rows.filter((_, i) => selected.has(i));
-    onConfirm(selectedRows);
+    setIsConfirming(true);
+    try {
+      await onConfirm(selectedRows);
+    } finally {
+      setIsConfirming(false);
+    }
   };
 
   const visibleRows = rows.map((row, i) => ({ row, i })).filter(({ i }) => !hideDuplicates || !duplicateMatches[i].isDuplicate);
@@ -610,9 +617,10 @@ const ExcelImportReviewDialog = ({ open, onOpenChange, rows: initialRows, catego
               <span>Mostrando {visibleRows.length} de {rows.length} • {duplicateCount} duplicatas ocultas</span>
             )}
           </div>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-          <Button onClick={handleConfirm} disabled={selectedCount === 0} className="bg-emerald-600 hover:bg-emerald-700 text-white">
-            Confirmar Importação ({selectedCount})
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isConfirming}>Cancelar</Button>
+          <Button onClick={handleConfirm} disabled={selectedCount === 0 || isConfirming} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+            {isConfirming ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : null}
+            {isConfirming ? `Importando ${selectedCount} lançamentos...` : `Confirmar Importação (${selectedCount})`}
           </Button>
         </DialogFooter>
       </DialogContent>
