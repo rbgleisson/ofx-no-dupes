@@ -270,6 +270,15 @@ export interface UpsertResult {
   updated: number;
 }
 
+/** Extracts the economic portion of our legacy composite OFX id safely.
+ * Raw bank FITIDs may themselves contain underscores, so splitting at the
+ * first underscore corrupts the key. The date/amount boundary is stable.
+ */
+function getStableFitId(fitId: string): string {
+  const boundary = fitId.match(/_\d{4}-\d{2}-\d{2}_-?\d+(?:\.\d+)?_/);
+  return boundary?.index === undefined ? fitId : fitId.slice(boundary.index + 1);
+}
+
 /**
  * Imports transactions without ever deleting existing rows.
  * A row whose fit_id already exists (or that points at an explicit _update_id)
@@ -341,7 +350,7 @@ export async function upsertTransactionsByFitId(rows: UpsertRow[]): Promise<Upse
         };
         linkMap.set(`${l.fit_id}|${l.account_id ?? ''}`, value);
         addCandidate(linkByFit, l.fit_id, value);
-        const stableFit = l.fit_id.includes('_') ? l.fit_id.slice(l.fit_id.indexOf('_') + 1) : l.fit_id;
+        const stableFit = getStableFitId(l.fit_id);
         const stableKey = `${stableFit}|${l.account_id ?? ''}`;
         addCandidate(linkByStableFit, stableKey, value);
       });
@@ -350,7 +359,7 @@ export async function upsertTransactionsByFitId(rows: UpsertRow[]): Promise<Upse
   }
   const findLink = (fitId?: string | null, accountId?: string | null): SavedLink | undefined => {
     if (!fitId) return undefined;
-    const stableFit = fitId.includes('_') ? fitId.slice(fitId.indexOf('_') + 1) : fitId;
+    const stableFit = getStableFitId(fitId);
     const exactAccount = linkMap.get(`${fitId}|${accountId ?? ''}`);
     if (exactAccount) return exactAccount;
 
@@ -369,6 +378,7 @@ export async function upsertTransactionsByFitId(rows: UpsertRow[]): Promise<Upse
 
   const toInsert: any[] = [];
   const toUpdate: { id: string; values: any }[] = [];
+  const importedTransactionIds: string[] = [];
 
   for (const row of rows) {
     const { _update_id, ...rest } = row;
@@ -410,13 +420,25 @@ export async function upsertTransactionsByFitId(rows: UpsertRow[]): Promise<Upse
 
   const batchSize = 100;
   for (let i = 0; i < toInsert.length; i += batchSize) {
-    const { error } = await supabase.from('transactions').insert(toInsert.slice(i, i + batchSize));
+    const { data, error } = await supabase
+      .from('transactions')
+      .insert(toInsert.slice(i, i + batchSize))
+      .select('id');
     if (error) throw error;
+    importedTransactionIds.push(...(data || []).map(transaction => transaction.id));
   }
 
   for (const u of toUpdate) {
     const { error } = await supabase.from('transactions').update(u.values).eq('id', u.id);
     if (error) throw error;
+    importedTransactionIds.push(u.id);
+  }
+
+  // Every imported category, chart account, and restored attachment must be
+  // protected immediately, not only after a later manual edit.
+  const syncBatchSize = 20;
+  for (let i = 0; i < importedTransactionIds.length; i += syncBatchSize) {
+    await Promise.all(importedTransactionIds.slice(i, i + syncBatchSize).map(id => syncAttachmentLink(id)));
   }
 
   return { inserted: toInsert.length, updated: toUpdate.length };
