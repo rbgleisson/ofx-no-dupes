@@ -59,7 +59,13 @@ function normalize(s: string): string {
   return (s || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
 }
 
-function findDuplicate(row: ExcelRow, existing: Transaction[]): DuplicateMatch {
+function findDuplicate(row: ExcelRow, allExisting: Transaction[]): DuplicateMatch {
+  // Only compare against transactions of the SAME account — lançamentos de outras
+  // contas com mesma data/valor não são duplicatas.
+  const existing = row.account_id
+    ? allExisting.filter(t => t.account_id === row.account_id)
+    : allExisting;
+
   // 1. Exact: same date + same amount + same description normalized
   const rowDescNorm = normalize(row.description);
   for (const t of existing) {

@@ -233,31 +233,47 @@ export async function upsertTransactionsByFitId(rows: UpsertRow[]): Promise<Upse
   const userId = await getUserId();
   const orgId = await getOrgId();
 
-  // Map existing fit_id -> id for this organization
-  const existingMap = new Map<string, string>();
+  // Map existing fit_id -> candidates for this organization
+  const existingMap = new Map<string, { id: string; account_id: string | null }[]>();
   const existingById = new Map<string, { category_id: string | null; chart_account_id: string | null }>();
   const pageSize = 1000;
   for (let from = 0; from < 100000; from += pageSize) {
     const { data, error } = await supabase
       .from('transactions')
-      .select('id, fit_id, category_id, chart_account_id')
+      .select('id, fit_id, account_id, category_id, chart_account_id')
       .eq('organization_id', orgId)
       .range(from, from + pageSize - 1);
     if (error) throw error;
     const page = data || [];
     page.forEach(t => {
-      if (t.fit_id) existingMap.set(t.fit_id, t.id);
+      if (t.fit_id) {
+        const list = existingMap.get(t.fit_id) || [];
+        list.push({ id: t.id, account_id: t.account_id });
+        existingMap.set(t.fit_id, list);
+      }
       existingById.set(t.id, { category_id: t.category_id, chart_account_id: t.chart_account_id });
     });
     if (page.length < pageSize) break;
   }
+
+  const findExisting = (fitId?: string | null, accountId?: string | null): string | undefined => {
+    if (!fitId) return undefined;
+    const list = existingMap.get(fitId);
+    if (!list || list.length === 0) return undefined;
+    if (accountId) {
+      // Only reuse a row from the SAME account; otherwise insert a new one
+      return list.find(c => c.account_id === accountId)?.id;
+    }
+    return list[0].id;
+  };
 
   const toInsert: any[] = [];
   const toUpdate: { id: string; values: any }[] = [];
 
   for (const row of rows) {
     const { _update_id, ...rest } = row;
-    const targetId = _update_id || (rest.fit_id ? existingMap.get(rest.fit_id) : undefined);
+    const targetId = _update_id || findExisting(rest.fit_id, rest.account_id ?? null);
+
     if (targetId) {
       // attachment_url intentionally omitted — never overwritten by an import
       // categoria e conta contábil já preenchidas são preservadas
