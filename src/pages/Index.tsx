@@ -317,7 +317,7 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
         }
       }
 
-      // Filter out fit_id duplicates first — fetch ALL fit_ids for the org
+      // Fetch existing fit_ids for THIS account only (duplicatas de outras contas não contam)
       const { data: orgIdData } = await supabase.rpc('get_user_org_id', { _user_id: user.id });
       let allFitIds: string[] = [];
       let from = 0;
@@ -325,6 +325,7 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
       while (true) {
         let q = supabase.from('transactions').select('fit_id').range(from, from + PAGE - 1);
         if (orgIdData) q = q.eq('organization_id', orgIdData);
+        if (accountId) q = q.eq('account_id', accountId);
         const { data: page } = await q;
         if (!page || page.length === 0) break;
         allFitIds = allFitIds.concat(page.map(t => t.fit_id).filter(Boolean) as string[]);
@@ -332,6 +333,7 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
         from += PAGE;
       }
       const existingFitIds = new Set(allFitIds);
+
 
       // Deduplicate only within the same file (identical composite key repeated)
       const seenIds = new Set<string>();
