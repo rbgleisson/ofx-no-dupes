@@ -191,18 +191,13 @@ export async function updateTransaction(id: string, updates: Partial<Transaction
  * re-import can restore everything even if the transaction row was deleted.
  */
 export async function syncAttachmentLink(transactionId: string, _url?: string | null): Promise<void> {
-  const { data } = await supabase
+  const { data, error: transactionError } = await supabase
     .from('transactions')
     .select('fit_id, account_id, organization_id, attachment_url, category_id, chart_account_id')
     .eq('id', transactionId)
     .maybeSingle();
+  if (transactionError) throw transactionError;
   if (!data?.fit_id || !data.organization_id) return;
-
-  const values = {
-    attachment_url: data.attachment_url ?? null,
-    category_id: data.category_id ?? null,
-    chart_account_id: data.chart_account_id ?? null,
-  };
 
   const base = () => {
     let q = supabase
@@ -213,22 +208,30 @@ export async function syncAttachmentLink(transactionId: string, _url?: string | 
     return data.account_id ? q.eq('account_id', data.account_id) : q.is('account_id', null);
   };
 
-  const { data: existing } = await base().maybeSingle();
-  const hasValue = values.attachment_url || values.category_id || values.chart_account_id;
+  const { data: existing, error: linkReadError } = await base().maybeSingle();
+  if (linkReadError) throw linkReadError;
+  const values = {
+    ...(data.attachment_url ? { attachment_url: data.attachment_url } : {}),
+    ...(data.category_id ? { category_id: data.category_id } : {}),
+    ...(data.chart_account_id ? { chart_account_id: data.chart_account_id } : {}),
+  };
+  const hasValue = Object.keys(values).length > 0;
 
   if (existing) {
     if (hasValue) {
-      await supabase.from('attachment_links').update(values).eq('id', existing.id);
-    } else {
-      await supabase.from('attachment_links').delete().eq('id', existing.id);
+      // Never erase a previously saved value when one field is cleared in the
+      // current row. The link is historical recovery data, not a live mirror.
+      const { error } = await supabase.from('attachment_links').update(values).eq('id', existing.id);
+      if (error) throw error;
     }
   } else if (hasValue) {
-    await supabase.from('attachment_links').insert({
+    const { error } = await supabase.from('attachment_links').insert({
       organization_id: data.organization_id,
       account_id: data.account_id,
       fit_id: data.fit_id,
       ...values,
     });
+    if (error) throw error;
   }
 }
 
@@ -271,6 +274,15 @@ export interface UpsertResult {
   updated: number;
 }
 
+/** Extracts the economic portion of our legacy composite OFX id safely.
+ * Raw bank FITIDs may themselves contain underscores, so splitting at the
+ * first underscore corrupts the key. The date/amount boundary is stable.
+ */
+function getStableFitId(fitId: string): string {
+  const boundary = fitId.match(/_\d{4}-\d{2}-\d{2}_-?\d+(?:\.\d+)?_/);
+  return boundary?.index === undefined ? fitId : fitId.slice(boundary.index + 1);
+}
+
 /**
  * Imports transactions without ever deleting existing rows.
  * A row whose fit_id already exists (or that points at an explicit _update_id)
@@ -311,16 +323,20 @@ export async function upsertTransactionsByFitId(rows: UpsertRow[]): Promise<Upse
     if (!list || list.length === 0) return undefined;
     if (accountId) {
       // Only reuse a row from the SAME account; otherwise insert a new one
-      return list.find(c => c.account_id === accountId)?.id;
+      const sameAccount = list.filter(c => c.account_id === accountId);
+      return sameAccount.length === 1 ? sameAccount[0].id : undefined;
     }
-    return list[0].id;
+    return list.length === 1 ? list[0].id : undefined;
   };
 
   // FITID -> anexo/categoria/conta contábil salvos (sobrevive à exclusão do lançamento)
   type SavedLink = { attachment_url: string | null; category_id: string | null; chart_account_id: string | null };
   const linkMap = new Map<string, SavedLink>();
-  const linkByFit = new Map<string, SavedLink>();
-  const linkByStableFit = new Map<string, SavedLink>();
+  const linkByFit = new Map<string, SavedLink[]>();
+  const linkByStableFit = new Map<string, SavedLink[]>();
+  const addCandidate = (map: Map<string, SavedLink[]>, key: string, value: SavedLink) => {
+    map.set(key, [...(map.get(key) || []), value]);
+  };
   {
     const pageSize = 1000;
     for (let from = 0; from < 100000; from += pageSize) {
@@ -338,24 +354,36 @@ export async function upsertTransactionsByFitId(rows: UpsertRow[]): Promise<Upse
           chart_account_id: l.chart_account_id ?? null,
         };
         linkMap.set(`${l.fit_id}|${l.account_id ?? ''}`, value);
-        if (!linkByFit.has(l.fit_id)) linkByFit.set(l.fit_id, value);
-        const stableFit = l.fit_id.includes('_') ? l.fit_id.slice(l.fit_id.indexOf('_') + 1) : l.fit_id;
+        addCandidate(linkByFit, l.fit_id, value);
+        const stableFit = getStableFitId(l.fit_id);
         const stableKey = `${stableFit}|${l.account_id ?? ''}`;
-        if (!linkByStableFit.has(stableKey)) linkByStableFit.set(stableKey, value);
+        addCandidate(linkByStableFit, stableKey, value);
       });
       if (page.length < pageSize) break;
     }
   }
   const findLink = (fitId?: string | null, accountId?: string | null): SavedLink | undefined => {
     if (!fitId) return undefined;
-    const stableFit = fitId.includes('_') ? fitId.slice(fitId.indexOf('_') + 1) : fitId;
-    return linkMap.get(`${fitId}|${accountId ?? ''}`)
-      ?? linkByFit.get(fitId)
-      ?? linkByStableFit.get(`${stableFit}|${accountId ?? ''}`);
+    const stableFit = getStableFitId(fitId);
+    const exactAccount = linkMap.get(`${fitId}|${accountId ?? ''}`);
+    if (exactAccount) return exactAccount;
+
+    // Old links may not have an account_id. Accept account-less history first;
+    // otherwise only use a fallback when it has a single unambiguous candidate.
+    const accountlessExact = accountId ? linkMap.get(`${fitId}|`) : undefined;
+    if (accountlessExact) return accountlessExact;
+    const exactCandidates = linkByFit.get(fitId) || [];
+    if (exactCandidates.length === 1) return exactCandidates[0];
+
+    const stableAccountCandidates = linkByStableFit.get(`${stableFit}|${accountId ?? ''}`) || [];
+    if (stableAccountCandidates.length === 1) return stableAccountCandidates[0];
+    const stableAccountless = accountId ? linkByStableFit.get(`${stableFit}|`) || [] : [];
+    return stableAccountless.length === 1 ? stableAccountless[0] : undefined;
   };
 
   const toInsert: any[] = [];
   const toUpdate: { id: string; values: any }[] = [];
+  const importedTransactionIds: string[] = [];
 
   for (const row of rows) {
     const { _update_id, ...rest } = row;
@@ -397,13 +425,25 @@ export async function upsertTransactionsByFitId(rows: UpsertRow[]): Promise<Upse
 
   const batchSize = 100;
   for (let i = 0; i < toInsert.length; i += batchSize) {
-    const { error } = await supabase.from('transactions').insert(toInsert.slice(i, i + batchSize));
+    const { data, error } = await supabase
+      .from('transactions')
+      .insert(toInsert.slice(i, i + batchSize))
+      .select('id');
     if (error) throw error;
+    importedTransactionIds.push(...(data || []).map(transaction => transaction.id));
   }
 
   for (const u of toUpdate) {
     const { error } = await supabase.from('transactions').update(u.values).eq('id', u.id);
     if (error) throw error;
+    importedTransactionIds.push(u.id);
+  }
+
+  // Every imported category, chart account, and restored attachment must be
+  // protected immediately, not only after a later manual edit.
+  const syncBatchSize = 20;
+  for (let i = 0; i < importedTransactionIds.length; i += syncBatchSize) {
+    await Promise.all(importedTransactionIds.slice(i, i + syncBatchSize).map(id => syncAttachmentLink(id)));
   }
 
   return { inserted: toInsert.length, updated: toUpdate.length };
