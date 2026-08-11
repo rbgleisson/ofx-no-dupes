@@ -181,22 +181,28 @@ export async function addTransactionsBulk(txs: Omit<Transaction, 'id' | 'created
 export async function updateTransaction(id: string, updates: Partial<Transaction>): Promise<void> {
   const { error } = await supabase.from('transactions').update(updates).eq('id', id);
   if (error) throw error;
-  if ('attachment_url' in updates) {
-    await syncAttachmentLink(id, updates.attachment_url ?? null);
+  if ('attachment_url' in updates || 'category_id' in updates || 'chart_account_id' in updates) {
+    await syncAttachmentLink(id);
   }
 }
 
 /**
- * Keeps a permanent FITID -> attachment link so a future re-import can restore
- * the document even if the transaction row was deleted in between.
+ * Keeps a permanent FITID -> (anexo, categoria, conta contábil) link so a future
+ * re-import can restore everything even if the transaction row was deleted.
  */
-export async function syncAttachmentLink(transactionId: string, url: string | null): Promise<void> {
+export async function syncAttachmentLink(transactionId: string, _url?: string | null): Promise<void> {
   const { data } = await supabase
     .from('transactions')
-    .select('fit_id, account_id, organization_id')
+    .select('fit_id, account_id, organization_id, attachment_url, category_id, chart_account_id')
     .eq('id', transactionId)
     .maybeSingle();
   if (!data?.fit_id || !data.organization_id) return;
+
+  const values = {
+    attachment_url: data.attachment_url ?? null,
+    category_id: data.category_id ?? null,
+    chart_account_id: data.chart_account_id ?? null,
+  };
 
   const base = () => {
     let q = supabase
@@ -208,20 +214,21 @@ export async function syncAttachmentLink(transactionId: string, url: string | nu
   };
 
   const { data: existing } = await base().maybeSingle();
+  const hasValue = values.attachment_url || values.category_id || values.chart_account_id;
 
-  if (url) {
-    if (existing) {
-      await supabase.from('attachment_links').update({ attachment_url: url }).eq('id', existing.id);
+  if (existing) {
+    if (hasValue) {
+      await supabase.from('attachment_links').update(values).eq('id', existing.id);
     } else {
-      await supabase.from('attachment_links').insert({
-        organization_id: data.organization_id,
-        account_id: data.account_id,
-        fit_id: data.fit_id,
-        attachment_url: url,
-      });
+      await supabase.from('attachment_links').delete().eq('id', existing.id);
     }
-  } else if (existing) {
-    await supabase.from('attachment_links').delete().eq('id', existing.id);
+  } else if (hasValue) {
+    await supabase.from('attachment_links').insert({
+      organization_id: data.organization_id,
+      account_id: data.account_id,
+      fit_id: data.fit_id,
+      ...values,
+    });
   }
 }
 
@@ -309,20 +316,35 @@ export async function upsertTransactionsByFitId(rows: UpsertRow[]): Promise<Upse
     return list[0].id;
   };
 
-  // FITID -> anexo salvo anteriormente (sobrevive à exclusão do lançamento)
-  const linkMap = new Map<string, string>();
+  // FITID -> anexo/categoria/conta contábil salvos (sobrevive à exclusão do lançamento)
+  type SavedLink = { attachment_url: string | null; category_id: string | null; chart_account_id: string | null };
+  const linkMap = new Map<string, SavedLink>();
+  const linkByFit = new Map<string, SavedLink>();
   {
-    const { data: links } = await supabase
-      .from('attachment_links')
-      .select('fit_id, account_id, attachment_url')
-      .eq('organization_id', orgId);
-    (links || []).forEach(l => {
-      linkMap.set(`${l.fit_id}|${l.account_id ?? ''}`, l.attachment_url);
-    });
+    const pageSize = 1000;
+    for (let from = 0; from < 100000; from += pageSize) {
+      const { data: links, error } = await supabase
+        .from('attachment_links')
+        .select('fit_id, account_id, attachment_url, category_id, chart_account_id')
+        .eq('organization_id', orgId)
+        .range(from, from + pageSize - 1);
+      if (error) throw error;
+      const page = links || [];
+      page.forEach(l => {
+        const value: SavedLink = {
+          attachment_url: l.attachment_url ?? null,
+          category_id: l.category_id ?? null,
+          chart_account_id: l.chart_account_id ?? null,
+        };
+        linkMap.set(`${l.fit_id}|${l.account_id ?? ''}`, value);
+        if (!linkByFit.has(l.fit_id)) linkByFit.set(l.fit_id, value);
+      });
+      if (page.length < pageSize) break;
+    }
   }
-  const findLink = (fitId?: string | null, accountId?: string | null): string | undefined => {
+  const findLink = (fitId?: string | null, accountId?: string | null): SavedLink | undefined => {
     if (!fitId) return undefined;
-    return linkMap.get(`${fitId}|${accountId ?? ''}`) ?? linkMap.get(`${fitId}|`);
+    return linkMap.get(`${fitId}|${accountId ?? ''}`) ?? linkByFit.get(fitId);
   };
 
   const toInsert: any[] = [];
@@ -331,7 +353,7 @@ export async function upsertTransactionsByFitId(rows: UpsertRow[]): Promise<Upse
   for (const row of rows) {
     const { _update_id, ...rest } = row;
     const targetId = _update_id || findExisting(rest.fit_id, rest.account_id ?? null);
-    const restoredAttachment = findLink(rest.fit_id, rest.account_id ?? null);
+    const saved = findLink(rest.fit_id, rest.account_id ?? null);
 
     if (targetId) {
       // attachment_url intentionally omitted — never overwritten by an import
@@ -344,24 +366,27 @@ export async function upsertTransactionsByFitId(rows: UpsertRow[]): Promise<Upse
           amount: rest.amount,
           description: rest.description,
           memo: rest.memo ?? null,
-          category_id: rest.category_id ?? prev?.category_id ?? null,
+          category_id: prev?.category_id ?? saved?.category_id ?? rest.category_id ?? null,
           account_id: rest.account_id ?? null,
-          chart_account_id: rest.chart_account_id ?? prev?.chart_account_id ?? null,
+          chart_account_id: prev?.chart_account_id ?? saved?.chart_account_id ?? rest.chart_account_id ?? null,
           is_transfer: rest.is_transfer ?? false,
           ...(rest.type ? { type: rest.type } : {}),
-          ...(prev?.attachment_url || !restoredAttachment ? {} : { attachment_url: restoredAttachment }),
+          ...(prev?.attachment_url || !saved?.attachment_url ? {} : { attachment_url: saved.attachment_url }),
         },
       });
 
     } else {
       toInsert.push({
         ...rest,
+        category_id: saved?.category_id ?? rest.category_id ?? null,
+        chart_account_id: saved?.chart_account_id ?? rest.chart_account_id ?? null,
         user_id: userId,
         organization_id: orgId,
-        ...(restoredAttachment ? { attachment_url: restoredAttachment } : {}),
+        ...(saved?.attachment_url ? { attachment_url: saved.attachment_url } : {}),
       });
     }
   }
+
 
   const batchSize = 100;
   for (let i = 0; i < toInsert.length; i += batchSize) {
