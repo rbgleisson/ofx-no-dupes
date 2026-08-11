@@ -191,11 +191,12 @@ export async function updateTransaction(id: string, updates: Partial<Transaction
  * re-import can restore everything even if the transaction row was deleted.
  */
 export async function syncAttachmentLink(transactionId: string, _url?: string | null): Promise<void> {
-  const { data } = await supabase
+  const { data, error: transactionError } = await supabase
     .from('transactions')
     .select('fit_id, account_id, organization_id, attachment_url, category_id, chart_account_id')
     .eq('id', transactionId)
     .maybeSingle();
+  if (transactionError) throw transactionError;
   if (!data?.fit_id || !data.organization_id) return;
 
   const base = () => {
@@ -207,7 +208,8 @@ export async function syncAttachmentLink(transactionId: string, _url?: string | 
     return data.account_id ? q.eq('account_id', data.account_id) : q.is('account_id', null);
   };
 
-  const { data: existing } = await base().maybeSingle();
+  const { data: existing, error: linkReadError } = await base().maybeSingle();
+  if (linkReadError) throw linkReadError;
   const values = {
     ...(data.attachment_url ? { attachment_url: data.attachment_url } : {}),
     ...(data.category_id ? { category_id: data.category_id } : {}),
@@ -219,15 +221,17 @@ export async function syncAttachmentLink(transactionId: string, _url?: string | 
     if (hasValue) {
       // Never erase a previously saved value when one field is cleared in the
       // current row. The link is historical recovery data, not a live mirror.
-      await supabase.from('attachment_links').update(values).eq('id', existing.id);
+      const { error } = await supabase.from('attachment_links').update(values).eq('id', existing.id);
+      if (error) throw error;
     }
   } else if (hasValue) {
-    await supabase.from('attachment_links').insert({
+    const { error } = await supabase.from('attachment_links').insert({
       organization_id: data.organization_id,
       account_id: data.account_id,
       fit_id: data.fit_id,
       ...values,
     });
+    if (error) throw error;
   }
 }
 
@@ -319,9 +323,10 @@ export async function upsertTransactionsByFitId(rows: UpsertRow[]): Promise<Upse
     if (!list || list.length === 0) return undefined;
     if (accountId) {
       // Only reuse a row from the SAME account; otherwise insert a new one
-      return list.find(c => c.account_id === accountId)?.id;
+      const sameAccount = list.filter(c => c.account_id === accountId);
+      return sameAccount.length === 1 ? sameAccount[0].id : undefined;
     }
-    return list[0].id;
+    return list.length === 1 ? list[0].id : undefined;
   };
 
   // FITID -> anexo/categoria/conta contábil salvos (sobrevive à exclusão do lançamento)
