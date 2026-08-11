@@ -163,7 +163,7 @@ const ExcelImportReviewDialog = ({ open, onOpenChange, rows: initialRows, catego
     setSelected(sel);
   }
 
-  const duplicateMatches = rows.map(r => findDuplicate(r, existingTransactions));
+  const duplicateMatches = matchAll(rows, existingTransactions);
   const duplicateCount = duplicateMatches.filter(m => m.isDuplicate).length;
   const exactCount = duplicateMatches.filter(m => m.matchType === 'exact').length;
   const probableCount = duplicateMatches.filter(m => m.matchType === 'probable').length;
