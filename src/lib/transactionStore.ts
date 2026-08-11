@@ -198,12 +198,6 @@ export async function syncAttachmentLink(transactionId: string, _url?: string | 
     .maybeSingle();
   if (!data?.fit_id || !data.organization_id) return;
 
-  const values = {
-    attachment_url: data.attachment_url ?? null,
-    category_id: data.category_id ?? null,
-    chart_account_id: data.chart_account_id ?? null,
-  };
-
   const base = () => {
     let q = supabase
       .from('attachment_links')
@@ -214,13 +208,18 @@ export async function syncAttachmentLink(transactionId: string, _url?: string | 
   };
 
   const { data: existing } = await base().maybeSingle();
-  const hasValue = values.attachment_url || values.category_id || values.chart_account_id;
+  const values = {
+    ...(data.attachment_url ? { attachment_url: data.attachment_url } : {}),
+    ...(data.category_id ? { category_id: data.category_id } : {}),
+    ...(data.chart_account_id ? { chart_account_id: data.chart_account_id } : {}),
+  };
+  const hasValue = Object.keys(values).length > 0;
 
   if (existing) {
     if (hasValue) {
+      // Never erase a previously saved value when one field is cleared in the
+      // current row. The link is historical recovery data, not a live mirror.
       await supabase.from('attachment_links').update(values).eq('id', existing.id);
-    } else {
-      await supabase.from('attachment_links').delete().eq('id', existing.id);
     }
   } else if (hasValue) {
     await supabase.from('attachment_links').insert({
@@ -319,8 +318,11 @@ export async function upsertTransactionsByFitId(rows: UpsertRow[]): Promise<Upse
   // FITID -> anexo/categoria/conta contábil salvos (sobrevive à exclusão do lançamento)
   type SavedLink = { attachment_url: string | null; category_id: string | null; chart_account_id: string | null };
   const linkMap = new Map<string, SavedLink>();
-  const linkByFit = new Map<string, SavedLink>();
-  const linkByStableFit = new Map<string, SavedLink>();
+  const linkByFit = new Map<string, SavedLink[]>();
+  const linkByStableFit = new Map<string, SavedLink[]>();
+  const addCandidate = (map: Map<string, SavedLink[]>, key: string, value: SavedLink) => {
+    map.set(key, [...(map.get(key) || []), value]);
+  };
   {
     const pageSize = 1000;
     for (let from = 0; from < 100000; from += pageSize) {
@@ -338,10 +340,10 @@ export async function upsertTransactionsByFitId(rows: UpsertRow[]): Promise<Upse
           chart_account_id: l.chart_account_id ?? null,
         };
         linkMap.set(`${l.fit_id}|${l.account_id ?? ''}`, value);
-        if (!linkByFit.has(l.fit_id)) linkByFit.set(l.fit_id, value);
+        addCandidate(linkByFit, l.fit_id, value);
         const stableFit = l.fit_id.includes('_') ? l.fit_id.slice(l.fit_id.indexOf('_') + 1) : l.fit_id;
         const stableKey = `${stableFit}|${l.account_id ?? ''}`;
-        if (!linkByStableFit.has(stableKey)) linkByStableFit.set(stableKey, value);
+        addCandidate(linkByStableFit, stableKey, value);
       });
       if (page.length < pageSize) break;
     }
@@ -349,9 +351,20 @@ export async function upsertTransactionsByFitId(rows: UpsertRow[]): Promise<Upse
   const findLink = (fitId?: string | null, accountId?: string | null): SavedLink | undefined => {
     if (!fitId) return undefined;
     const stableFit = fitId.includes('_') ? fitId.slice(fitId.indexOf('_') + 1) : fitId;
-    return linkMap.get(`${fitId}|${accountId ?? ''}`)
-      ?? linkByFit.get(fitId)
-      ?? linkByStableFit.get(`${stableFit}|${accountId ?? ''}`);
+    const exactAccount = linkMap.get(`${fitId}|${accountId ?? ''}`);
+    if (exactAccount) return exactAccount;
+
+    // Old links may not have an account_id. Accept account-less history first;
+    // otherwise only use a fallback when it has a single unambiguous candidate.
+    const accountlessExact = accountId ? linkMap.get(`${fitId}|`) : undefined;
+    if (accountlessExact) return accountlessExact;
+    const exactCandidates = linkByFit.get(fitId) || [];
+    if (exactCandidates.length === 1) return exactCandidates[0];
+
+    const stableAccountCandidates = linkByStableFit.get(`${stableFit}|${accountId ?? ''}`) || [];
+    if (stableAccountCandidates.length === 1) return stableAccountCandidates[0];
+    const stableAccountless = accountId ? linkByStableFit.get(`${stableFit}|`) || [] : [];
+    return stableAccountless.length === 1 ? stableAccountless[0] : undefined;
   };
 
   const toInsert: any[] = [];
