@@ -352,16 +352,18 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
       const existingFitIds = new Set(allFitIds);
 
 
-      // Some banks change FITID while repeating the exact same posting in one
-      // file. Use the stable posting fields as the in-file identity so those
-      // rows are not imported twice.
+      // Only drop rows that repeat the very same FITID inside the file.
+      // Bancos lançam com frequência dois pagamentos idênticos no mesmo dia
+      // (mesmo valor/descrição), e esses lançamentos são reais — não podem
+      // ser descartados, senão o saldo do extrato fica errado.
       const seenIds = new Set<string>();
       const batchUnique = data.transactions.filter(t => {
-        const stableId = `${t.date}|${t.amount}|${t.description.trim().toLowerCase()}|${(t.memo || '').trim().toLowerCase()}`;
-        if (seenIds.has(stableId)) return false;
-        seenIds.add(stableId);
+        const id = String(t.id);
+        if (seenIds.has(id)) return false;
+        seenIds.add(id);
         return true;
       });
+
 
       // Rows already in the DB (exact same composite fit_id) are flagged, not discarded
       const alreadyInDb = batchUnique.filter(t => existingFitIds.has(t.id)).length;
