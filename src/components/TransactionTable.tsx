@@ -254,7 +254,7 @@ const TransactionTable = ({ transactions, categories, accounts, chartAccounts, o
     let withAttachments = 0;
     try { withAttachments = await countAttachments(ids); } catch {}
     if (withAttachments > 0) {
-      if (!confirm(`⚠️ ${withAttachments} de ${ids.length} lançamento(s) selecionados possuem ANEXO vinculado.\n\nAo excluir, o vínculo com o anexo é perdido permanentemente. Se o objetivo é acertar o saldo, prefira editar o lançamento ou reimportar o OFX (os existentes são atualizados e os anexos preservados).\n\nConfirma mesmo assim a exclusão?`)) return;
+      if (!confirm(`⚠️ ${withAttachments} de ${ids.length} lançamento(s) selecionados possuem ANEXO vinculado.\n\nO anexo fica guardado pelo FITID: ao reimportar o OFX, ele volta automaticamente para o lançamento.\n\nConfirma mesmo assim a exclusão?`)) return;
     }
     if (!confirm(`Tem certeza que deseja excluir ${ids.length} lançamento(s)?`)) return;
     for (const id of selectedIds) {
@@ -365,7 +365,7 @@ const TransactionTable = ({ transactions, categories, accounts, chartAccounts, o
 
   const handleDelete = async (txId: string) => {
     const tx = transactions.find(t => t.id === txId);
-    if (tx?.attachment_url && !confirm('⚠️ Este lançamento possui ANEXO vinculado. Ao excluir, o vínculo será perdido. Deseja continuar?')) return;
+    if (tx?.attachment_url && !confirm('Este lançamento possui ANEXO vinculado. O anexo fica guardado pelo FITID e volta automaticamente na reimportação do OFX. Deseja excluir?')) return;
     if (!confirm('Tem certeza que deseja excluir este lançamento?')) return;
     await deleteTransaction(txId);
     onTransactionsChange();
