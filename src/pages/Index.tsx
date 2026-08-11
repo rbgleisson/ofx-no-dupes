@@ -411,21 +411,23 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
   };
 
   const handleClear = async () => {
-    if (!confirm('⚠️ ATENÇÃO: Isso vai remover TODOS os lançamentos permanentemente. Deseja continuar?')) return;
     let withAttachments = 0;
     try { withAttachments = await countAllAttachments(); } catch {}
-    if (withAttachments > 0 && !confirm(`⚠️ ${withAttachments} lançamento(s) possuem ANEXO vinculado. Ao excluir, o vínculo do anexo será perdido. Em vez de apagar tudo, você pode reimportar o OFX — lançamentos existentes são atualizados e os anexos preservados.\n\nDeseja mesmo continuar?`)) {
-      setNotification({ type: 'warning', message: 'Operação cancelada.' });
-      return;
-    }
+    const protectionMessage = withAttachments > 0
+      ? `\n\n${withAttachments} lançamento(s) com anexo serão PROTEGIDOS e permanecerão no sistema. Ao reimportar os OFXs, eles serão atualizados sem perder o anexo.`
+      : '';
+    if (!confirm(`⚠️ ATENÇÃO: Isso vai remover permanentemente os lançamentos sem anexo.${protectionMessage}\n\nDeseja continuar?`)) return;
     const typed = prompt('Para confirmar, digite a palavra "APAGAR" abaixo:');
     if (typed?.trim().toUpperCase() !== 'APAGAR') {
       setNotification({ type: 'warning', message: 'Operação cancelada. A palavra digitada não confere.' });
       return;
     }
-    await clearTransactions();
-    setTransactions([]);
-    setNotification({ type: 'success', message: 'Todos os lançamentos foram removidos.' });
+    const removed = await clearTransactions();
+    await loadTransactions();
+    setNotification({
+      type: 'success',
+      message: `${removed} lançamento(s) sem anexo removido(s). ${withAttachments} lançamento(s) com anexo preservado(s) para conciliação na reimportação.`,
+    });
   };
 
   const handleSaveTransaction = async (data: {

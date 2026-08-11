@@ -188,9 +188,17 @@ export async function deleteTransaction(id: string): Promise<void> {
   if (error) throw error;
 }
 
-export async function clearTransactions(): Promise<void> {
-  const { error } = await supabase.from('transactions').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+export async function clearTransactions(): Promise<number> {
+  // Transactions with attachments are intentionally retained. A later OFX
+  // import updates these rows by FITID, preserving both their internal id and
+  // attachment_url instead of orphaning the stored document.
+  const { data, error } = await supabase
+    .from('transactions')
+    .delete()
+    .is('attachment_url', null)
+    .select('id');
   if (error) throw error;
+  return data?.length ?? 0;
 }
 
 /** Fields that a re-import may legitimately refresh on an existing transaction. */
