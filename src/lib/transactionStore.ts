@@ -181,6 +181,42 @@ export async function addTransactionsBulk(txs: Omit<Transaction, 'id' | 'created
 export async function updateTransaction(id: string, updates: Partial<Transaction>): Promise<void> {
   const { error } = await supabase.from('transactions').update(updates).eq('id', id);
   if (error) throw error;
+  if ('attachment_url' in updates) {
+    await syncAttachmentLink(id, updates.attachment_url ?? null);
+  }
+}
+
+/**
+ * Keeps a permanent FITID -> attachment link so a future re-import can restore
+ * the document even if the transaction row was deleted in between.
+ */
+export async function syncAttachmentLink(transactionId: string, url: string | null): Promise<void> {
+  const { data } = await supabase
+    .from('transactions')
+    .select('fit_id, account_id, organization_id')
+    .eq('id', transactionId)
+    .maybeSingle();
+  if (!data?.fit_id || !data.organization_id) return;
+
+  if (url) {
+    await supabase.from('attachment_links').upsert(
+      {
+        organization_id: data.organization_id,
+        account_id: data.account_id,
+        fit_id: data.fit_id,
+        attachment_url: url,
+      },
+      { onConflict: 'organization_id,fit_id,account_id' }
+    );
+  } else {
+    let q = supabase
+      .from('attachment_links')
+      .delete()
+      .eq('organization_id', data.organization_id)
+      .eq('fit_id', data.fit_id);
+    q = data.account_id ? q.eq('account_id', data.account_id) : q.is('account_id', null);
+    await q;
+  }
 }
 
 export async function deleteTransaction(id: string): Promise<void> {
