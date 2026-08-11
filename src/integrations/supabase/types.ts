@@ -119,7 +119,9 @@ export type Database = {
       attachment_links: {
         Row: {
           account_id: string | null
-          attachment_url: string
+          attachment_url: string | null
+          category_id: string | null
+          chart_account_id: string | null
           created_at: string
           fit_id: string
           id: string
@@ -128,7 +130,9 @@ export type Database = {
         }
         Insert: {
           account_id?: string | null
-          attachment_url: string
+          attachment_url?: string | null
+          category_id?: string | null
+          chart_account_id?: string | null
           created_at?: string
           fit_id: string
           id?: string
@@ -137,7 +141,9 @@ export type Database = {
         }
         Update: {
           account_id?: string | null
-          attachment_url?: string
+          attachment_url?: string | null
+          category_id?: string | null
+          chart_account_id?: string | null
           created_at?: string
           fit_id?: string
           id?: string
@@ -150,6 +156,20 @@ export type Database = {
             columns: ["account_id"]
             isOneToOne: false
             referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attachment_links_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attachment_links_chart_account_id_fkey"
+            columns: ["chart_account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_accounts"
             referencedColumns: ["id"]
           },
           {
