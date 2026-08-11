@@ -59,16 +59,27 @@ function normalize(s: string): string {
   return (s || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
 }
 
-function findDuplicate(row: ExcelRow, allExisting: Transaction[]): DuplicateMatch {
+function findDuplicate(row: ExcelRow, allExisting: Transaction[], used?: Set<string>): DuplicateMatch {
   // Only compare against transactions of the SAME account — lançamentos de outras
   // contas com mesma data/valor não são duplicatas.
-  const existing = row.account_id
-    ? allExisting.filter(t => t.account_id === row.account_id)
-    : allExisting;
+  const available = (allExisting || []).filter(t => {
+    if (row.account_id && t.account_id !== row.account_id) return false;
+    if (used && used.has(t.id)) return false;
+    return true;
+  });
+
+  // 0. FITID igual: é com certeza o mesmo lançamento do banco
+  const rowFitId = (row as any)._fit_id as string | undefined;
+  if (rowFitId) {
+    const byFit = available.find(t => (t as any).fit_id === rowFitId);
+    if (byFit) {
+      return { isDuplicate: true, matchedTransaction: byFit, matchType: 'exact', matchReason: 'Mesmo identificador do banco (FITID)' };
+    }
+  }
 
   // 1. Exact: same date + same amount + same description normalized
   const rowDescNorm = normalize(row.description);
-  for (const t of existing) {
+  for (const t of available) {
     if (
       t.date === row.date &&
       Math.abs(t.amount - row.amount) < 0.01 &&
@@ -79,7 +90,7 @@ function findDuplicate(row: ExcelRow, allExisting: Transaction[]): DuplicateMatc
   }
 
   // 2. Probable: same date + same amount (different description)
-  for (const t of existing) {
+  for (const t of available) {
     if (
       t.date === row.date &&
       Math.abs(t.amount - row.amount) < 0.01
@@ -90,7 +101,7 @@ function findDuplicate(row: ExcelRow, allExisting: Transaction[]): DuplicateMatc
 
   // 3. Possible: ±1 day + same amount
   const rowDate = new Date(row.date + 'T12:00:00Z');
-  for (const t of existing) {
+  for (const t of available) {
     const tDate = new Date(t.date + 'T12:00:00Z');
     const diffDays = Math.abs(rowDate.getTime() - tDate.getTime()) / (1000 * 60 * 60 * 24);
     if (diffDays <= 1 && diffDays > 0 && Math.abs(t.amount - row.amount) < 0.01) {
@@ -100,6 +111,22 @@ function findDuplicate(row: ExcelRow, allExisting: Transaction[]): DuplicateMatc
 
   return { isDuplicate: false };
 }
+
+/**
+ * Casamento 1-para-1: cada lançamento já existente só pode ser apontado como
+ * duplicata de UMA linha do arquivo. Assim, quando o banco lança dois
+ * pagamentos idênticos no mesmo dia, o segundo entra como novo em vez de
+ * sumir do extrato.
+ */
+function matchAll(rows: ExcelRow[], existing: Transaction[]): DuplicateMatch[] {
+  const used = new Set<string>();
+  return rows.map(r => {
+    const m = findDuplicate(r, existing, used);
+    if (m.matchedTransaction) used.add(m.matchedTransaction.id);
+    return m;
+  });
+}
+
 
 const matchTypeColors: Record<string, string> = {
   exact: 'bg-red-100 text-red-800 border-red-200',
