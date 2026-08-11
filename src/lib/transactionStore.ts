@@ -320,6 +320,7 @@ export async function upsertTransactionsByFitId(rows: UpsertRow[]): Promise<Upse
   type SavedLink = { attachment_url: string | null; category_id: string | null; chart_account_id: string | null };
   const linkMap = new Map<string, SavedLink>();
   const linkByFit = new Map<string, SavedLink>();
+  const linkByStableFit = new Map<string, SavedLink>();
   {
     const pageSize = 1000;
     for (let from = 0; from < 100000; from += pageSize) {
@@ -338,13 +339,19 @@ export async function upsertTransactionsByFitId(rows: UpsertRow[]): Promise<Upse
         };
         linkMap.set(`${l.fit_id}|${l.account_id ?? ''}`, value);
         if (!linkByFit.has(l.fit_id)) linkByFit.set(l.fit_id, value);
+        const stableFit = l.fit_id.includes('_') ? l.fit_id.slice(l.fit_id.indexOf('_') + 1) : l.fit_id;
+        const stableKey = `${stableFit}|${l.account_id ?? ''}`;
+        if (!linkByStableFit.has(stableKey)) linkByStableFit.set(stableKey, value);
       });
       if (page.length < pageSize) break;
     }
   }
   const findLink = (fitId?: string | null, accountId?: string | null): SavedLink | undefined => {
     if (!fitId) return undefined;
-    return linkMap.get(`${fitId}|${accountId ?? ''}`) ?? linkByFit.get(fitId);
+    const stableFit = fitId.includes('_') ? fitId.slice(fitId.indexOf('_') + 1) : fitId;
+    return linkMap.get(`${fitId}|${accountId ?? ''}`)
+      ?? linkByFit.get(fitId)
+      ?? linkByStableFit.get(`${stableFit}|${accountId ?? ''}`);
   };
 
   const toInsert: any[] = [];

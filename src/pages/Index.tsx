@@ -352,11 +352,14 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
       const existingFitIds = new Set(allFitIds);
 
 
-      // Deduplicate only within the same file (identical composite key repeated)
+      // Some banks change FITID while repeating the exact same posting in one
+      // file. Use the stable posting fields as the in-file identity so those
+      // rows are not imported twice.
       const seenIds = new Set<string>();
       const batchUnique = data.transactions.filter(t => {
-        if (seenIds.has(t.id)) return false;
-        seenIds.add(t.id);
+        const stableId = `${t.date}|${t.amount}|${t.description.trim().toLowerCase()}|${(t.memo || '').trim().toLowerCase()}`;
+        if (seenIds.has(stableId)) return false;
+        seenIds.add(stableId);
         return true;
       });
 
