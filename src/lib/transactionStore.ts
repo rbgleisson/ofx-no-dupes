@@ -235,16 +235,20 @@ export async function upsertTransactionsByFitId(rows: UpsertRow[]): Promise<Upse
 
   // Map existing fit_id -> id for this organization
   const existingMap = new Map<string, string>();
+  const existingById = new Map<string, { category_id: string | null; chart_account_id: string | null }>();
   const pageSize = 1000;
   for (let from = 0; from < 100000; from += pageSize) {
     const { data, error } = await supabase
       .from('transactions')
-      .select('id, fit_id')
+      .select('id, fit_id, category_id, chart_account_id')
       .eq('organization_id', orgId)
       .range(from, from + pageSize - 1);
     if (error) throw error;
     const page = data || [];
-    page.forEach(t => { if (t.fit_id) existingMap.set(t.fit_id, t.id); });
+    page.forEach(t => {
+      if (t.fit_id) existingMap.set(t.fit_id, t.id);
+      existingById.set(t.id, { category_id: t.category_id, chart_account_id: t.chart_account_id });
+    });
     if (page.length < pageSize) break;
   }
 
@@ -256,6 +260,8 @@ export async function upsertTransactionsByFitId(rows: UpsertRow[]): Promise<Upse
     const targetId = _update_id || (rest.fit_id ? existingMap.get(rest.fit_id) : undefined);
     if (targetId) {
       // attachment_url intentionally omitted — never overwritten by an import
+      // categoria e conta contábil já preenchidas são preservadas
+      const prev = existingById.get(targetId);
       toUpdate.push({
         id: targetId,
         values: {
@@ -263,13 +269,14 @@ export async function upsertTransactionsByFitId(rows: UpsertRow[]): Promise<Upse
           amount: rest.amount,
           description: rest.description,
           memo: rest.memo ?? null,
-          category_id: rest.category_id ?? null,
+          category_id: rest.category_id ?? prev?.category_id ?? null,
           account_id: rest.account_id ?? null,
-          chart_account_id: rest.chart_account_id ?? null,
+          chart_account_id: rest.chart_account_id ?? prev?.chart_account_id ?? null,
           is_transfer: rest.is_transfer ?? false,
           ...(rest.type ? { type: rest.type } : {}),
         },
       });
+
     } else {
       toInsert.push({ ...rest, user_id: userId, organization_id: orgId });
     }
