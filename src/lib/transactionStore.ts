@@ -316,20 +316,35 @@ export async function upsertTransactionsByFitId(rows: UpsertRow[]): Promise<Upse
     return list[0].id;
   };
 
-  // FITID -> anexo salvo anteriormente (sobrevive à exclusão do lançamento)
-  const linkMap = new Map<string, string>();
+  // FITID -> anexo/categoria/conta contábil salvos (sobrevive à exclusão do lançamento)
+  type SavedLink = { attachment_url: string | null; category_id: string | null; chart_account_id: string | null };
+  const linkMap = new Map<string, SavedLink>();
+  const linkByFit = new Map<string, SavedLink>();
   {
-    const { data: links } = await supabase
-      .from('attachment_links')
-      .select('fit_id, account_id, attachment_url')
-      .eq('organization_id', orgId);
-    (links || []).forEach(l => {
-      linkMap.set(`${l.fit_id}|${l.account_id ?? ''}`, l.attachment_url);
-    });
+    const pageSize = 1000;
+    for (let from = 0; from < 100000; from += pageSize) {
+      const { data: links, error } = await supabase
+        .from('attachment_links')
+        .select('fit_id, account_id, attachment_url, category_id, chart_account_id')
+        .eq('organization_id', orgId)
+        .range(from, from + pageSize - 1);
+      if (error) throw error;
+      const page = links || [];
+      page.forEach(l => {
+        const value: SavedLink = {
+          attachment_url: l.attachment_url ?? null,
+          category_id: l.category_id ?? null,
+          chart_account_id: l.chart_account_id ?? null,
+        };
+        linkMap.set(`${l.fit_id}|${l.account_id ?? ''}`, value);
+        if (!linkByFit.has(l.fit_id)) linkByFit.set(l.fit_id, value);
+      });
+      if (page.length < pageSize) break;
+    }
   }
-  const findLink = (fitId?: string | null, accountId?: string | null): string | undefined => {
+  const findLink = (fitId?: string | null, accountId?: string | null): SavedLink | undefined => {
     if (!fitId) return undefined;
-    return linkMap.get(`${fitId}|${accountId ?? ''}`) ?? linkMap.get(`${fitId}|`);
+    return linkMap.get(`${fitId}|${accountId ?? ''}`) ?? linkByFit.get(fitId);
   };
 
   const toInsert: any[] = [];
@@ -338,7 +353,7 @@ export async function upsertTransactionsByFitId(rows: UpsertRow[]): Promise<Upse
   for (const row of rows) {
     const { _update_id, ...rest } = row;
     const targetId = _update_id || findExisting(rest.fit_id, rest.account_id ?? null);
-    const restoredAttachment = findLink(rest.fit_id, rest.account_id ?? null);
+    const saved = findLink(rest.fit_id, rest.account_id ?? null);
 
     if (targetId) {
       // attachment_url intentionally omitted — never overwritten by an import
@@ -351,24 +366,27 @@ export async function upsertTransactionsByFitId(rows: UpsertRow[]): Promise<Upse
           amount: rest.amount,
           description: rest.description,
           memo: rest.memo ?? null,
-          category_id: rest.category_id ?? prev?.category_id ?? null,
+          category_id: prev?.category_id ?? saved?.category_id ?? rest.category_id ?? null,
           account_id: rest.account_id ?? null,
-          chart_account_id: rest.chart_account_id ?? prev?.chart_account_id ?? null,
+          chart_account_id: prev?.chart_account_id ?? saved?.chart_account_id ?? rest.chart_account_id ?? null,
           is_transfer: rest.is_transfer ?? false,
           ...(rest.type ? { type: rest.type } : {}),
-          ...(prev?.attachment_url || !restoredAttachment ? {} : { attachment_url: restoredAttachment }),
+          ...(prev?.attachment_url || !saved?.attachment_url ? {} : { attachment_url: saved.attachment_url }),
         },
       });
 
     } else {
       toInsert.push({
         ...rest,
+        category_id: saved?.category_id ?? rest.category_id ?? null,
+        chart_account_id: saved?.chart_account_id ?? rest.chart_account_id ?? null,
         user_id: userId,
         organization_id: orgId,
-        ...(restoredAttachment ? { attachment_url: restoredAttachment } : {}),
+        ...(saved?.attachment_url ? { attachment_url: saved.attachment_url } : {}),
       });
     }
   }
+
 
   const batchSize = 100;
   for (let i = 0; i < toInsert.length; i += batchSize) {
