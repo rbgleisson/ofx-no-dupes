@@ -126,9 +126,12 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
         const movement = history.reduce((sum, transaction) => {
           if (transaction.date >= periodStart) return sum;
 
-          const openingDate = transaction.account_id
-            ? openingByAccount.get(transaction.account_id)
-            : null;
+          // Só entram lançamentos vinculados a uma conta bancária conhecida:
+          // lançamentos sem conta não fazem parte de nenhum extrato e
+          // distorciam o saldo anterior quando "todas as contas" era usado.
+          if (!transaction.account_id || !openingByAccount.has(transaction.account_id)) return sum;
+
+          const openingDate = openingByAccount.get(transaction.account_id);
           if (openingDate && transaction.date < openingDate) return sum;
           return sum + Number(transaction.amount || 0);
         }, 0);
