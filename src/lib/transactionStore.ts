@@ -424,18 +424,37 @@ export async function upsertTransactionsByFitId(rows: UpsertRow[]): Promise<Upse
 
 
   const batchSize = 100;
+  let insertedCount = 0;
+  const insertErrors: string[] = [];
   for (let i = 0; i < toInsert.length; i += batchSize) {
-    const { data, error } = await supabase
-      .from('transactions')
-      .insert(toInsert.slice(i, i + batchSize))
-      .select('id');
-    if (error) throw error;
-    importedTransactionIds.push(...(data || []).map(transaction => transaction.id));
+    const batch = toInsert.slice(i, i + batchSize);
+    const { data, error } = await supabase.from('transactions').insert(batch).select('id');
+    if (!error) {
+      insertedCount += batch.length;
+      importedTransactionIds.push(...(data || []).map(transaction => transaction.id));
+      continue;
+    }
+    // One bad row must never cancel the whole import: retry row by row.
+    for (const row of batch) {
+      const single = await supabase.from('transactions').insert(row).select('id').maybeSingle();
+      if (single.error) {
+        insertErrors.push(single.error.message);
+        continue;
+      }
+      insertedCount += 1;
+      if (single.data?.id) importedTransactionIds.push(single.data.id);
+    }
   }
 
+
+  let updatedCount = 0;
   for (const u of toUpdate) {
     const { error } = await supabase.from('transactions').update(u.values).eq('id', u.id);
-    if (error) throw error;
+    if (error) {
+      insertErrors.push(error.message);
+      continue;
+    }
+    updatedCount += 1;
     importedTransactionIds.push(u.id);
   }
 
@@ -443,10 +462,14 @@ export async function upsertTransactionsByFitId(rows: UpsertRow[]): Promise<Upse
   // protected immediately, not only after a later manual edit.
   const syncBatchSize = 20;
   for (let i = 0; i < importedTransactionIds.length; i += syncBatchSize) {
-    await Promise.all(importedTransactionIds.slice(i, i + syncBatchSize).map(id => syncAttachmentLink(id)));
+    await Promise.all(importedTransactionIds.slice(i, i + syncBatchSize).map(id => syncAttachmentLink(id).catch(() => undefined)));
   }
 
-  return { inserted: toInsert.length, updated: toUpdate.length };
+  if (insertedCount === 0 && updatedCount === 0 && insertErrors.length > 0) {
+    throw new Error(insertErrors[0]);
+  }
+
+  return { inserted: insertedCount, updated: updatedCount };
 }
 
 /** Returns how many of the given transaction ids currently have an attachment linked. */

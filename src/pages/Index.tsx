@@ -222,14 +222,15 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
       } else {
         await loadTransactions();
       }
-      setNotification({
-        type: 'success',
-        message: `${inserted} transações importadas${updated > 0 ? ` e ${updated} atualizadas (anexos, categorias e contas contábeis preservados)` : ''}.`,
-      });
+      const successMessage = `${inserted} transações importadas${updated > 0 ? ` e ${updated} atualizadas (anexos, categorias e contas contábeis preservados)` : ''}.`;
+      setNotification({ type: 'success', message: successMessage });
+      toast.success(successMessage);
     } catch (error) {
       console.error('Error confirming transaction import:', error);
-      const message = error instanceof Error ? error.message : '';
+      const anyError = error as { message?: string; details?: string; hint?: string; code?: string };
+      const message = anyError?.message || anyError?.details || anyError?.hint || anyError?.code || '';
       setNotification({ type: 'warning', message: `Erro ao importar transações${message ? `: ${message}` : '.'}` });
+      toast.error(`Erro ao importar transações${message ? `: ${message}` : '.'}`, { duration: 10000 });
     }
   };
 
