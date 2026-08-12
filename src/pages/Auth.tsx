@@ -199,7 +199,20 @@ const Auth = ({ onBack }: AuthProps) => {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-5">
+            {/* Honeypot invisível: humanos não veem, bots preenchem */}
+            <div aria-hidden="true" className="absolute w-px h-px -left-[9999px] overflow-hidden">
+              <label htmlFor="company-website">Não preencha este campo</label>
+              <input
+                ref={honeypotRef}
+                id="company-website"
+                name="company-website"
+                type="text"
+                tabIndex={-1}
+                autoComplete="off"
+              />
+            </div>
             <div className="space-y-2">
+
               <Label htmlFor="email">Email</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
