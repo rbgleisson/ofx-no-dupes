@@ -2,3 +2,6 @@ project_id = "vlrhysiynybkimrfgzpe"
 
 [functions.fetch-danfe]
 verify_jwt = false
+
+[functions.login-guard]
+verify_jwt = false
