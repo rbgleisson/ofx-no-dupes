@@ -445,9 +445,6 @@ export async function upsertTransactionsByFitId(rows: UpsertRow[]): Promise<Upse
       if (single.data?.id) importedTransactionIds.push(single.data.id);
     }
   }
-  if (insertedCount === 0 && insertErrors.length > 0) {
-    throw new Error(insertErrors[0]);
-  }
 
 
   let updatedCount = 0;
