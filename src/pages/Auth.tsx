@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import logoImg from '@/assets/logo.png';
 import { AlertCircle, ArrowLeft, CheckCircle2, Loader2, Lock, Mail } from 'lucide-react';
 import futuristicBg from '@/assets/futuristic-bg.jpg';
+import { getRecaptchaToken, loadRecaptcha } from '@/lib/recaptcha';
 
 interface AuthProps {
   onBack?: () => void;
@@ -17,6 +18,46 @@ const Auth = ({ onBack }: AuthProps) => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const honeypotRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    loadRecaptcha();
+  }, []);
+
+  const runGuard = async (action: 'login' | 'signup') => {
+    const recaptchaToken = await getRecaptchaToken(action);
+    const { data, error } = await supabase.functions.invoke('login-guard', {
+      body: {
+        action: 'check',
+        email,
+        honeypot: honeypotRef.current?.value ?? '',
+        recaptchaToken,
+      },
+    });
+    // Se o serviço estiver indisponível, não bloqueamos o usuário legítimo.
+    if (error) return { allowed: true } as { allowed: boolean; reason?: string; minutesLeft?: number };
+    return data as { allowed: boolean; reason?: string; minutesLeft?: number };
+  };
+
+  const recordAttempt = async (success: boolean) => {
+    try {
+      await supabase.functions.invoke('login-guard', {
+        body: { action: 'record', email, success },
+      });
+    } catch {
+      // ignora
+    }
+  };
+
+  const guardMessage = (result: { reason?: string; minutesLeft?: number }) => {
+    if (result.reason === 'rate_limited') {
+      return `Muitas tentativas de login sem sucesso. Por segurança, tente novamente em ${result.minutesLeft ?? 15} minuto(s) ou redefina sua senha.`;
+    }
+    if (result.reason === 'captcha_failed') {
+      return 'Não foi possível confirmar que você é humano. Atualize a página e tente novamente.';
+    }
+    return 'Envio bloqueado por suspeita de automação.';
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,6 +65,20 @@ const Auth = ({ onBack }: AuthProps) => {
     setMessage(null);
 
     try {
+      // Honeypot local: bots preenchem o campo invisível.
+      if (honeypotRef.current?.value) {
+        setMessage({ type: 'error', text: 'Envio bloqueado por suspeita de automação.' });
+        setLoading(false);
+        return;
+      }
+
+      const guard = await runGuard(isLogin ? 'login' : 'signup');
+      if (!guard.allowed) {
+        setMessage({ type: 'error', text: guardMessage(guard) });
+        setLoading(false);
+        return;
+      }
+
       const { data: isAuthorized } = await supabase.rpc('is_email_authorized', { _email: email });
       if (!isAuthorized) {
         setMessage({ type: 'error', text: 'Este e-mail não está autorizado. Solicite acesso ao administrador.' });
@@ -33,6 +88,7 @@ const Auth = ({ onBack }: AuthProps) => {
 
       if (isLogin) {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
+        await recordAttempt(!error);
         if (error) throw error;
       } else {
         const { error } = await supabase.auth.signUp({
@@ -69,6 +125,7 @@ const Auth = ({ onBack }: AuthProps) => {
       setLoading(false);
     }
   };
+
 
   return (
     <div className="min-h-screen bg-background flex">
