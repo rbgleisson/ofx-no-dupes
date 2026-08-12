@@ -26,7 +26,11 @@ async function verifyRecaptcha(token: string | undefined, ip: string | null) {
   const secret = Deno.env.get("RECAPTCHA_SECRET_KEY");
   // Se a chave ainda não foi configurada, não bloqueia o usuário legítimo.
   if (!secret) return { ok: true, skipped: true, score: null as number | null };
-  if (!token) return { ok: false, skipped: false, score: null };
+  if (!token) {
+    // Site key ainda não configurada no front-end: não bloquear o login.
+    console.warn("login-guard: requisição sem token reCAPTCHA (site key não configurada?)");
+    return { ok: true, skipped: true, score: null };
+  }
 
   const params = new URLSearchParams({ secret, response: token });
   if (ip) params.set("remoteip", ip);
