@@ -1,0 +1,1 @@
+delete from auth.users where email = 'teste-hook-9182@example.com';
