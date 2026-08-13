@@ -69,6 +69,21 @@ const TransactionTable = ({ transactions, categories, accounts, chartAccounts, o
   const [sortField, setSortField] = useState<'date' | 'description' | 'amount' | null>(null);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [exportingExtrato, setExportingExtrato] = useState(false);
+  const [editingMemoId, setEditingMemoId] = useState<string | null>(null);
+  const [memoDraft, setMemoDraft] = useState('');
+
+  const saveMemo = async (tx: Transaction) => {
+    const value = memoDraft.trim();
+    setEditingMemoId(null);
+    if (value === (tx.memo || '')) return;
+    try {
+      await updateTransaction(tx.id, { memo: value || null } as Partial<Transaction>);
+      onTransactionsChange();
+    } catch (err: any) {
+      toast.error('Erro ao salvar memo: ' + (err?.message || ''));
+    }
+  };
+
 
 
   // Column filters (per-column header filters)
