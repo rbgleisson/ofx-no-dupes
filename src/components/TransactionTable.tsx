@@ -69,6 +69,21 @@ const TransactionTable = ({ transactions, categories, accounts, chartAccounts, o
   const [sortField, setSortField] = useState<'date' | 'description' | 'amount' | null>(null);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [exportingExtrato, setExportingExtrato] = useState(false);
+  const [editingMemoId, setEditingMemoId] = useState<string | null>(null);
+  const [memoDraft, setMemoDraft] = useState('');
+
+  const saveMemo = async (tx: Transaction) => {
+    const value = memoDraft.trim();
+    setEditingMemoId(null);
+    if (value === (tx.memo || '')) return;
+    try {
+      await updateTransaction(tx.id, { memo: value || null } as Partial<Transaction>);
+      onTransactionsChange();
+    } catch (err: any) {
+      toast.error('Erro ao salvar memo: ' + (err?.message || ''));
+    }
+  };
+
 
 
   // Column filters (per-column header filters)
@@ -669,11 +684,36 @@ const TransactionTable = ({ transactions, categories, accounts, chartAccounts, o
                             <ArrowUpRight className="w-3.5 h-3.5 text-destructive" />
                           )}
                         </div>
-                        <div className="min-w-0">
+                        <div className="min-w-0" onClick={e => e.stopPropagation()}>
                           <p className="text-sm font-medium text-foreground truncate">{tx.description}</p>
                           {tx.is_transfer && <span className="text-[10px] font-medium text-muted-foreground bg-muted px-1.5 py-0.5 rounded">Mov. Interna</span>}
-                          {tx.memo && <p className="text-xs text-muted-foreground mt-0.5 truncate">{tx.memo}</p>}
+                          {editingMemoId === tx.id ? (
+                            <Input
+                              autoFocus
+                              value={memoDraft}
+                              onChange={e => setMemoDraft(e.target.value)}
+                              onBlur={() => saveMemo(tx)}
+                              onKeyDown={e => {
+                                if (e.key === 'Enter') { e.preventDefault(); (e.target as HTMLInputElement).blur(); }
+                                if (e.key === 'Escape') { setEditingMemoId(null); }
+                              }}
+                              placeholder="Memo..."
+                              className="h-6 mt-0.5 text-xs px-1.5"
+                            />
+                          ) : (
+                            <p
+                              title="Clique para editar o memo"
+                              onClick={() => { setEditingMemoId(tx.id); setMemoDraft(tx.memo || ''); }}
+                              className={cn(
+                                'text-xs mt-0.5 truncate cursor-text rounded px-1 -mx-1 hover:bg-muted/60',
+                                tx.memo ? 'text-muted-foreground' : 'text-muted-foreground/40 italic',
+                              )}
+                            >
+                              {tx.memo || 'adicionar memo'}
+                            </p>
+                          )}
                         </div>
+
                       </div>
                     </td>
                     <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
