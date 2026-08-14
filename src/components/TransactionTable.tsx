@@ -384,7 +384,11 @@ const TransactionTable = ({ transactions, categories, accounts, chartAccounts, o
   const handleFieldChange = async (txId: string, field: string, value: string | null) => {
     let finalValue: any = value === '__none__' ? null : value;
     if (field === 'is_verified') finalValue = value === 'true';
-    await updateTransaction(txId, { [field]: finalValue });
+    const extra =
+      field === 'category_id' && isInternalTransferCategory(finalValue)
+        ? { is_transfer: true }
+        : {};
+    await updateTransaction(txId, { [field]: finalValue, ...extra });
     onTransactionsChange();
   };
 
