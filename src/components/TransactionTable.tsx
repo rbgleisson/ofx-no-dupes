@@ -282,13 +282,23 @@ const TransactionTable = ({ transactions, categories, accounts, chartAccounts, o
   const [bulkCategoryOpen, setBulkCategoryOpen] = useState(false);
   const [bulkChartOpen, setBulkChartOpen] = useState(false);
 
+  const isInternalTransferCategory = (categoryId: string | null) => {
+    if (!categoryId) return false;
+    const name = categories.find(c => c.id === categoryId)?.name || '';
+    const norm = name.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    return norm.includes('TRANSFERENCIA INTERNA');
+  };
+
   const handleBulkAssignCategory = async (categoryId: string | null) => {
     if (selectedIds.size === 0) return;
     const ids = Array.from(selectedIds);
     try {
       const { error } = await supabase
         .from('transactions')
-        .update({ category_id: categoryId })
+        .update({
+          category_id: categoryId,
+          ...(isInternalTransferCategory(categoryId) ? { is_transfer: true } : {}),
+        })
         .in('id', ids);
       if (error) throw error;
       toast.success(`Categoria aplicada em ${ids.length} lançamento(s)`);
