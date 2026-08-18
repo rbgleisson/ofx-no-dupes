@@ -407,24 +407,24 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
             />
 
             {/* Indicadores adicionais (sem cards) */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-y-2 gap-x-4 text-xs text-slate-300">
-              <div className="flex justify-between md:block">
-                <span className="text-slate-500">A receber pendente</span>
-                <span className="font-medium tabular-nums text-emerald-400">{fmt(instSummary.toReceive)}</span>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-y-3 gap-x-4 text-xs">
+              <div>
+                <p className="text-slate-500">A receber pendente</p>
+                <p className="font-medium tabular-nums text-emerald-400">{fmt(instSummary.toReceive)}</p>
               </div>
-              <div className="flex justify-between md:block">
-                <span className="text-slate-500">A pagar pendente</span>
-                <span className="font-medium tabular-nums text-rose-400">{fmt(instSummary.toPay)}</span>
+              <div>
+                <p className="text-slate-500">A pagar pendente</p>
+                <p className="font-medium tabular-nums text-rose-400">{fmt(instSummary.toPay)}</p>
               </div>
-              <div className="flex justify-between md:block">
-                <span className="text-slate-500">Transferências internas</span>
-                <span className="font-medium tabular-nums text-slate-200">{fmt(stats.transferVolume)}</span>
+              <div>
+                <p className="text-slate-500">Transferências internas</p>
+                <p className="font-medium tabular-nums text-slate-200">{fmt(stats.transferVolume)}</p>
               </div>
-              <div className="flex justify-between md:block">
-                <span className="text-slate-500">Sem categoria</span>
-                <span className={cn('font-medium tabular-nums', stats.uncategorized ? 'text-amber-400' : 'text-slate-200')}>
+              <div>
+                <p className="text-slate-500">Sem categoria</p>
+                <p className={cn('font-medium tabular-nums', stats.uncategorized ? 'text-amber-400' : 'text-slate-200')}>
                   {stats.uncategorized} lanç.
-                </span>
+                </p>
               </div>
             </div>
 
