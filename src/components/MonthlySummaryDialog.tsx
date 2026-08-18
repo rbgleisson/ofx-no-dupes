@@ -3,11 +3,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowDownCircle, ArrowUpCircle, BarChart3, Download, Loader2, TrendingUp, Wallet, Building2 } from 'lucide-react';
+import { BarChart3, Download, Loader2, Building2 } from 'lucide-react';
 import { Category } from '@/components/CategoriesManager';
 import { exportMonthlySummary } from '@/lib/monthlySummaryExport';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
+import AccountBalanceCards from './AccountBalanceCards';
+import type { Account } from './AccountsManager';
+import type { Transaction } from '@/lib/transactionStore';
+import type { Installment } from '@/lib/installmentStore';
 
 const MONTHS = [
   'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -29,7 +33,9 @@ interface Props {
 }
 
 interface Tx {
+  id: string;
   date: string;
+  description: string;
   amount: number;
   category_id: string | null;
   account_id: string | null;
@@ -40,15 +46,18 @@ interface Acct {
   id: string;
   name: string;
   color: string;
+  created_at: string;
   opening_balance: number | null;
   opening_balance_date: string | null;
 }
 
 interface Inst {
+  id: string;
   type: string;
   amount: number;
   due_date: string;
   is_paid: boolean;
+  account_id: string | null;
 }
 
 const fmt = (v: number) =>
@@ -89,8 +98,6 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orgName]);
 
-  const catMap = useMemo(() => new Map(categories.map(c => [c.id, c])), [categories]);
-
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
@@ -107,21 +114,21 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
         const [monthTx, prevTx, accts, instRows] = await Promise.all([
           fetchAll<Tx>(() => scoped(
             supabase.from('transactions')
-              .select('date, amount, category_id, account_id, is_transfer')
+              .select('id, date, description, amount, category_id, account_id, is_transfer')
               .gte('date', startDate).lt('date', endDate).order('date')
           )),
           fetchAll<Tx>(() => scoped(
             supabase.from('transactions')
-              .select('date, amount, category_id, account_id, is_transfer')
+              .select('id, date, description, amount, category_id, account_id, is_transfer')
               .lt('date', startDate).order('date')
           )),
           fetchAll<Acct>(() => scoped(
             supabase.from('accounts')
-              .select('id, name, color, opening_balance, opening_balance_date').order('name')
+              .select('id, name, color, created_at, opening_balance, opening_balance_date').order('name')
           )),
           fetchAll<Inst>(() => scoped(
             supabase.from('installments')
-              .select('type, amount, due_date, is_paid')
+              .select('id, type, amount, due_date, is_paid, account_id')
               .gte('due_date', startDate).lt('due_date', endDate)
           )),
         ]);
@@ -171,8 +178,6 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
   }, [prevBalanceInput]);
 
   const stats = useMemo(() => {
-    const entriesByCat = new Map<string, number>();
-    const exitsByCat = new Map<string, number>();
     let totalEntries = 0;
     let totalExits = 0;
     let transferVolume = 0;
@@ -180,39 +185,21 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
     for (const tx of txs) {
       if (tx.is_transfer) { transferVolume += Math.abs(Number(tx.amount) || 0); continue; }
       count++;
-      const catKey = tx.category_id || '__none__';
       if (tx.amount >= 0) {
-        entriesByCat.set(catKey, (entriesByCat.get(catKey) || 0) + tx.amount);
         totalEntries += tx.amount;
       } else {
-        const abs = Math.abs(tx.amount);
-        exitsByCat.set(catKey, (exitsByCat.get(catKey) || 0) + abs);
-        totalExits += abs;
+        totalExits += Math.abs(tx.amount);
       }
     }
-    const toList = (map: Map<string, number>) =>
-      [...map.entries()]
-        .map(([id, val]) => {
-          const cat = catMap.get(id);
-          return {
-            id,
-            name: cat?.name || 'Sem Categoria',
-            color: cat?.color || '#64748b',
-            value: val,
-          };
-        })
-        .sort((a, b) => b.value - a.value);
     return {
       totalEntries,
       totalExits,
       saldo: totalEntries - totalExits,
-      entries: toList(entriesByCat),
-      exits: toList(exitsByCat),
       count,
       transferVolume,
       uncategorized: txs.filter(t => !t.is_transfer && !t.category_id).length,
     };
-  }, [txs, catMap]);
+  }, [txs]);
 
   /** Saldo bancário por conta no fim do mês (inclui transferências, igual ao extrato). */
   const accountBalances = useMemo(() => {
@@ -262,6 +249,7 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
     return { toReceive, toPay, receivedPaid, paidOut, pending: insts.filter(i => !i.is_paid).length };
   }, [insts]);
 
+  const allTransactions = useMemo(() => [...priorTxs, ...txs], [priorTxs, txs]);
 
   const handleExport = async () => {
     setExporting(true);
@@ -352,7 +340,7 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
 
           <div>
             <p className="text-[10px] font-medium text-cyan-300/70 uppercase tracking-wider mb-1 flex items-center gap-1.5">
-              <Wallet className="w-3 h-3" /> Saldo Anterior (editável)
+              Saldo Anterior (editável)
               {!prevBalanceEdited && (
                 <span className="text-[9px] text-slate-500 normal-case tracking-normal">
                   — calculado automaticamente
@@ -388,124 +376,81 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
             <Loader2 className="w-8 h-8 animate-spin text-cyan-400" />
           </div>
         ) : (
-          <div className="space-y-4 pt-2">
-            {/* KPI Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <StatCard
-                icon={<ArrowUpCircle className="w-5 h-5" />}
-                label="Entradas Reais"
-                value={fmt(stats.totalEntries)}
-                accent="from-emerald-500/20 to-emerald-500/5 border-emerald-400/30 text-emerald-300"
-              />
-              <StatCard
-                icon={<ArrowDownCircle className="w-5 h-5" />}
-                label="Despesas Reais"
-                value={fmt(stats.totalExits)}
-                accent="from-rose-500/20 to-rose-500/5 border-rose-400/30 text-rose-300"
-              />
-              <StatCard
-                icon={<Wallet className="w-5 h-5" />}
-                label="Resultado Real do Mês"
-                value={fmt(stats.saldo)}
-                accent={cn(
-                  stats.saldo >= 0
-                    ? 'from-cyan-500/20 to-blue-500/5 border-cyan-400/30 text-cyan-200'
-                    : 'from-amber-500/20 to-orange-500/5 border-amber-400/30 text-amber-300'
-                )}
-                highlight
-              />
-            </div>
-
-            {/* Categories breakdown */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <CategoryList
-                title="Entradas por Categoria"
-                items={stats.entries}
-                total={stats.totalEntries}
-                accentColor="emerald"
-              />
-              <CategoryList
-                title="Saídas por Categoria"
-                items={stats.exits}
-                total={stats.totalExits}
-                accentColor="rose"
-              />
-            </div>
-
-            {/* Saldo bancário por conta (fim do mês) */}
-            {accountBalances.length > 0 && (
-              <div className="rounded-xl border border-slate-700/60 bg-slate-900/60 p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-semibold uppercase tracking-wider text-cyan-300">
-                    Saldo por Conta — fim de {monthName}/{year}
-                  </h3>
-                  <span className="text-xs text-slate-400">
-                    Total: <span className={cn('font-semibold tabular-nums', totalBankBalance < 0 ? 'text-rose-300' : 'text-cyan-200')}>{fmt(totalBankBalance)}</span>
-                  </span>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {accountBalances.map(a => (
-                    <div key={a.id} className="flex items-center justify-between gap-2 rounded-lg border border-slate-800 bg-slate-950/60 px-3 py-2">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: a.color }} />
-                        <span className="text-xs text-slate-200 truncate" title={a.name}>{a.name}</span>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <div className={cn('text-sm font-semibold tabular-nums', a.balance < 0 ? 'text-rose-300' : 'text-slate-100')}>{fmt(a.balance)}</div>
-                        <div className={cn('text-[10px] tabular-nums', a.movimento < 0 ? 'text-rose-400/80' : 'text-emerald-400/80')}>
-                          {a.movimento >= 0 ? '+' : ''}{fmt(a.movimento)} no mês
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+          <div className="space-y-5 pt-2">
+            {/* Resumo simples */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-y-3 gap-x-4 text-sm">
+              <div>
+                <p className="text-[10px] uppercase text-slate-400">Entradas Reais</p>
+                <p className="font-semibold text-emerald-400 tabular-nums">{fmt(stats.totalEntries)}</p>
               </div>
-            )}
-
-            {/* Indicadores para o gestor */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
-              <MiniStat label="A receber (pendente)" value={fmt(instSummary.toReceive)} tone="emerald" />
-              <MiniStat label="A pagar (pendente)" value={fmt(instSummary.toPay)} tone="rose" />
-              <MiniStat label="Transferências internas" value={fmt(stats.transferVolume)} tone="slate" />
-              <MiniStat label="Sem categoria" value={`${stats.uncategorized} lanç.`} tone={stats.uncategorized ? 'amber' : 'slate'} />
+              <div>
+                <p className="text-[10px] uppercase text-slate-400">Despesas Reais</p>
+                <p className="font-semibold text-rose-400 tabular-nums">{fmt(stats.totalExits)}</p>
+              </div>
+              <div>
+                <p className="text-[10px] uppercase text-slate-400">Resultado Real</p>
+                <p className={cn('font-semibold tabular-nums', stats.saldo >= 0 ? 'text-emerald-400' : 'text-rose-400')}>
+                  {fmt(stats.saldo)}
+                </p>
+              </div>
+              <div>
+                <p className="text-[10px] uppercase text-slate-400">Lançamentos</p>
+                <p className="font-semibold text-slate-200 tabular-nums">{stats.count}</p>
+              </div>
             </div>
 
+            {/* Saldo por conta — componente existente */}
+            <AccountBalanceCards
+              accounts={accounts}
+              transactions={allTransactions as unknown as Transaction[]}
+              installments={insts as unknown as Installment[]}
+            />
 
+            {/* Indicadores adicionais (sem cards) */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-y-3 gap-x-4 text-xs">
+              <div>
+                <p className="text-slate-500">A receber pendente</p>
+                <p className="font-medium tabular-nums text-emerald-400">{fmt(instSummary.toReceive)}</p>
+              </div>
+              <div>
+                <p className="text-slate-500">A pagar pendente</p>
+                <p className="font-medium tabular-nums text-rose-400">{fmt(instSummary.toPay)}</p>
+              </div>
+              <div>
+                <p className="text-slate-500">Transferências internas</p>
+                <p className="font-medium tabular-nums text-slate-200">{fmt(stats.transferVolume)}</p>
+              </div>
+              <div>
+                <p className="text-slate-500">Sem categoria</p>
+                <p className={cn('font-medium tabular-nums', stats.uncategorized ? 'text-amber-400' : 'text-slate-200')}>
+                  {stats.uncategorized} lanç.
+                </p>
+              </div>
+            </div>
 
-            {/* Carry-over balance */}
-            <div className="relative overflow-hidden rounded-xl border border-cyan-400/30 bg-gradient-to-br from-cyan-950/60 via-slate-900 to-blue-950/40 p-5">
-              <div className="absolute -right-12 -top-12 w-40 h-40 rounded-full bg-cyan-500/10 blur-3xl" />
-              <div className="relative space-y-3">
-                <div className="flex items-center justify-between flex-wrap gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2.5 rounded-lg bg-cyan-500/15 border border-cyan-400/30">
-                      <TrendingUp className="w-5 h-5 text-cyan-300" />
-                    </div>
-                    <div>
-                      <p className="text-[11px] uppercase tracking-wider text-cyan-300/70 font-medium">
-                        Saldo para o próximo mês
-                      </p>
-                      <p className="text-xs text-slate-400">
-                        {monthName}/{year} — {stats.count} lançamento{stats.count === 1 ? '' : 's'}
-                      </p>
-                    </div>
-                  </div>
-                  <div
-                    className={cn(
-                      'text-3xl md:text-4xl font-bold tabular-nums',
-                      finalBalance >= 0 ? 'text-cyan-200' : 'text-amber-300'
-                    )}
-                  >
-                    {fmt(finalBalance)}
-                  </div>
-                </div>
-                <div className="flex items-center justify-end flex-wrap gap-x-4 gap-y-1 text-xs text-slate-400 border-t border-cyan-500/10 pt-2">
-                  <span>Saldo anterior: <span className="text-slate-200 tabular-nums">{fmt(parsedPrevBalance)}</span></span>
-                  <span className="text-slate-600">+</span>
-                  <span>Movimento bancário: <span className={cn('tabular-nums', bankMovement >= 0 ? 'text-emerald-300' : 'text-rose-300')}>{fmt(bankMovement)}</span></span>
-                  <span className="text-slate-600">|</span>
-                  <span>Resultado real (sem internas): <span className={cn('tabular-nums', stats.saldo >= 0 ? 'text-emerald-300' : 'text-rose-300')}>{fmt(stats.saldo)}</span></span>
-                </div>
+            {/* Conciliação do saldo para o próximo mês */}
+            <div className="border-t border-cyan-500/10 pt-3 space-y-1 text-sm">
+              <div className="flex justify-between">
+                <span className="text-slate-400">Saldo anterior</span>
+                <span className="tabular-nums text-slate-200">{fmt(parsedPrevBalance)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Movimento bancário do mês</span>
+                <span className={cn('tabular-nums', bankMovement >= 0 ? 'text-emerald-400' : 'text-rose-400')}>
+                  {fmt(bankMovement)}
+                </span>
+              </div>
+              <div className="flex justify-between text-base font-semibold pt-1">
+                <span>Saldo para o próximo mês</span>
+                <span className={cn('tabular-nums', finalBalance >= 0 ? 'text-cyan-300' : 'text-amber-300')}>
+                  {fmt(finalBalance)}
+                </span>
+              </div>
+              <div className="flex justify-between text-xs text-slate-500">
+                <span>Total realizado em contas</span>
+                <span className={cn('tabular-nums', totalBankBalance < 0 ? 'text-rose-400' : 'text-slate-200')}>
+                  {fmt(totalBankBalance)}
+                </span>
               </div>
             </div>
           </div>
@@ -515,79 +460,4 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
   );
 };
 
-const StatCard = ({
-  icon, label, value, accent, highlight,
-}: { icon: React.ReactNode; label: string; value: string; accent: string; highlight?: boolean }) => (
-  <div className={cn(
-    'rounded-xl border bg-gradient-to-br p-4 backdrop-blur-sm',
-    accent,
-    highlight && 'shadow-lg shadow-cyan-500/10'
-  )}>
-    <div className="flex items-center gap-2 mb-2 opacity-90">
-      {icon}
-      <span className="text-xs font-medium uppercase tracking-wider">{label}</span>
-    </div>
-    <div className="text-2xl font-bold tabular-nums">{value}</div>
-  </div>
-);
-
-const CategoryList = ({
-  title, items, total, accentColor,
-}: { title: string; items: { id: string; name: string; color: string; value: number }[]; total: number; accentColor: 'emerald' | 'rose' }) => {
-  const headerColor = accentColor === 'emerald' ? 'text-emerald-300' : 'text-rose-300';
-  return (
-    <div className="rounded-xl border border-slate-700/60 bg-slate-900/60 p-4">
-      <h3 className={cn('text-sm font-semibold mb-3 uppercase tracking-wider', headerColor)}>{title}</h3>
-      {items.length === 0 ? (
-        <p className="text-xs text-slate-500 py-6 text-center">Sem lançamentos no período</p>
-      ) : (
-        <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1">
-          {items.map(item => {
-            const pct = total > 0 ? (item.value / total) * 100 : 0;
-            return (
-              <div key={item.id} className="space-y-1">
-                <div className="flex items-center justify-between gap-2 text-xs">
-                  <div className="flex items-center gap-2 min-w-0 flex-1">
-                    <span
-                      className="w-2.5 h-2.5 rounded-full shrink-0"
-                      style={{ backgroundColor: item.color }}
-                    />
-                    <span className="text-slate-200 truncate">{item.name}</span>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-slate-400 text-[10px] tabular-nums">{pct.toFixed(1)}%</span>
-                    <span className="text-slate-100 font-medium tabular-nums">{fmt(item.value)}</span>
-                  </div>
-                </div>
-                <div className="h-1.5 rounded-full bg-slate-800 overflow-hidden">
-                  <div
-                    className="h-full rounded-full transition-all"
-                    style={{ width: `${pct}%`, backgroundColor: item.color }}
-                  />
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-};
-
-const MiniStat = ({ label, value, tone }: { label: string; value: string; tone: 'emerald' | 'rose' | 'amber' | 'slate' }) => {
-  const toneCls = {
-    emerald: 'text-emerald-300 border-emerald-400/20',
-    rose: 'text-rose-300 border-rose-400/20',
-    amber: 'text-amber-300 border-amber-400/20',
-    slate: 'text-slate-300 border-slate-700/60',
-  }[tone];
-  return (
-    <div className={cn('rounded-lg border bg-slate-900/60 px-3 py-2', toneCls)}>
-      <p className="text-[10px] uppercase tracking-wider text-slate-400">{label}</p>
-      <p className="text-sm font-semibold tabular-nums">{value}</p>
-    </div>
-  );
-};
-
 export default MonthlySummaryDialog;
-
