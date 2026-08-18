@@ -274,6 +274,7 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
         chartAccounts,
         (headerName || orgName || '').trim(),
         parsedPrevBalance,
+        bankMovement,
       );
       onSuccess?.();
     } catch {
