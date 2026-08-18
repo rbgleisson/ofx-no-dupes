@@ -284,7 +284,7 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
     }
   };
 
-  const finalBalance = parsedPrevBalance + stats.saldo;
+  const finalBalance = Math.round((parsedPrevBalance + bankMovement) * 100) / 100;
 
   const monthName = MONTHS[Number(month) - 1];
 
