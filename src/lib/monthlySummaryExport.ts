@@ -394,9 +394,9 @@ export async function exportMonthlySummary(
   mLbl.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C_GRAY_LIGHT } };
   sheet.mergeCells(row, 4, row, 5);
   const mVal = sheet.getCell(row, 4);
-  mVal.value = saldo;
+  mVal.value = carryMovement;
   mVal.numFmt = '"R$" #,##0.00';
-  mVal.font = { name: 'Calibri', size: 11, bold: true, color: { argb: saldo >= 0 ? C_GREEN : C_RED } };
+  mVal.font = { name: 'Calibri', size: 11, bold: true, color: { argb: carryMovement >= 0 ? C_GREEN : C_RED } };
   mVal.alignment = { horizontal: 'right', vertical: 'middle', indent: 1 };
   mVal.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C_GRAY_LIGHT } };
   sheet.getRow(row).height = 20;
