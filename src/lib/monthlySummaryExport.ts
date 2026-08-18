@@ -49,7 +49,6 @@ export async function exportMonthlySummary(
   chartAccounts: ChartAccount[] = [],
   headerName: string = '',
   previousBalanceOverride?: number | null,
-  bankMovementOverride?: number | null,
 ) {
   const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
   const endDate = month === 12
@@ -360,13 +359,7 @@ export async function exportMonthlySummary(
   buildCategorySection('▼  SAÍDAS POR CATEGORIA', exitsByCategory, totalExits, C_RED, C_RED_BG);
 
   // === SALDO ANTERIOR + SALDO PARA PRÓXIMO MÊS ===
-  // O saldo que "vira" para o próximo mês é o movimento bancário completo
-  // (inclui aplicações/resgates/transferências internas), igual ao extrato.
-  const carryMovement =
-    bankMovementOverride !== undefined && bankMovementOverride !== null
-      ? bankMovementOverride
-      : saldo;
-  const finalBalance = previousBalance + carryMovement;
+  const finalBalance = previousBalance + saldo;
 
   // Saldo Anterior line
   sheet.mergeCells(row, 2, row, 3);
@@ -388,15 +381,15 @@ export async function exportMonthlySummary(
   // Saldo do mês (linha resumo)
   sheet.mergeCells(row, 2, row, 3);
   const mLbl = sheet.getCell(row, 2);
-  mLbl.value = `(+) MOVIMENTO BANCÁRIO DE ${monthName.toUpperCase()}/${year}`;
+  mLbl.value = `(+) SALDO DE ${monthName.toUpperCase()}/${year}`;
   mLbl.font = { name: 'Calibri', size: 10, bold: true, color: { argb: C_GRAY } };
   mLbl.alignment = { horizontal: 'left', vertical: 'middle', indent: 1 };
   mLbl.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C_GRAY_LIGHT } };
   sheet.mergeCells(row, 4, row, 5);
   const mVal = sheet.getCell(row, 4);
-  mVal.value = carryMovement;
+  mVal.value = saldo;
   mVal.numFmt = '"R$" #,##0.00';
-  mVal.font = { name: 'Calibri', size: 11, bold: true, color: { argb: carryMovement >= 0 ? C_GREEN : C_RED } };
+  mVal.font = { name: 'Calibri', size: 11, bold: true, color: { argb: saldo >= 0 ? C_GREEN : C_RED } };
   mVal.alignment = { horizontal: 'right', vertical: 'middle', indent: 1 };
   mVal.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C_GRAY_LIGHT } };
   sheet.getRow(row).height = 20;
