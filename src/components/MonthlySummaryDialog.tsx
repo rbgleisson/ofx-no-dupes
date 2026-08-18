@@ -425,6 +425,46 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
               />
             </div>
 
+            {/* Saldo bancário por conta (fim do mês) */}
+            {accountBalances.length > 0 && (
+              <div className="rounded-xl border border-slate-700/60 bg-slate-900/60 p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold uppercase tracking-wider text-cyan-300">
+                    Saldo por Conta — fim de {monthName}/{year}
+                  </h3>
+                  <span className="text-xs text-slate-400">
+                    Total: <span className={cn('font-semibold tabular-nums', totalBankBalance < 0 ? 'text-rose-300' : 'text-cyan-200')}>{fmt(totalBankBalance)}</span>
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {accountBalances.map(a => (
+                    <div key={a.id} className="flex items-center justify-between gap-2 rounded-lg border border-slate-800 bg-slate-950/60 px-3 py-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: a.color }} />
+                        <span className="text-xs text-slate-200 truncate" title={a.name}>{a.name}</span>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <div className={cn('text-sm font-semibold tabular-nums', a.balance < 0 ? 'text-rose-300' : 'text-slate-100')}>{fmt(a.balance)}</div>
+                        <div className={cn('text-[10px] tabular-nums', a.movimento < 0 ? 'text-rose-400/80' : 'text-emerald-400/80')}>
+                          {a.movimento >= 0 ? '+' : ''}{fmt(a.movimento)} no mês
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Indicadores para o gestor */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+              <MiniStat label="A receber (pendente)" value={fmt(instSummary.toReceive)} tone="emerald" />
+              <MiniStat label="A pagar (pendente)" value={fmt(instSummary.toPay)} tone="rose" />
+              <MiniStat label="Transferências internas" value={fmt(stats.transferVolume)} tone="slate" />
+              <MiniStat label="Sem categoria" value={`${stats.uncategorized} lanç.`} tone={stats.uncategorized ? 'amber' : 'slate'} />
+            </div>
+
+
+
             {/* Carry-over balance */}
             <div className="relative overflow-hidden rounded-xl border border-cyan-400/30 bg-gradient-to-br from-cyan-950/60 via-slate-900 to-blue-950/40 p-5">
               <div className="absolute -right-12 -top-12 w-40 h-40 rounded-full bg-cyan-500/10 blur-3xl" />
