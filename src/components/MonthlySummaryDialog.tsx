@@ -399,7 +399,7 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
               />
               <StatCard
                 icon={<ArrowDownCircle className="w-5 h-5" />}
-                label="Saídas"
+                label="Despesas Reais"
                 value={fmt(stats.totalExits)}
                 accent="from-rose-500/20 to-rose-500/5 border-rose-400/30 text-rose-300"
               />
