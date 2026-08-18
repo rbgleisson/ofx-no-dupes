@@ -246,6 +246,12 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
     [accountBalances]
   );
 
+  /** Movimento bancário completo do mês (inclui aplicações/resgates/transferências). */
+  const bankMovement = useMemo(
+    () => Math.round(accountBalances.reduce((s, a) => s + a.movimento, 0) * 100) / 100,
+    [accountBalances]
+  );
+
   const instSummary = useMemo(() => {
     let toReceive = 0, toPay = 0, receivedPaid = 0, paidOut = 0;
     for (const i of insts) {
