@@ -405,7 +405,7 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
               />
               <StatCard
                 icon={<Wallet className="w-5 h-5" />}
-                label="Saldo do Mês"
+                label="Resultado Real do Mês"
                 value={fmt(stats.saldo)}
                 accent={cn(
                   stats.saldo >= 0
