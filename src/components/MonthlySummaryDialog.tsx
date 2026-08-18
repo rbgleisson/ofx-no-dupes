@@ -246,6 +246,12 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
     [accountBalances]
   );
 
+  /** Movimento bancário completo do mês (inclui aplicações/resgates/transferências). */
+  const bankMovement = useMemo(
+    () => Math.round(accountBalances.reduce((s, a) => s + a.movimento, 0) * 100) / 100,
+    [accountBalances]
+  );
+
   const instSummary = useMemo(() => {
     let toReceive = 0, toPay = 0, receivedPaid = 0, paidOut = 0;
     for (const i of insts) {
@@ -268,6 +274,7 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
         chartAccounts,
         (headerName || orgName || '').trim(),
         parsedPrevBalance,
+        bankMovement,
       );
       onSuccess?.();
     } catch {
@@ -277,7 +284,7 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
     }
   };
 
-  const finalBalance = parsedPrevBalance + stats.saldo;
+  const finalBalance = Math.round((parsedPrevBalance + bankMovement) * 100) / 100;
 
   const monthName = MONTHS[Number(month) - 1];
 
@@ -386,19 +393,19 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <StatCard
                 icon={<ArrowUpCircle className="w-5 h-5" />}
-                label="Entradas"
+                label="Entradas Reais"
                 value={fmt(stats.totalEntries)}
                 accent="from-emerald-500/20 to-emerald-500/5 border-emerald-400/30 text-emerald-300"
               />
               <StatCard
                 icon={<ArrowDownCircle className="w-5 h-5" />}
-                label="Saídas"
+                label="Despesas Reais"
                 value={fmt(stats.totalExits)}
                 accent="from-rose-500/20 to-rose-500/5 border-rose-400/30 text-rose-300"
               />
               <StatCard
                 icon={<Wallet className="w-5 h-5" />}
-                label="Saldo do Mês"
+                label="Resultado Real do Mês"
                 value={fmt(stats.saldo)}
                 accent={cn(
                   stats.saldo >= 0
@@ -492,10 +499,12 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
                     {fmt(finalBalance)}
                   </div>
                 </div>
-                <div className="flex items-center justify-end gap-4 text-xs text-slate-400 border-t border-cyan-500/10 pt-2">
+                <div className="flex items-center justify-end flex-wrap gap-x-4 gap-y-1 text-xs text-slate-400 border-t border-cyan-500/10 pt-2">
                   <span>Saldo anterior: <span className="text-slate-200 tabular-nums">{fmt(parsedPrevBalance)}</span></span>
                   <span className="text-slate-600">+</span>
-                  <span>Saldo do mês: <span className={cn('tabular-nums', stats.saldo >= 0 ? 'text-emerald-300' : 'text-rose-300')}>{fmt(stats.saldo)}</span></span>
+                  <span>Movimento bancário: <span className={cn('tabular-nums', bankMovement >= 0 ? 'text-emerald-300' : 'text-rose-300')}>{fmt(bankMovement)}</span></span>
+                  <span className="text-slate-600">|</span>
+                  <span>Resultado real (sem internas): <span className={cn('tabular-nums', stats.saldo >= 0 ? 'text-emerald-300' : 'text-rose-300')}>{fmt(stats.saldo)}</span></span>
                 </div>
               </div>
             </div>
