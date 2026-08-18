@@ -393,7 +393,7 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <StatCard
                 icon={<ArrowUpCircle className="w-5 h-5" />}
-                label="Entradas"
+                label="Entradas Reais"
                 value={fmt(stats.totalEntries)}
                 accent="from-emerald-500/20 to-emerald-500/5 border-emerald-400/30 text-emerald-300"
               />
