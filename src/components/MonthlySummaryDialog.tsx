@@ -32,11 +32,41 @@ interface Tx {
   date: string;
   amount: number;
   category_id: string | null;
+  account_id: string | null;
   is_transfer?: boolean | null;
+}
+
+interface Acct {
+  id: string;
+  name: string;
+  color: string;
+  opening_balance: number | null;
+  opening_balance_date: string | null;
+}
+
+interface Inst {
+  type: string;
+  amount: number;
+  due_date: string;
+  is_paid: boolean;
 }
 
 const fmt = (v: number) =>
   v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+/** Fetch every row of a query, bypassing the 1000-row default limit. */
+async function fetchAll<T>(build: () => any): Promise<T[]> {
+  const out: T[] = [];
+  const step = 1000;
+  for (let from = 0; ; from += step) {
+    const { data, error } = await build().range(from, from + step - 1);
+    if (error) throw error;
+    const rows = (data || []) as T[];
+    out.push(...rows);
+    if (rows.length < step) break;
+  }
+  return out;
+}
 
 const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, orgName, onSuccess, onError, trigger }: Props) => {
   const now = new Date();
@@ -47,6 +77,9 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [txs, setTxs] = useState<Tx[]>([]);
+  const [accounts, setAccounts] = useState<Acct[]>([]);
+  const [priorTxs, setPriorTxs] = useState<Tx[]>([]);
+  const [insts, setInsts] = useState<Inst[]>([]);
   const [previousBalance, setPreviousBalance] = useState<number>(0);
   const [prevBalanceInput, setPrevBalanceInput] = useState<string>('0,00');
   const [prevBalanceEdited, setPrevBalanceEdited] = useState(false);
@@ -63,36 +96,63 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
     let cancelled = false;
     (async () => {
       setLoading(true);
-      const y = Number(year);
-      const m = Number(month);
-      const startDate = `${y}-${String(m).padStart(2, '0')}-01`;
-      const endDate = m === 12 ? `${y + 1}-01-01` : `${y}-${String(m + 1).padStart(2, '0')}-01`;
-      let q = supabase
-        .from('transactions')
-        .select('date, amount, category_id, is_transfer')
-        .gte('date', startDate)
-        .lt('date', endDate);
-      if (organizationId) q = q.eq('organization_id', organizationId);
+      try {
+        const y = Number(year);
+        const m = Number(month);
+        const startDate = `${y}-${String(m).padStart(2, '0')}-01`;
+        const endDate = m === 12 ? `${y + 1}-01-01` : `${y}-${String(m + 1).padStart(2, '0')}-01`;
 
-      let prevQ = supabase
-        .from('transactions')
-        .select('amount, is_transfer')
-        .lt('date', startDate);
-      if (organizationId) prevQ = prevQ.eq('organization_id', organizationId);
+        const scoped = (q: any) => (organizationId ? q.eq('organization_id', organizationId) : q);
 
-      const [{ data }, { data: prevData }] = await Promise.all([q, prevQ]);
-      if (!cancelled) {
-        setTxs((data || []) as Tx[]);
-        let prev = 0;
-        for (const t of (prevData || []) as { amount: number; is_transfer?: boolean | null }[]) {
-          if (t.is_transfer) continue;
-          prev += t.amount;
+        const [monthTx, prevTx, accts, instRows] = await Promise.all([
+          fetchAll<Tx>(() => scoped(
+            supabase.from('transactions')
+              .select('date, amount, category_id, account_id, is_transfer')
+              .gte('date', startDate).lt('date', endDate).order('date')
+          )),
+          fetchAll<Tx>(() => scoped(
+            supabase.from('transactions')
+              .select('date, amount, category_id, account_id, is_transfer')
+              .lt('date', startDate).order('date')
+          )),
+          fetchAll<Acct>(() => scoped(
+            supabase.from('accounts')
+              .select('id, name, color, opening_balance, opening_balance_date').order('name')
+          )),
+          fetchAll<Inst>(() => scoped(
+            supabase.from('installments')
+              .select('type, amount, due_date, is_paid')
+              .gte('due_date', startDate).lt('due_date', endDate)
+          )),
+        ]);
+
+        if (cancelled) return;
+        setTxs(monthTx);
+        setPriorTxs(prevTx);
+        setAccounts(accts);
+        setInsts(instRows);
+
+        // Saldo anterior real = saldos iniciais das contas + movimento anterior das contas reais
+        const ids = new Set(accts.map(a => a.id));
+        const openingByAcct = new Map(accts.map(a => [a.id, a.opening_balance_date]));
+        let prev = accts.reduce((s, a) => {
+          const d = a.opening_balance_date;
+          if (d && String(d).slice(0, 10) >= startDate) return s;
+          return s + Number(a.opening_balance || 0);
+        }, 0);
+        for (const t of prevTx) {
+          if (!t.account_id || !ids.has(t.account_id)) continue;
+          const since = openingByAcct.get(t.account_id);
+          if (since && String(t.date).slice(0, 10) < String(since).slice(0, 10)) continue;
+          prev += Number(t.amount) || 0;
         }
+        prev = Math.round(prev * 100) / 100;
         setPreviousBalance(prev);
         if (!prevBalanceEdited) {
           setPrevBalanceInput(prev.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
         }
-        setLoading(false);
+      } finally {
+        if (!cancelled) setLoading(false);
       }
     })();
     return () => { cancelled = true; };
@@ -115,9 +175,10 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
     const exitsByCat = new Map<string, number>();
     let totalEntries = 0;
     let totalExits = 0;
+    let transferVolume = 0;
     let count = 0;
     for (const tx of txs) {
-      if (tx.is_transfer) continue;
+      if (tx.is_transfer) { transferVolume += Math.abs(Number(tx.amount) || 0); continue; }
       count++;
       const catKey = tx.category_id || '__none__';
       if (tx.amount >= 0) {
@@ -148,8 +209,53 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
       entries: toList(entriesByCat),
       exits: toList(exitsByCat),
       count,
+      transferVolume,
+      uncategorized: txs.filter(t => !t.is_transfer && !t.category_id).length,
     };
   }, [txs, catMap]);
+
+  /** Saldo bancário por conta no fim do mês (inclui transferências, igual ao extrato). */
+  const accountBalances = useMemo(() => {
+    const all = [...priorTxs, ...txs];
+    return accounts.map(a => {
+      const since = a.opening_balance_date ? String(a.opening_balance_date).slice(0, 10) : null;
+      let bal = Number(a.opening_balance || 0);
+      let movimento = 0;
+      for (const t of all) {
+        if (t.account_id !== a.id) continue;
+        const d = String(t.date).slice(0, 10);
+        if (since && d < since) continue;
+        bal += Number(t.amount) || 0;
+      }
+      for (const t of txs) {
+        if (t.account_id !== a.id) continue;
+        movimento += Number(t.amount) || 0;
+      }
+      return {
+        id: a.id,
+        name: a.name,
+        color: a.color,
+        balance: Math.round(bal * 100) / 100,
+        movimento: Math.round(movimento * 100) / 100,
+      };
+    });
+  }, [accounts, priorTxs, txs]);
+
+  const totalBankBalance = useMemo(
+    () => Math.round(accountBalances.reduce((s, a) => s + a.balance, 0) * 100) / 100,
+    [accountBalances]
+  );
+
+  const instSummary = useMemo(() => {
+    let toReceive = 0, toPay = 0, receivedPaid = 0, paidOut = 0;
+    for (const i of insts) {
+      const v = Number(i.amount) || 0;
+      if (i.type === 'receivable') { if (i.is_paid) receivedPaid += v; else toReceive += v; }
+      else { if (i.is_paid) paidOut += v; else toPay += v; }
+    }
+    return { toReceive, toPay, receivedPaid, paidOut, pending: insts.filter(i => !i.is_paid).length };
+  }, [insts]);
+
 
   const handleExport = async () => {
     setExporting(true);
