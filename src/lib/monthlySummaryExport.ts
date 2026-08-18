@@ -360,7 +360,13 @@ export async function exportMonthlySummary(
   buildCategorySection('▼  SAÍDAS POR CATEGORIA', exitsByCategory, totalExits, C_RED, C_RED_BG);
 
   // === SALDO ANTERIOR + SALDO PARA PRÓXIMO MÊS ===
-  const finalBalance = previousBalance + saldo;
+  // O saldo que "vira" para o próximo mês é o movimento bancário completo
+  // (inclui aplicações/resgates/transferências internas), igual ao extrato.
+  const carryMovement =
+    bankMovementOverride !== undefined && bankMovementOverride !== null
+      ? bankMovementOverride
+      : saldo;
+  const finalBalance = previousBalance + carryMovement;
 
   // Saldo Anterior line
   sheet.mergeCells(row, 2, row, 3);
