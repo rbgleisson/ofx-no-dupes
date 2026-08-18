@@ -499,10 +499,12 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
                     {fmt(finalBalance)}
                   </div>
                 </div>
-                <div className="flex items-center justify-end gap-4 text-xs text-slate-400 border-t border-cyan-500/10 pt-2">
+                <div className="flex items-center justify-end flex-wrap gap-x-4 gap-y-1 text-xs text-slate-400 border-t border-cyan-500/10 pt-2">
                   <span>Saldo anterior: <span className="text-slate-200 tabular-nums">{fmt(parsedPrevBalance)}</span></span>
                   <span className="text-slate-600">+</span>
-                  <span>Saldo do mês: <span className={cn('tabular-nums', stats.saldo >= 0 ? 'text-emerald-300' : 'text-rose-300')}>{fmt(stats.saldo)}</span></span>
+                  <span>Movimento bancário: <span className={cn('tabular-nums', bankMovement >= 0 ? 'text-emerald-300' : 'text-rose-300')}>{fmt(bankMovement)}</span></span>
+                  <span className="text-slate-600">|</span>
+                  <span>Resultado real (sem internas): <span className={cn('tabular-nums', stats.saldo >= 0 ? 'text-emerald-300' : 'text-rose-300')}>{fmt(stats.saldo)}</span></span>
                 </div>
               </div>
             </div>
