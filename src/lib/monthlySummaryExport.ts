@@ -49,6 +49,7 @@ export async function exportMonthlySummary(
   chartAccounts: ChartAccount[] = [],
   headerName: string = '',
   previousBalanceOverride?: number | null,
+  bankMovementOverride?: number | null,
 ) {
   const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
   const endDate = month === 12
