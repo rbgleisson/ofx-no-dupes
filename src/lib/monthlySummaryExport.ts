@@ -388,7 +388,7 @@ export async function exportMonthlySummary(
   // Saldo do mês (linha resumo)
   sheet.mergeCells(row, 2, row, 3);
   const mLbl = sheet.getCell(row, 2);
-  mLbl.value = `(+) SALDO DE ${monthName.toUpperCase()}/${year}`;
+  mLbl.value = `(+) MOVIMENTO BANCÁRIO DE ${monthName.toUpperCase()}/${year}`;
   mLbl.font = { name: 'Calibri', size: 10, bold: true, color: { argb: C_GRAY } };
   mLbl.alignment = { horizontal: 'left', vertical: 'middle', indent: 1 };
   mLbl.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C_GRAY_LIGHT } };
