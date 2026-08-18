@@ -565,4 +565,20 @@ const CategoryList = ({
   );
 };
 
+const MiniStat = ({ label, value, tone }: { label: string; value: string; tone: 'emerald' | 'rose' | 'amber' | 'slate' }) => {
+  const toneCls = {
+    emerald: 'text-emerald-300 border-emerald-400/20',
+    rose: 'text-rose-300 border-rose-400/20',
+    amber: 'text-amber-300 border-amber-400/20',
+    slate: 'text-slate-300 border-slate-700/60',
+  }[tone];
+  return (
+    <div className={cn('rounded-lg border bg-slate-900/60 px-3 py-2', toneCls)}>
+      <p className="text-[10px] uppercase tracking-wider text-slate-400">{label}</p>
+      <p className="text-sm font-semibold tabular-nums">{value}</p>
+    </div>
+  );
+};
+
 export default MonthlySummaryDialog;
+
