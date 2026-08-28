@@ -265,9 +265,23 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
 
   const fetchChartAccounts = useCallback(async () => {
     let query = supabase.from('chart_accounts').select('*').order('code');
-    if (organizationId) query = query.eq('organization_id', organizationId);
+    if (organizationId) {
+      // Inclui o plano de contas compartilhado da organização master
+      const { data: masterId } = await supabase.rpc('get_master_org_id');
+      const orgIds = masterId && masterId !== organizationId ? [organizationId, masterId] : [organizationId];
+      query = query.in('organization_id', orgIds);
+    }
     const { data } = await query;
-    if (data) setChartAccounts(data as ChartAccount[]);
+    if (data) {
+      // Remove duplicados por código (mantém o da própria organização)
+      const seen = new Map<string, ChartAccount>();
+      for (const ca of data as ChartAccount[]) {
+        const key = `${ca.code}|${ca.name}`;
+        const existing = seen.get(key);
+        if (!existing || (ca as any).organization_id === organizationId) seen.set(key, ca);
+      }
+      setChartAccounts(Array.from(seen.values()));
+    }
   }, [organizationId]);
 
   useEffect(() => {
