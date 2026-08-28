@@ -331,7 +331,24 @@ const AdminPanel = ({ onBack }: AdminPanelProps) => {
               </Button>
             ))}
           </div>
+          {isSuperAdmin && selectedOrg && (
+            <div className="mt-4 pt-3 border-t flex items-center justify-between gap-3">
+              <p className="text-xs text-muted-foreground">
+                Excluir <strong>{selectedOrg.name}</strong> remove todos os lançamentos, contas, categorias e usuários dela.
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-destructive border-destructive/30 hover:bg-destructive/5 shrink-0"
+                onClick={() => { setDeleteOrgId(selectedOrg.id); setDeleteOrgConfirm(''); }}
+              >
+                <Trash2 className="w-4 h-4 mr-1.5" />
+                Excluir organização
+              </Button>
+            </div>
+          )}
         </div>
+
 
         {selectedOrg && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
