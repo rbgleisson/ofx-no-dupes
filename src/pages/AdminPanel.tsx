@@ -255,10 +255,34 @@ const AdminPanel = ({ onBack }: AdminPanelProps) => {
     }
   };
 
+  const handleDeleteOrg = async () => {
+    if (!deleteOrgId || deleteOrgConfirm !== 'APAGAR') return;
+    setDeletingOrg(true);
+    try {
+      const res = await supabase.functions.invoke('manage-users', {
+        body: { action: 'delete_organization', organizationId: deleteOrgId },
+      });
+      if (res.error) throw new Error(res.error.message);
+      if (res.data?.error) throw new Error(res.data.error);
+      toast({ title: 'Organização excluída', description: `${res.data?.deletedUsers ?? 0} usuário(s) removido(s).` });
+      setDeleteOrgId(null);
+      setDeleteOrgConfirm('');
+      setSelectedOrgId(null);
+      setUsers([]);
+      await loadOrgs();
+    } catch (err: any) {
+      toast({ title: 'Erro', description: err.message, variant: 'destructive' });
+    } finally {
+      setDeletingOrg(false);
+    }
+  };
+
   const selectedUser = users.find(u => u.id === selectedUserId);
   const selectedPerms = selectedUserId ? permissions[selectedUserId] : null;
   const deleteUser = users.find(u => u.id === deleteUserId);
   const selectedOrg = organizations.find(o => o.id === selectedOrgId);
+  const deleteOrg = organizations.find(o => o.id === deleteOrgId);
+
 
   if (loading && organizations.length === 0) {
     return (
