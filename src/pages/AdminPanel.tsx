@@ -98,6 +98,12 @@ const AdminPanel = ({ onBack }: AdminPanelProps) => {
   const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
 
+  // Delete organization
+  const [deleteOrgId, setDeleteOrgId] = useState<string | null>(null);
+  const [deleteOrgConfirm, setDeleteOrgConfirm] = useState('');
+  const [deletingOrg, setDeletingOrg] = useState(false);
+
+
   const loadOrgs = useCallback(async () => {
     const { data } = await supabase.from('organizations').select('*').order('name');
     if (data) {
@@ -249,10 +255,34 @@ const AdminPanel = ({ onBack }: AdminPanelProps) => {
     }
   };
 
+  const handleDeleteOrg = async () => {
+    if (!deleteOrgId || deleteOrgConfirm !== 'APAGAR') return;
+    setDeletingOrg(true);
+    try {
+      const res = await supabase.functions.invoke('manage-users', {
+        body: { action: 'delete_organization', organizationId: deleteOrgId },
+      });
+      if (res.error) throw new Error(res.error.message);
+      if (res.data?.error) throw new Error(res.data.error);
+      toast({ title: 'Organização excluída', description: `${res.data?.deletedUsers ?? 0} usuário(s) removido(s).` });
+      setDeleteOrgId(null);
+      setDeleteOrgConfirm('');
+      setSelectedOrgId(null);
+      setUsers([]);
+      await loadOrgs();
+    } catch (err: any) {
+      toast({ title: 'Erro', description: err.message, variant: 'destructive' });
+    } finally {
+      setDeletingOrg(false);
+    }
+  };
+
   const selectedUser = users.find(u => u.id === selectedUserId);
   const selectedPerms = selectedUserId ? permissions[selectedUserId] : null;
   const deleteUser = users.find(u => u.id === deleteUserId);
   const selectedOrg = organizations.find(o => o.id === selectedOrgId);
+  const deleteOrg = organizations.find(o => o.id === deleteOrgId);
+
 
   if (loading && organizations.length === 0) {
     return (
@@ -301,7 +331,24 @@ const AdminPanel = ({ onBack }: AdminPanelProps) => {
               </Button>
             ))}
           </div>
+          {isSuperAdmin && selectedOrg && (
+            <div className="mt-4 pt-3 border-t flex items-center justify-between gap-3">
+              <p className="text-xs text-muted-foreground">
+                Excluir <strong>{selectedOrg.name}</strong> remove todos os lançamentos, contas, categorias e usuários dela.
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-destructive border-destructive/30 hover:bg-destructive/5 shrink-0"
+                onClick={() => { setDeleteOrgId(selectedOrg.id); setDeleteOrgConfirm(''); }}
+              >
+                <Trash2 className="w-4 h-4 mr-1.5" />
+                Excluir organização
+              </Button>
+            </div>
+          )}
         </div>
+
 
         {selectedOrg && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -471,7 +518,39 @@ const AdminPanel = ({ onBack }: AdminPanelProps) => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Delete Organization Confirmation */}
+      <AlertDialog open={!!deleteOrgId} onOpenChange={(open) => { if (!open) { setDeleteOrgId(null); setDeleteOrgConfirm(''); } }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir Organização</AlertDialogTitle>
+            <AlertDialogDescription>
+              Isso apaga <strong>permanentemente</strong> a organização <strong>{deleteOrg?.name}</strong> e todos os seus dados:
+              lançamentos, parcelas, contas, categorias, plano de contas, favorecidos e os usuários vinculados.
+              Digite <strong>APAGAR</strong> para confirmar.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <Input
+            value={deleteOrgConfirm}
+            onChange={(e) => setDeleteOrgConfirm(e.target.value)}
+            placeholder="APAGAR"
+            autoFocus
+          />
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletingOrg}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); handleDeleteOrg(); }}
+              disabled={deletingOrg || deleteOrgConfirm !== 'APAGAR'}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deletingOrg && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Excluir tudo
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
+
   );
 };
 

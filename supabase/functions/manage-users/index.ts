@@ -177,7 +177,81 @@ Deno.serve(async (req) => {
       });
     }
 
+    if (action === "delete_organization") {
+      if (!isSuperAdmin) {
+        return new Response(JSON.stringify({ error: "Apenas Super Admin pode excluir organizações." }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const orgId = organizationId || body.orgId;
+      if (!orgId) {
+        return new Response(JSON.stringify({ error: "organizationId obrigatório." }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const { data: callerOrgId } = await supabaseAdmin.rpc("get_user_org_id", { _user_id: caller.id });
+      if (callerOrgId === orgId) {
+        return new Response(JSON.stringify({ error: "Você não pode excluir a sua própria organização." }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Usuários vinculados
+      const { data: orgProfiles } = await supabaseAdmin
+        .from("profiles")
+        .select("user_id")
+        .eq("organization_id", orgId);
+      const userIds = (orgProfiles || []).map((p: any) => p.user_id).filter((id: string) => id !== caller.id);
+
+      // Remove dados na ordem de dependência
+      const tables = [
+        "account_adjustments",
+        "installments",
+        "attachment_links",
+        "transactions",
+        "contatos_recorrentes",
+        "accounts",
+        "categories",
+        "chart_accounts",
+        "authorized_emails",
+        "user_permissions",
+        "profiles",
+      ];
+      for (const t of tables) {
+        const { error } = await supabaseAdmin.from(t).delete().eq("organization_id", orgId);
+        if (error) {
+          return new Response(JSON.stringify({ error: `Falha ao limpar ${t}: ${error.message}` }), {
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      }
+
+      for (const uid of userIds) {
+        await supabaseAdmin.from("user_roles").delete().eq("user_id", uid);
+        await supabaseAdmin.auth.admin.deleteUser(uid);
+      }
+
+      const { error: orgDelErr } = await supabaseAdmin.from("organizations").delete().eq("id", orgId);
+      if (orgDelErr) {
+        return new Response(JSON.stringify({ error: orgDelErr.message }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      return new Response(JSON.stringify({ success: true, deletedUsers: userIds.length }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     return new Response(JSON.stringify({ error: "Ação inválida." }), {
+
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
