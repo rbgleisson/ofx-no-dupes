@@ -98,6 +98,12 @@ const AdminPanel = ({ onBack }: AdminPanelProps) => {
   const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
 
+  // Delete organization
+  const [deleteOrgId, setDeleteOrgId] = useState<string | null>(null);
+  const [deleteOrgConfirm, setDeleteOrgConfirm] = useState('');
+  const [deletingOrg, setDeletingOrg] = useState(false);
+
+
   const loadOrgs = useCallback(async () => {
     const { data } = await supabase.from('organizations').select('*').order('name');
     if (data) {
