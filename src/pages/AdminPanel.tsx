@@ -518,7 +518,39 @@ const AdminPanel = ({ onBack }: AdminPanelProps) => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Delete Organization Confirmation */}
+      <AlertDialog open={!!deleteOrgId} onOpenChange={(open) => { if (!open) { setDeleteOrgId(null); setDeleteOrgConfirm(''); } }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir Organização</AlertDialogTitle>
+            <AlertDialogDescription>
+              Isso apaga <strong>permanentemente</strong> a organização <strong>{deleteOrg?.name}</strong> e todos os seus dados:
+              lançamentos, parcelas, contas, categorias, plano de contas, favorecidos e os usuários vinculados.
+              Digite <strong>APAGAR</strong> para confirmar.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <Input
+            value={deleteOrgConfirm}
+            onChange={(e) => setDeleteOrgConfirm(e.target.value)}
+            placeholder="APAGAR"
+            autoFocus
+          />
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletingOrg}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); handleDeleteOrg(); }}
+              disabled={deletingOrg || deleteOrgConfirm !== 'APAGAR'}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deletingOrg && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Excluir tudo
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
+
   );
 };
 
