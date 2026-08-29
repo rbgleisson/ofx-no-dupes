@@ -41,6 +41,32 @@ const MONTHS = [
   'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
 ];
 
+// Signature block: three stacked signature lines (Pastor Presidente, Tesoureiro, Comissão de Contas)
+// Returns the next free row after the block.
+function addSignatureBlock(sheet: ExcelJS.Worksheet, startRow: number, firstCol = 2, lastCol = 5): number {
+  const cargos = ['Pastor Presidente', 'Tesoureiro', 'Comissão de Contas'];
+  let row = startRow + 1;
+  cargos.forEach((cargo, i) => {
+    if (i > 0) row += 1; // extra spacing between signatures
+    // Signature line: merged cell with bottom border, tall enough for manual signing
+    sheet.mergeCells(row, firstCol, row, lastCol);
+    sheet.getRow(row).height = 30;
+    for (let c = firstCol; c <= lastCol; c++) {
+      sheet.getCell(row, c).border = { bottom: { style: 'thin', color: { argb: 'FF0F172A' } } };
+    }
+    row++;
+    // Role label centered below the line
+    sheet.mergeCells(row, firstCol, row, lastCol);
+    const lbl = sheet.getCell(row, firstCol);
+    lbl.value = cargo;
+    lbl.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF334155' } };
+    lbl.alignment = { horizontal: 'center', vertical: 'top' };
+    sheet.getRow(row).height = 16;
+    row += 2;
+  });
+  return row;
+}
+
 export async function exportMonthlySummary(
   categories: Category[],
   organizationId: string | null,
@@ -431,9 +457,13 @@ export async function exportMonthlySummary(
   footer.font = { name: 'Calibri', size: 9, italic: true, color: { argb: C_GRAY } };
   footer.alignment = { horizontal: 'center', vertical: 'middle' };
   sheet.getRow(row).height = 18;
+  row++;
+
+  // === BLOCO DE ASSINATURAS ===
+  row = addSignatureBlock(sheet, row);
 
   // Print area & header/footer
-  sheet.pageSetup.printArea = `A1:F${row}`;
+  sheet.pageSetup.printArea = `A1:F${row - 1}`;
   sheet.headerFooter.oddFooter = '&C&8Página &P de &N';
 
   // ========== Sheet 2: Por Conta Contábil (detalhe) ==========
@@ -503,6 +533,11 @@ export async function exportMonthlySummary(
 
     renderChart('▲  ENTRADAS POR CONTA CONTÁBIL', entriesByChart, totalEntries, C_GREEN);
     renderChart('▼  SAÍDAS POR CONTA CONTÁBIL', exitsByChart, totalExits, C_RED);
+
+    // Signature block + print area
+    const nextRow = addSignatureBlock(sh2, (sh2.lastRow?.number || 1) + 1, 2, 4);
+    sh2.pageSetup.printArea = `A1:E${nextRow - 1}`;
+    sh2.headerFooter.oddFooter = '&C&8Página &P de &N';
   }
 
   const buffer = await wb.xlsx.writeBuffer();
