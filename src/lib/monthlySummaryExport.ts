@@ -164,8 +164,8 @@ export async function exportMonthlySummary(
   sheet.columns = [
     { width: 4 },   // A - margin
     { width: 32 },  // B - label
-    { width: 6 },   // C - %
-    { width: 18 },  // D - value
+    { width: 20 },  // C - % / SAÍDAS no KPI (valores monetários precisam caber)
+    { width: 20 },  // D - value / ENTRADAS no KPI / Valor (R$)
     { width: 14 },  // E - bar
     { width: 4 },   // F - margin
   ];
@@ -473,7 +473,7 @@ export async function exportMonthlySummary(
       views: [{ showGridLines: false }],
     });
     sh2.columns = [
-      { width: 4 }, { width: 14 }, { width: 38 }, { width: 18 }, { width: 4 },
+      { width: 4 }, { width: 14 }, { width: 38 }, { width: 20 }, { width: 4 },
     ];
 
     const renderChart = (title: string, data: Map<string, number>, total: number, accent: string) => {
