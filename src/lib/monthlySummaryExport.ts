@@ -41,6 +41,32 @@ const MONTHS = [
   'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
 ];
 
+// Signature block: three stacked signature lines (Pastor Presidente, Tesoureiro, Comissão de Contas)
+// Returns the next free row after the block.
+function addSignatureBlock(sheet: ExcelJS.Worksheet, startRow: number, firstCol = 2, lastCol = 5): number {
+  const cargos = ['Pastor Presidente', 'Tesoureiro', 'Comissão de Contas'];
+  let row = startRow + 1;
+  cargos.forEach((cargo, i) => {
+    if (i > 0) row += 1; // extra spacing between signatures
+    // Signature line: merged cell with bottom border, tall enough for manual signing
+    sheet.mergeCells(row, firstCol, row, lastCol);
+    sheet.getRow(row).height = 30;
+    for (let c = firstCol; c <= lastCol; c++) {
+      sheet.getCell(row, c).border = { bottom: { style: 'thin', color: { argb: 'FF0F172A' } } };
+    }
+    row++;
+    // Role label centered below the line
+    sheet.mergeCells(row, firstCol, row, lastCol);
+    const lbl = sheet.getCell(row, firstCol);
+    lbl.value = cargo;
+    lbl.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF334155' } };
+    lbl.alignment = { horizontal: 'center', vertical: 'top' };
+    sheet.getRow(row).height = 16;
+    row += 2;
+  });
+  return row;
+}
+
 export async function exportMonthlySummary(
   categories: Category[],
   organizationId: string | null,
