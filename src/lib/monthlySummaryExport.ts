@@ -258,7 +258,7 @@ export async function exportMonthlySummary(
     const c = sheet.getCell(row, k.col);
     c.value = k.val;
     c.numFmt = '"R$" #,##0.00';
-    c.font = { name: 'Calibri', size: 18, bold: true, color: { argb: k.color } };
+    c.font = { name: 'Calibri', size: 16, bold: true, color: { argb: k.color } };
     c.alignment = { horizontal: 'center', vertical: 'middle' };
     c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: k.bg } };
     c.border = {
