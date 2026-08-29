@@ -533,6 +533,11 @@ export async function exportMonthlySummary(
 
     renderChart('▲  ENTRADAS POR CONTA CONTÁBIL', entriesByChart, totalEntries, C_GREEN);
     renderChart('▼  SAÍDAS POR CONTA CONTÁBIL', exitsByChart, totalExits, C_RED);
+
+    // Signature block + print area
+    const nextRow = addSignatureBlock(sh2, (sh2.lastRow?.number || 1) + 1, 2, 4);
+    sh2.pageSetup.printArea = `A1:E${nextRow - 1}`;
+    sh2.headerFooter.oddFooter = '&C&8Página &P de &N';
   }
 
   const buffer = await wb.xlsx.writeBuffer();
