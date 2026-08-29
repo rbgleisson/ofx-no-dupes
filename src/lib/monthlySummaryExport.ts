@@ -431,9 +431,13 @@ export async function exportMonthlySummary(
   footer.font = { name: 'Calibri', size: 9, italic: true, color: { argb: C_GRAY } };
   footer.alignment = { horizontal: 'center', vertical: 'middle' };
   sheet.getRow(row).height = 18;
+  row++;
+
+  // === BLOCO DE ASSINATURAS ===
+  row = addSignatureBlock(sheet, row);
 
   // Print area & header/footer
-  sheet.pageSetup.printArea = `A1:F${row}`;
+  sheet.pageSetup.printArea = `A1:F${row - 1}`;
   sheet.headerFooter.oddFooter = '&C&8Página &P de &N';
 
   // ========== Sheet 2: Por Conta Contábil (detalhe) ==========
