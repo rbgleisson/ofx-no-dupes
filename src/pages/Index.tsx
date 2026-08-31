@@ -238,6 +238,12 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
   };
 
   const loadTransactions = useCallback(async () => {
+    // Nunca consultar sem organização definida: um super admin veria dados de
+    // outras organizações enquanto o perfil ainda está carregando.
+    if (!organizationId) {
+      setTransactions([]);
+      return;
+    }
     const requestId = ++loadRequestRef.current;
     try {
       const data = await fetchTransactions(filters, organizationId);
@@ -250,16 +256,14 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
   }, [filters, organizationId]);
 
   const fetchCategories = useCallback(async () => {
-    let query = supabase.from('categories').select('*').order('name');
-    if (organizationId) query = query.eq('organization_id', organizationId);
-    const { data } = await query;
+    if (!organizationId) return;
+    const { data } = await supabase.from('categories').select('*').eq('organization_id', organizationId).order('name');
     if (data) setCategories(data as Category[]);
   }, [organizationId]);
 
   const fetchAccounts = useCallback(async () => {
-    let query = supabase.from('accounts').select('*').order('name');
-    if (organizationId) query = query.eq('organization_id', organizationId);
-    const { data } = await query;
+    if (!organizationId) return;
+    const { data } = await supabase.from('accounts').select('*').eq('organization_id', organizationId).order('name');
     if (data) setAccounts(data as Account[]);
   }, [organizationId]);
 
