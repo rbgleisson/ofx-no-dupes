@@ -365,8 +365,10 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
       let from = 0;
       const PAGE = 1000;
       while (true) {
-        let q = supabase.from('transactions').select('fit_id').range(from, from + PAGE - 1);
-        if (orgIdData) q = q.eq('organization_id', orgIdData);
+        const q = supabase.from('transactions').select('fit_id')
+          .eq('organization_id', orgIdData as string)
+          .range(from, from + PAGE - 1);
+
         if (accountId) q = q.eq('account_id', accountId);
         const { data: page } = await q;
         if (!page || page.length === 0) break;
