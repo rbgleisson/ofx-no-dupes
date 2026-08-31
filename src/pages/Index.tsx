@@ -238,6 +238,12 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
   };
 
   const loadTransactions = useCallback(async () => {
+    // Nunca consultar sem organização definida: um super admin veria dados de
+    // outras organizações enquanto o perfil ainda está carregando.
+    if (!organizationId) {
+      setTransactions([]);
+      return;
+    }
     const requestId = ++loadRequestRef.current;
     try {
       const data = await fetchTransactions(filters, organizationId);
@@ -250,28 +256,23 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
   }, [filters, organizationId]);
 
   const fetchCategories = useCallback(async () => {
-    let query = supabase.from('categories').select('*').order('name');
-    if (organizationId) query = query.eq('organization_id', organizationId);
-    const { data } = await query;
+    if (!organizationId) return;
+    const { data } = await supabase.from('categories').select('*').eq('organization_id', organizationId).order('name');
     if (data) setCategories(data as Category[]);
   }, [organizationId]);
 
   const fetchAccounts = useCallback(async () => {
-    let query = supabase.from('accounts').select('*').order('name');
-    if (organizationId) query = query.eq('organization_id', organizationId);
-    const { data } = await query;
+    if (!organizationId) return;
+    const { data } = await supabase.from('accounts').select('*').eq('organization_id', organizationId).order('name');
     if (data) setAccounts(data as Account[]);
   }, [organizationId]);
 
   const fetchChartAccounts = useCallback(async () => {
-    let query = supabase.from('chart_accounts').select('*').order('code');
-    if (organizationId) {
-      // Inclui o plano de contas compartilhado da organização master
-      const { data: masterId } = await supabase.rpc('get_master_org_id');
-      const orgIds = masterId && masterId !== organizationId ? [organizationId, masterId] : [organizationId];
-      query = query.in('organization_id', orgIds);
-    }
-    const { data } = await query;
+    if (!organizationId) return;
+    // Inclui o plano de contas compartilhado da organização master
+    const { data: masterId } = await supabase.rpc('get_master_org_id');
+    const orgIds = masterId && masterId !== organizationId ? [organizationId, masterId] : [organizationId];
+    const { data } = await supabase.from('chart_accounts').select('*').in('organization_id', orgIds).order('code');
     if (data) {
       // Remove duplicados por código (mantém o da própria organização)
       const seen = new Map<string, ChartAccount>();
@@ -326,23 +327,30 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
         return;
       }
 
-      // Auto-create or find account from OFX bank info
+      // Organização do usuário logado — toda a importação fica presa a ela
+      const { data: orgIdData } = await supabase.rpc('get_user_org_id', { _user_id: user.id });
+      if (!orgIdData) {
+        setNotification({ type: 'warning', message: 'Organização do usuário não encontrada. Faça login novamente.' });
+        return;
+      }
+
+      // Auto-create or find account from OFX bank info (sempre dentro da organização do usuário)
       let accountId: string | null = null;
       if (data.bankId || data.accountId) {
         const accountName = [data.bankId, data.accountId].filter(Boolean).join(' - ');
         const { data: existing } = await supabase
           .from('accounts')
           .select('id')
+          .eq('organization_id', orgIdData as string)
           .eq('name', accountName)
           .maybeSingle();
 
         if (existing) {
           accountId = existing.id;
         } else {
-          const { data: orgId } = await supabase.rpc('get_user_org_id', { _user_id: user.id });
           const { data: created } = await supabase
             .from('accounts')
-            .insert({ name: accountName, user_id: user.id, organization_id: orgId })
+            .insert({ name: accountName, user_id: user.id, organization_id: orgIdData as string })
             .select('id')
             .single();
           if (created) {
@@ -353,7 +361,6 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
       }
 
       // Fetch existing fit_ids for THIS account only (duplicatas de outras contas não contam)
-      const { data: orgIdData } = await supabase.rpc('get_user_org_id', { _user_id: user.id });
       let allFitIds: string[] = [];
       let from = 0;
       const PAGE = 1000;

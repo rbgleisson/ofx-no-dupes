@@ -68,12 +68,15 @@ async function getOrgId(): Promise<string> {
 }
 
 export async function fetchTransactions(filters?: TransactionFilters, organizationId?: string | null): Promise<Transaction[]> {
+  // Sem organização explícita, usa a do usuário logado. Um super admin jamais
+  // deve receber lançamentos de outras organizações por omissão do filtro.
+  const orgId = organizationId ?? await getOrgId();
+
   const buildQuery = () => {
     let query = supabase.from('transactions').select('*').order('date', { ascending: false }).order('id', { ascending: false });
 
-    if (organizationId) {
-      query = query.eq('organization_id', organizationId);
-    }
+    query = query.eq('organization_id', orgId);
+
 
     if (filters?.year) {
       const year = filters.year;
@@ -293,6 +296,13 @@ export async function upsertTransactionsByFitId(rows: UpsertRow[]): Promise<Upse
   if (rows.length === 0) return { inserted: 0, updated: 0 };
   const userId = await getUserId();
   const orgId = await getOrgId();
+
+  // Uma conta de outra organização nunca pode ser vinculada a este import
+  const { data: orgAccounts } = await supabase.from('accounts').select('id').eq('organization_id', orgId);
+  const allowedAccounts = new Set((orgAccounts || []).map(a => a.id));
+  rows = rows.map(r => (r.account_id && !allowedAccounts.has(r.account_id) ? { ...r, account_id: null } : r));
+
+
 
   // Map existing fit_id -> candidates for this organization
   const existingMap = new Map<string, { id: string; account_id: string | null }[]>();
