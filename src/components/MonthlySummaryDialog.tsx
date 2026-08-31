@@ -60,6 +60,7 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
 
   useEffect(() => {
     if (!open) return;
+    if (!organizationId) { setTxs([]); setLoading(false); return; }
     let cancelled = false;
     (async () => {
       setLoading(true);
@@ -67,18 +68,19 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
       const m = Number(month);
       const startDate = `${y}-${String(m).padStart(2, '0')}-01`;
       const endDate = m === 12 ? `${y + 1}-01-01` : `${y}-${String(m + 1).padStart(2, '0')}-01`;
-      let q = supabase
+      const q = supabase
         .from('transactions')
         .select('date, amount, category_id, is_transfer')
+        .eq('organization_id', organizationId)
         .gte('date', startDate)
         .lt('date', endDate);
-      if (organizationId) q = q.eq('organization_id', organizationId);
 
-      let prevQ = supabase
+      const prevQ = supabase
         .from('transactions')
         .select('amount, is_transfer')
+        .eq('organization_id', organizationId)
         .lt('date', startDate);
-      if (organizationId) prevQ = prevQ.eq('organization_id', organizationId);
+
 
       const [{ data }, { data: prevData }] = await Promise.all([q, prevQ]);
       if (!cancelled) {
