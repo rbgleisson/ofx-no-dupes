@@ -326,23 +326,30 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
         return;
       }
 
-      // Auto-create or find account from OFX bank info
+      // Organização do usuário logado — toda a importação fica presa a ela
+      const { data: orgIdData } = await supabase.rpc('get_user_org_id', { _user_id: user.id });
+      if (!orgIdData) {
+        setNotification({ type: 'warning', message: 'Organização do usuário não encontrada. Faça login novamente.' });
+        return;
+      }
+
+      // Auto-create or find account from OFX bank info (sempre dentro da organização do usuário)
       let accountId: string | null = null;
       if (data.bankId || data.accountId) {
         const accountName = [data.bankId, data.accountId].filter(Boolean).join(' - ');
         const { data: existing } = await supabase
           .from('accounts')
           .select('id')
+          .eq('organization_id', orgIdData as string)
           .eq('name', accountName)
           .maybeSingle();
 
         if (existing) {
           accountId = existing.id;
         } else {
-          const { data: orgId } = await supabase.rpc('get_user_org_id', { _user_id: user.id });
           const { data: created } = await supabase
             .from('accounts')
-            .insert({ name: accountName, user_id: user.id, organization_id: orgId })
+            .insert({ name: accountName, user_id: user.id, organization_id: orgIdData as string })
             .select('id')
             .single();
           if (created) {
@@ -353,7 +360,6 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
       }
 
       // Fetch existing fit_ids for THIS account only (duplicatas de outras contas não contam)
-      const { data: orgIdData } = await supabase.rpc('get_user_org_id', { _user_id: user.id });
       let allFitIds: string[] = [];
       let from = 0;
       const PAGE = 1000;
