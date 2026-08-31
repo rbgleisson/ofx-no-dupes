@@ -68,12 +68,15 @@ async function getOrgId(): Promise<string> {
 }
 
 export async function fetchTransactions(filters?: TransactionFilters, organizationId?: string | null): Promise<Transaction[]> {
+  // Sem organização explícita, usa a do usuário logado. Um super admin jamais
+  // deve receber lançamentos de outras organizações por omissão do filtro.
+  const orgId = organizationId ?? await getOrgId();
+
   const buildQuery = () => {
     let query = supabase.from('transactions').select('*').order('date', { ascending: false }).order('id', { ascending: false });
 
-    if (organizationId) {
-      query = query.eq('organization_id', organizationId);
-    }
+    query = query.eq('organization_id', orgId);
+
 
     if (filters?.year) {
       const year = filters.year;
