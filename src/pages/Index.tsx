@@ -365,11 +365,11 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
       let from = 0;
       const PAGE = 1000;
       while (true) {
-        const q = supabase.from('transactions').select('fit_id')
+        let q = supabase.from('transactions').select('fit_id')
           .eq('organization_id', orgIdData as string)
           .range(from, from + PAGE - 1);
-
         if (accountId) q = q.eq('account_id', accountId);
+
         const { data: page } = await q;
         if (!page || page.length === 0) break;
         allFitIds = allFitIds.concat(page.map(t => t.fit_id).filter(Boolean) as string[]);
