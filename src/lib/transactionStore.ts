@@ -297,6 +297,13 @@ export async function upsertTransactionsByFitId(rows: UpsertRow[]): Promise<Upse
   const userId = await getUserId();
   const orgId = await getOrgId();
 
+  // Uma conta de outra organização nunca pode ser vinculada a este import
+  const { data: orgAccounts } = await supabase.from('accounts').select('id').eq('organization_id', orgId);
+  const allowedAccounts = new Set((orgAccounts || []).map(a => a.id));
+  rows = rows.map(r => (r.account_id && !allowedAccounts.has(r.account_id) ? { ...r, account_id: null } : r));
+
+
+
   // Map existing fit_id -> candidates for this organization
   const existingMap = new Map<string, { id: string; account_id: string | null }[]>();
   const existingById = new Map<string, { category_id: string | null; chart_account_id: string | null; attachment_url: string | null }>();
