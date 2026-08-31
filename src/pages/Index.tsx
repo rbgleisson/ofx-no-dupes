@@ -365,9 +365,11 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
       let from = 0;
       const PAGE = 1000;
       while (true) {
-        let q = supabase.from('transactions').select('fit_id').range(from, from + PAGE - 1);
-        if (orgIdData) q = q.eq('organization_id', orgIdData);
+        let q = supabase.from('transactions').select('fit_id')
+          .eq('organization_id', orgIdData as string)
+          .range(from, from + PAGE - 1);
         if (accountId) q = q.eq('account_id', accountId);
+
         const { data: page } = await q;
         if (!page || page.length === 0) break;
         allFitIds = allFitIds.concat(page.map(t => t.fit_id).filter(Boolean) as string[]);
@@ -433,9 +435,13 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
       // detection works even when the screen is filtered to another month
       const dates = rows.map(r => r.date).filter(Boolean).sort();
       if (dates.length > 0) {
-        let q = supabase.from('transactions').select('*').gte('date', dates[0]).lte('date', dates[dates.length - 1]);
-        if (orgIdData) q = q.eq('organization_id', orgIdData);
-        const { data: rangeTx } = await q;
+        const { data: rangeTx } = await supabase
+          .from('transactions')
+          .select('*')
+          .eq('organization_id', orgIdData as string)
+          .gte('date', dates[0])
+          .lte('date', dates[dates.length - 1]);
+
         setImportExisting((rangeTx || []) as any);
       } else {
         setImportExisting(null);

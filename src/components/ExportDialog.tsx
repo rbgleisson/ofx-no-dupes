@@ -70,17 +70,18 @@ const ExportDialog = ({ transactions, categories, accounts, chartAccounts }: Exp
 
   useEffect(() => {
     if (!open) return;
+    if (!organizationId) { setAllTransactions([]); return; }
     const fetchAll = async () => {
-      let query = supabase
+      const { data } = await supabase
         .from('transactions')
         .select('*')
+        .eq('organization_id', organizationId)
         .order('date', { ascending: false });
-      if (organizationId) query = query.eq('organization_id', organizationId);
-      const { data } = await query;
       setAllTransactions((data as Transaction[]) || []);
     };
     fetchAll();
   }, [open, organizationId]);
+
 
   const toggle = (key: string) => {
     setSelected(prev => {

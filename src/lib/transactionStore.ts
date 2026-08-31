@@ -247,14 +247,19 @@ export async function clearTransactions(): Promise<number> {
   // Transactions with attachments are intentionally retained. A later OFX
   // import updates these rows by FITID, preserving both their internal id and
   // attachment_url instead of orphaning the stored document.
+  // O escopo por organização é obrigatório: sem ele um super admin apagaria
+  // lançamentos de todas as organizações.
+  const orgId = await getOrgId();
   const { data, error } = await supabase
     .from('transactions')
     .delete()
+    .eq('organization_id', orgId)
     .is('attachment_url', null)
     .select('id');
   if (error) throw error;
   return data?.length ?? 0;
 }
+
 
 /** Fields that a re-import may legitimately refresh on an existing transaction. */
 type UpsertRow = {

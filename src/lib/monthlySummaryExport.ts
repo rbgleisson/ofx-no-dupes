@@ -81,13 +81,15 @@ export async function exportMonthlySummary(
     ? `${year + 1}-01-01`
     : `${year}-${String(month + 1).padStart(2, '0')}-01`;
 
-  let query = supabase
+  if (!organizationId) throw new Error('Organização não identificada. Faça login novamente.');
+
+  const query = supabase
     .from('transactions')
     .select('date, amount, category_id, chart_account_id, is_transfer')
+    .eq('organization_id', organizationId)
     .gte('date', startDate)
     .lt('date', endDate)
     .order('date');
-  if (organizationId) query = query.eq('organization_id', organizationId);
 
   const { data: transactions, error } = await query;
   if (error) throw error;
@@ -97,12 +99,13 @@ export async function exportMonthlySummary(
   if (previousBalanceOverride !== undefined && previousBalanceOverride !== null) {
     previousBalance = previousBalanceOverride;
   } else {
-    let prevQ = supabase
+    const prevQ = supabase
       .from('transactions')
       .select('amount, is_transfer')
+      .eq('organization_id', organizationId)
       .lt('date', startDate);
-    if (organizationId) prevQ = prevQ.eq('organization_id', organizationId);
     const { data: prevTx } = await prevQ;
+
     for (const t of (prevTx || []) as { amount: number; is_transfer?: boolean | null }[]) {
       if (t.is_transfer) continue;
       previousBalance += t.amount;
