@@ -268,14 +268,11 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
   }, [organizationId]);
 
   const fetchChartAccounts = useCallback(async () => {
-    let query = supabase.from('chart_accounts').select('*').order('code');
-    if (organizationId) {
-      // Inclui o plano de contas compartilhado da organização master
-      const { data: masterId } = await supabase.rpc('get_master_org_id');
-      const orgIds = masterId && masterId !== organizationId ? [organizationId, masterId] : [organizationId];
-      query = query.in('organization_id', orgIds);
-    }
-    const { data } = await query;
+    if (!organizationId) return;
+    // Inclui o plano de contas compartilhado da organização master
+    const { data: masterId } = await supabase.rpc('get_master_org_id');
+    const orgIds = masterId && masterId !== organizationId ? [organizationId, masterId] : [organizationId];
+    const { data } = await supabase.from('chart_accounts').select('*').in('organization_id', orgIds).order('code');
     if (data) {
       // Remove duplicados por código (mantém o da própria organização)
       const seen = new Map<string, ChartAccount>();
