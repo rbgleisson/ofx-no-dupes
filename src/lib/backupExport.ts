@@ -44,13 +44,20 @@ export async function createFullBackup(
 
   report('Carregando dados...');
 
+  // Todo o backup fica preso à organização do usuário logado
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Usuário não autenticado.');
+  const { data: orgId } = await supabase.rpc('get_user_org_id', { _user_id: user.id });
+  if (!orgId) throw new Error('Organização do usuário não encontrada.');
+
   // Fetch all data
   const [txRes, catRes, accRes, caRes] = await Promise.all([
-    supabase.from('transactions').select('*').order('date', { ascending: false }),
-    supabase.from('categories').select('*').order('name'),
-    supabase.from('accounts').select('*').order('name'),
-    supabase.from('chart_accounts').select('*').order('code'),
+    supabase.from('transactions').select('*').eq('organization_id', orgId as string).order('date', { ascending: false }),
+    supabase.from('categories').select('*').eq('organization_id', orgId as string).order('name'),
+    supabase.from('accounts').select('*').eq('organization_id', orgId as string).order('name'),
+    supabase.from('chart_accounts').select('*').eq('organization_id', orgId as string).order('code'),
   ]);
+
 
   const transactions: BackupTransaction[] = txRes.data || [];
   const categories: Category[] = catRes.data as Category[] || [];
