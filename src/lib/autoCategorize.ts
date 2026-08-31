@@ -37,6 +37,7 @@ async function ensureSystemCategories(userId: string): Promise<{
 }> {
   // Get org_id for the user
   const { data: orgId } = await supabase.rpc('get_user_org_id', { _user_id: userId });
+  if (!orgId) throw new Error('Organização do usuário não encontrada.');
 
   // Categories to auto-create if missing
   const systemNames = ['Transferência Interna', 'Receita de Investimento'];
@@ -51,6 +52,7 @@ async function ensureSystemCategories(userId: string): Promise<{
     const { data: existing } = await supabase
       .from('categories')
       .select('id')
+      .eq('organization_id', orgId as string)
       .eq('name', name)
       .maybeSingle();
 
@@ -71,6 +73,7 @@ async function ensureSystemCategories(userId: string): Promise<{
   const { data: tithesCategory } = await supabase
     .from('categories')
     .select('id')
+    .eq('organization_id', orgId as string)
     .ilike('name', '%dizimo%')
     .maybeSingle();
   if (tithesCategory) {
