@@ -153,9 +153,11 @@ export async function createFullBackup(
       try {
         const url = tx.attachment_url!;
         const fileName = `${tx.id}_${url.split('/').pop() || 'arquivo'}`;
-        const response = await fetch(url);
-        if (response.ok) {
-          const blob = await response.blob();
+        // Bucket privado: o download precisa passar pelo SDK autenticado.
+        const path = getStoragePath(url);
+        if (!path) continue;
+        const { data: blob, error } = await supabase.storage.from('transaction-docs').download(path);
+        if (!error && blob) {
           anexosFolder!.file(fileName, blob);
           downloaded++;
           report(`Baixando anexos... ${downloaded}/${withAttachments.length}`);
