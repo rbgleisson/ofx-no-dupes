@@ -352,7 +352,9 @@ const TransactionTable = ({ transactions, categories, accounts, chartAccounts, o
     setUploading(activeTransactionId);
     try {
       const ext = file.name.split('.').pop() || 'bin';
-      const path = `${activeTransactionId}/${Date.now()}.${ext}`;
+      const { getOrgFolder } = await import('@/lib/attachmentStore');
+      const orgId = await getOrgFolder();
+      const path = `${orgId}/${activeTransactionId}/${Date.now()}.${ext}`;
       const { error } = await supabase.storage.from('transaction-docs').upload(path, file, { upsert: true });
       if (error) throw error;
       const { data } = supabase.storage.from('transaction-docs').getPublicUrl(path);
