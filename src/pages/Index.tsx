@@ -552,7 +552,14 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
                   return orgName ? `Olá ${orgName}, ${greeting}!` : `${greeting}!`;
                 })()}
               </p>
+              {userEmail && (
+                <p className="text-xs text-muted-foreground/80 mt-0.5">
+                  Conectado como <span className="font-medium text-foreground">{userEmail}</span>
+                  {organization?.name ? ` · ${organization.name}` : ''}
+                </p>
+              )}
             </div>
+
           </div>
           {/* Desktop buttons */}
           <div className="hidden lg:flex items-center gap-2 flex-wrap justify-end">
