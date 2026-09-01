@@ -2,6 +2,7 @@ import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import ExcelJS from 'exceljs';
 import { supabase } from '@/integrations/supabase/client';
+import { getStoragePath } from '@/lib/attachmentStore';
 
 interface BackupTransaction {
   id: string;
