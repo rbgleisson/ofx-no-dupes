@@ -94,6 +94,35 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
 
   const { permissions, isAdmin, isSuperAdmin, isOwner } = usePermissions();
   const { organization, organizationId } = useOrganization();
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const periodAutoAdjusted = useRef(false);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setUserEmail(data.user?.email ?? null));
+  }, []);
+
+  // Se o mês atual não tiver lançamentos, abre automaticamente no último mês com dados.
+  useEffect(() => {
+    if (!organizationId || periodAutoAdjusted.current) return;
+    periodAutoAdjusted.current = true;
+    (async () => {
+      const { data } = await supabase
+        .from('transactions')
+        .select('date')
+        .eq('organization_id', organizationId)
+        .order('date', { ascending: false })
+        .limit(1);
+      const last = data?.[0]?.date;
+      if (!last) return;
+      const [ly, lm] = last.split('-').map(Number);
+      setFilters(prev => {
+        if (prev.year === ly && prev.month === lm) return prev;
+        if (prev.year !== now.getFullYear() || prev.month !== now.getMonth() + 1) return prev;
+        return { ...prev, year: ly, month: lm };
+      });
+    })();
+  }, [organizationId]);
+
 
   useEffect(() => {
     const loadPreviousBalance = async () => {
