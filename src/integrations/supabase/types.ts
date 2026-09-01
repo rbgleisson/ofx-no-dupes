@@ -696,6 +696,7 @@ export type Database = {
     }
     Functions: {
       can_access_transaction_doc: { Args: { _name: string }; Returns: boolean }
+      can_upload_transaction_doc: { Args: { _name: string }; Returns: boolean }
       get_master_org_id: { Args: never; Returns: string }
       get_user_org_id: { Args: { _user_id: string }; Returns: string }
       get_user_permissions: { Args: { _user_id: string }; Returns: Json }
