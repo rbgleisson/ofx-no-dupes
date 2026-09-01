@@ -199,11 +199,7 @@ const TransactionDetailSheet = ({
             {transaction.attachment_url ? (
               <div className="rounded-lg border bg-muted/30 p-3">
                 {/\.(jpg|jpeg|png|webp)$/i.test(transaction.attachment_url) ? (
-                  <img
-                    src={transaction.attachment_url}
-                    alt="Anexo"
-                    className="w-full rounded-md object-contain max-h-64"
-                  />
+                  <AttachmentImage url={transaction.attachment_url} />
                 ) : (
                   <div className="flex items-center gap-3">
                     <FileText className="w-8 h-8 text-primary" />
