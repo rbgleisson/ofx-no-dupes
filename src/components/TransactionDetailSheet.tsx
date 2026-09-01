@@ -1,3 +1,5 @@
+import { useEffect, useState } from 'react';
+import { getAttachmentBlobUrl } from '@/lib/attachmentStore';
 import { Transaction } from '@/lib/transactionStore';
 import { Category } from '@/components/CategoriesManager';
 import { Account } from '@/components/AccountsManager';
@@ -29,6 +31,30 @@ const formatCurrency = (value: number) =>
 const formatDate = (date: string) => {
   const [y, m, d] = date.split('-');
   return `${d}/${m}/${y}`;
+};
+
+/** Imagem do anexo carregada pelo SDK autenticado (bucket privado). */
+const AttachmentImage = ({ url }: { url: string }) => {
+  const [src, setSrc] = useState<string | null>(null);
+  useEffect(() => {
+    let revoke: string | null = null;
+    let active = true;
+    getAttachmentBlobUrl(url).then(blobUrl => {
+      if (!blobUrl) return;
+      if (!active) { URL.revokeObjectURL(blobUrl); return; }
+      revoke = blobUrl;
+      setSrc(blobUrl);
+    });
+    return () => {
+      active = false;
+      if (revoke) URL.revokeObjectURL(revoke);
+    };
+  }, [url]);
+
+  if (!src) {
+    return <div className="w-full h-32 rounded-md bg-muted animate-pulse" />;
+  }
+  return <img src={src} alt="Anexo" className="w-full rounded-md object-contain max-h-64" />;
 };
 
 const TransactionDetailSheet = ({
@@ -173,11 +199,7 @@ const TransactionDetailSheet = ({
             {transaction.attachment_url ? (
               <div className="rounded-lg border bg-muted/30 p-3">
                 {/\.(jpg|jpeg|png|webp)$/i.test(transaction.attachment_url) ? (
-                  <img
-                    src={transaction.attachment_url}
-                    alt="Anexo"
-                    className="w-full rounded-md object-contain max-h-64"
-                  />
+                  <AttachmentImage url={transaction.attachment_url} />
                 ) : (
                   <div className="flex items-center gap-3">
                     <FileText className="w-8 h-8 text-primary" />
