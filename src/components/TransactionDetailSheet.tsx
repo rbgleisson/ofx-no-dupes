@@ -31,6 +31,30 @@ const formatDate = (date: string) => {
   return `${d}/${m}/${y}`;
 };
 
+/** Imagem do anexo carregada pelo SDK autenticado (bucket privado). */
+const AttachmentImage = ({ url }: { url: string }) => {
+  const [src, setSrc] = useState<string | null>(null);
+  useEffect(() => {
+    let revoke: string | null = null;
+    let active = true;
+    getAttachmentBlobUrl(url).then(blobUrl => {
+      if (!blobUrl) return;
+      if (!active) { URL.revokeObjectURL(blobUrl); return; }
+      revoke = blobUrl;
+      setSrc(blobUrl);
+    });
+    return () => {
+      active = false;
+      if (revoke) URL.revokeObjectURL(revoke);
+    };
+  }, [url]);
+
+  if (!src) {
+    return <div className="w-full h-32 rounded-md bg-muted animate-pulse" />;
+  }
+  return <img src={src} alt="Anexo" className="w-full rounded-md object-contain max-h-64" />;
+};
+
 const TransactionDetailSheet = ({
   transaction,
   open,
