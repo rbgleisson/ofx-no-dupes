@@ -96,6 +96,18 @@ export function useOrganizationLoader(): OrganizationContextValue {
 
   useEffect(() => {
     load();
+
+    // Recarrega a organização sempre que a sessão mudar (login/logout).
+    // Sem isso, quem faz login depois que o hook já rodou deslogado
+    // ficava com organizationId nulo até dar F5.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED') {
+        if (event === 'SIGNED_IN') setLoading(true);
+        load();
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   return {
