@@ -52,7 +52,14 @@ export function useOrganizationLoader(): OrganizationContextValue {
   const load = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { setLoading(false); return; }
+      if (!user) {
+        setOrganization(null);
+        setProfile(null);
+        setIsOwner(false);
+        setIsSuperAdmin(false);
+        setLoading(false);
+        return;
+      }
 
       // Check super_admin
       const { data: superCheck } = await supabase.rpc('is_super_admin', { _user_id: user.id });
@@ -89,6 +96,18 @@ export function useOrganizationLoader(): OrganizationContextValue {
 
   useEffect(() => {
     load();
+
+    // Recarrega a organização sempre que a sessão mudar (login/logout).
+    // Sem isso, quem faz login depois que o hook já rodou deslogado
+    // ficava com organizationId nulo até dar F5.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED') {
+        if (event === 'SIGNED_IN') setLoading(true);
+        load();
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   return {
