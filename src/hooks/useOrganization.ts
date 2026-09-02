@@ -52,7 +52,14 @@ export function useOrganizationLoader(): OrganizationContextValue {
   const load = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { setLoading(false); return; }
+      if (!user) {
+        setOrganization(null);
+        setProfile(null);
+        setIsOwner(false);
+        setIsSuperAdmin(false);
+        setLoading(false);
+        return;
+      }
 
       // Check super_admin
       const { data: superCheck } = await supabase.rpc('is_super_admin', { _user_id: user.id });
