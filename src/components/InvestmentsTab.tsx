@@ -90,7 +90,7 @@ export default function InvestmentsTab({ transactions, accounts }: Props) {
       </div>
 
       <p className="text-xs text-muted-foreground">
-        Mostra movimentações classificadas como transferência interna ou com descrição de aplicação/resgate.
+        Mostra apenas movimentações de contas de aplicação ou com descrição de aplicação/resgate.
         Estas movimentações não afetam o saldo de entradas/saídas reais.
       </p>
 
