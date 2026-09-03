@@ -21,15 +21,27 @@ function classify(desc: string): 'aplicacao' | 'resgate' | 'outro' {
 }
 
 export default function InvestmentsTab({ transactions, accounts }: Props) {
+  const investmentAccountIds = useMemo(
+    () => new Set(
+      accounts
+        .filter(a => (a.kind || '').toLowerCase() === 'investment' || /aplica/i.test(a.name || ''))
+        .map(a => a.id)
+    ),
+    [accounts]
+  );
+
   const investments = useMemo(() => {
     return transactions
       .filter(t => {
-        if (t.is_transfer) return true;
-        const c = classify(t.description);
-        return c !== 'outro';
+        // Movimentações que tocam uma conta de aplicação sempre entram
+        if (t.account_id && investmentAccountIds.has(t.account_id)) return true;
+        // Caso contrário, só entra se a descrição indicar aplicação/resgate.
+        // Transferências internas comuns (Pix entre contas) NÃO são investimentos.
+        return classify(t.description) !== 'outro';
       })
       .sort((a, b) => a.date.localeCompare(b.date));
-  }, [transactions]);
+  }, [transactions, investmentAccountIds]);
+
 
   const totals = useMemo(() => {
     let aplicado = 0;
