@@ -25,6 +25,8 @@ export interface Account {
   created_at: string;
   opening_balance?: number;
   opening_balance_date?: string | null;
+  is_manual?: boolean;
+  kind?: string | null;
 }
 
 
