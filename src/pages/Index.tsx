@@ -24,6 +24,7 @@ import TransactionFiltersComponent from '@/components/TransactionFilters';
 import TransactionFormDialog from '@/components/TransactionFormDialog';
 import CategoriesManager, { Category } from '@/components/CategoriesManager';
 import AccountsManager, { Account } from '@/components/AccountsManager';
+import TransferDialog from '@/components/TransferDialog';
 import ChartAccountsManager, { ChartAccount } from '@/components/ChartAccountsManager';
 import ExportDialog from '@/components/ExportDialog';
 import ExcelImportReviewDialog from '@/components/ExcelImportReviewDialog';
@@ -598,6 +599,9 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
                 Lançamento
               </Button>
             )}
+            {permissions.can_create_transactions && (
+              <TransferDialog accounts={accounts} categories={categories} onDone={() => { fetchAccounts(); loadTransactions(); }} />
+            )}
             {permissions.can_manage_accounts && (
               <AccountsManager accounts={accounts} onAccountsChange={() => { fetchAccounts(); loadTransactions(); loadInstallmentSummary(); }} transactions={transactions} installments={allInstallments} />
             )}
@@ -775,6 +779,9 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
                   )}
 
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mt-2">Cadastros</p>
+                  {permissions.can_create_transactions && (
+                    <div className="[&>button]:w-full [&>button]:justify-start"><TransferDialog accounts={accounts} categories={categories} onDone={() => { fetchAccounts(); loadTransactions(); }} /></div>
+                  )}
                   {permissions.can_manage_accounts && (
                     <div className="[&>button]:w-full [&>button]:justify-start"><AccountsManager accounts={accounts} onAccountsChange={() => { fetchAccounts(); loadTransactions(); loadInstallmentSummary(); }} transactions={transactions} installments={allInstallments} /></div>
                   )}

@@ -80,6 +80,8 @@ export type Database = {
           color: string
           created_at: string
           id: string
+          is_manual: boolean
+          kind: string
           name: string
           opening_balance: number
           opening_balance_date: string | null
@@ -90,6 +92,8 @@ export type Database = {
           color?: string
           created_at?: string
           id?: string
+          is_manual?: boolean
+          kind?: string
           name: string
           opening_balance?: number
           opening_balance_date?: string | null
@@ -100,6 +104,8 @@ export type Database = {
           color?: string
           created_at?: string
           id?: string
+          is_manual?: boolean
+          kind?: string
           name?: string
           opening_balance?: number
           opening_balance_date?: string | null
@@ -528,6 +534,7 @@ export type Database = {
           is_verified: boolean
           memo: string | null
           organization_id: string | null
+          transfer_group_id: string | null
           type: string | null
           updated_at: string
           user_id: string | null
@@ -547,6 +554,7 @@ export type Database = {
           is_verified?: boolean
           memo?: string | null
           organization_id?: string | null
+          transfer_group_id?: string | null
           type?: string | null
           updated_at?: string
           user_id?: string | null
@@ -566,6 +574,7 @@ export type Database = {
           is_verified?: boolean
           memo?: string | null
           organization_id?: string | null
+          transfer_group_id?: string | null
           type?: string | null
           updated_at?: string
           user_id?: string | null
