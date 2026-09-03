@@ -24,6 +24,7 @@ import TransactionFiltersComponent from '@/components/TransactionFilters';
 import TransactionFormDialog from '@/components/TransactionFormDialog';
 import CategoriesManager, { Category } from '@/components/CategoriesManager';
 import AccountsManager, { Account } from '@/components/AccountsManager';
+import TransferDialog from '@/components/TransferDialog';
 import ChartAccountsManager, { ChartAccount } from '@/components/ChartAccountsManager';
 import ExportDialog from '@/components/ExportDialog';
 import ExcelImportReviewDialog from '@/components/ExcelImportReviewDialog';
