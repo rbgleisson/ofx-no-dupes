@@ -1,13 +1,16 @@
 import { useMemo } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { TrendingUp, TrendingDown, Wallet } from 'lucide-react';
+import { TrendingUp, TrendingDown, Wallet, AlertTriangle } from 'lucide-react';
 import { Transaction } from '@/lib/transactionStore';
 import { Account } from './AccountsManager';
+import { Installment } from '@/lib/installmentStore';
+import { computeAccountBalances, round2 } from '@/lib/accountBalances';
 
 interface Props {
   transactions: Transaction[];
   accounts: Account[];
+  installments?: Installment[];
 }
 
 const APLICACAO_KEYWORDS = ['APLIC', 'INVEST'];
@@ -20,40 +23,38 @@ function classify(desc: string): 'aplicacao' | 'resgate' | 'outro' {
   return 'outro';
 }
 
-export default function InvestmentsTab({ transactions, accounts }: Props) {
+const isInvestmentAccount = (a: Account) =>
+  (a.kind || '').toLowerCase() === 'investment' || /aplica/i.test(a.name || '');
+
+export default function InvestmentsTab({ transactions, accounts, installments = [] }: Props) {
+  const investmentAccounts = useMemo(() => accounts.filter(isInvestmentAccount), [accounts]);
   const investmentAccountIds = useMemo(
-    () => new Set(
-      accounts
-        .filter(a => (a.kind || '').toLowerCase() === 'investment' || /aplica/i.test(a.name || ''))
-        .map(a => a.id)
-    ),
-    [accounts]
+    () => new Set(investmentAccounts.map(a => a.id)),
+    [investmentAccounts]
   );
 
-  const investments = useMemo(() => {
-    return transactions
-      .filter(t => {
-        // Movimentações que tocam uma conta de aplicação sempre entram
-        if (t.account_id && investmentAccountIds.has(t.account_id)) return true;
-        // Caso contrário, só entra se a descrição indicar aplicação/resgate.
-        // Transferências internas comuns (Pix entre contas) NÃO são investimentos.
-        return classify(t.description) !== 'outro';
-      })
-      .sort((a, b) => a.date.localeCompare(b.date));
-  }, [transactions, investmentAccountIds]);
+  // Fonte única do saldo: mesmo cálculo usado em AccountsManager.
+  const balances = useMemo(
+    () => computeAccountBalances(investmentAccounts, transactions, installments),
+    [investmentAccounts, transactions, installments]
+  );
+  const totalBalance = round2(balances.reduce((s, b) => s + b.realized, 0));
 
+  // Movimentações efetivamente vinculadas às contas de aplicação.
+  const linked = useMemo(
+    () => transactions
+      .filter(t => t.account_id && investmentAccountIds.has(t.account_id))
+      .sort((a, b) => a.date.localeCompare(b.date)),
+    [transactions, investmentAccountIds]
+  );
 
-  const totals = useMemo(() => {
-    let aplicado = 0;
-    let resgatado = 0;
-    investments.forEach(t => {
-      const amt = Number(t.amount);
-      const kind = classify(t.description);
-      if (amt < 0 || kind === 'aplicacao') aplicado += Math.abs(amt);
-      else resgatado += amt;
-    });
-    return { aplicado, resgatado, posicao: aplicado - resgatado };
-  }, [investments]);
+  // Lista secundária: possíveis aplicações/resgates NÃO vinculados à conta oficial.
+  const unlinked = useMemo(
+    () => transactions
+      .filter(t => !(t.account_id && investmentAccountIds.has(t.account_id)) && classify(t.description) !== 'outro')
+      .sort((a, b) => a.date.localeCompare(b.date)),
+    [transactions, investmentAccountIds]
+  );
 
   const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   const fmtDate = (d: string) => {
@@ -61,78 +62,103 @@ export default function InvestmentsTab({ transactions, accounts }: Props) {
     return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : d;
   };
 
+  const renderTable = (rows: Transaction[]) => (
+    <div className="rounded-lg border overflow-x-auto">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Data</TableHead>
+            <TableHead>Descrição</TableHead>
+            <TableHead>Conta</TableHead>
+            <TableHead>Tipo</TableHead>
+            <TableHead className="text-right">Valor</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.map(t => {
+            const acc = accounts.find(a => a.id === t.account_id);
+            const isOut = Number(t.amount) < 0;
+            return (
+              <TableRow key={t.id}>
+                <TableCell className="whitespace-nowrap">{fmtDate(t.date)}</TableCell>
+                <TableCell className="font-medium">{t.description}</TableCell>
+                <TableCell className="text-xs text-muted-foreground">{acc?.name || '-'}</TableCell>
+                <TableCell>
+                  <Badge variant="outline" className={isOut ? 'border-red-400 text-red-600' : 'border-emerald-400 text-emerald-600'}>
+                    {isOut ? 'Aplicação' : 'Resgate'}
+                  </Badge>
+                </TableCell>
+                <TableCell className={`text-right font-mono font-medium ${isOut ? 'text-red-600' : 'text-emerald-600'}`}>
+                  {fmt(Number(t.amount))}
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
+    </div>
+  );
+
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="rounded-xl border p-4 bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800">
-          <p className="text-xs font-medium text-muted-foreground mb-1">
-            <TrendingDown className="w-3.5 h-3.5 inline mr-1" />
-            Total Aplicado (saídas p/ investimento)
-          </p>
-          <p className="text-lg font-bold text-red-600">{fmt(totals.aplicado)}</p>
-        </div>
-        <div className="rounded-xl border p-4 bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800">
-          <p className="text-xs font-medium text-muted-foreground mb-1">
-            <TrendingUp className="w-3.5 h-3.5 inline mr-1" />
-            Total Resgatado (entradas de investimento)
-          </p>
-          <p className="text-lg font-bold text-emerald-600">{fmt(totals.resgatado)}</p>
-        </div>
-        <div className="rounded-xl border p-4 bg-cyan-50 dark:bg-cyan-950/30 border-cyan-200 dark:border-cyan-800">
-          <p className="text-xs font-medium text-muted-foreground mb-1">
-            <Wallet className="w-3.5 h-3.5 inline mr-1" />
-            Posição Aplicada (aplicado − resgatado)
-          </p>
-          <p className={`text-lg font-bold ${totals.posicao >= 0 ? 'text-cyan-600' : 'text-orange-600'}`}>
-            {fmt(totals.posicao)}
+      {investmentAccounts.length === 0 ? (
+        <div className="rounded-xl border p-4 bg-muted/30">
+          <p className="text-sm font-medium">Nenhuma conta de aplicação cadastrada</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Cadastre uma conta "Aplicação Financeira" e registre as aplicações/resgates como Transferência
+            para acompanhar o saldo aplicado.
           </p>
         </div>
-      </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="rounded-xl border p-4 bg-cyan-50 dark:bg-cyan-950/30 border-cyan-200 dark:border-cyan-800">
+            <p className="text-xs font-medium text-muted-foreground mb-1">
+              <Wallet className="w-3.5 h-3.5 inline mr-1" />
+              Saldo Total Aplicado
+            </p>
+            <p className={`text-lg font-bold ${totalBalance >= 0 ? 'text-cyan-600' : 'text-orange-600'}`}>
+              {fmt(totalBalance)}
+            </p>
+          </div>
+          {balances.map(b => (
+            <div key={b.account.id} className="rounded-xl border p-4">
+              <p className="text-xs font-medium text-muted-foreground mb-1">{b.account.name}</p>
+              <p className="text-lg font-bold">{fmt(b.realized)}</p>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                <TrendingDown className="w-3 h-3 inline mr-0.5 text-red-500" />
+                Aplicado {fmt(b.income)}
+                {' · '}
+                <TrendingUp className="w-3 h-3 inline mr-0.5 text-emerald-500" />
+                Resgatado {fmt(b.expense)}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
 
       <p className="text-xs text-muted-foreground">
-        Mostra apenas movimentações de contas de aplicação ou com descrição de aplicação/resgate.
+        O saldo acima é o saldo real das contas de aplicação (mesmo cálculo do cadastro de contas).
         Estas movimentações não afetam o saldo de entradas/saídas reais.
       </p>
 
-      {investments.length === 0 ? (
+      {linked.length > 0 && renderTable(linked)}
+
+      {unlinked.length > 0 && (
+        <div className="space-y-2">
+          <div className="flex items-start gap-2 rounded-lg border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 p-3">
+            <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
+            <p className="text-xs leading-snug">
+              Possíveis movimentações de aplicação <strong>não vinculadas à conta oficial</strong> (identificadas pela descrição).
+              Revise e, se for o caso, reclassifique manualmente como Transferência. Elas não entram no saldo acima.
+            </p>
+          </div>
+          {renderTable(unlinked)}
+        </div>
+      )}
+
+      {investmentAccounts.length > 0 && linked.length === 0 && unlinked.length === 0 && (
         <div className="text-center py-12 text-muted-foreground">
           Nenhuma movimentação de investimento encontrada no período filtrado.
-        </div>
-      ) : (
-        <div className="rounded-lg border overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Data</TableHead>
-                <TableHead>Descrição</TableHead>
-                <TableHead>Conta</TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead className="text-right">Valor</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {investments.map(t => {
-                const acc = accounts.find(a => a.id === t.account_id);
-                const kind = classify(t.description);
-                const isOut = Number(t.amount) < 0 || kind === 'aplicacao';
-                return (
-                  <TableRow key={t.id}>
-                    <TableCell className="whitespace-nowrap">{fmtDate(t.date)}</TableCell>
-                    <TableCell className="font-medium">{t.description}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{acc?.name || '-'}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className={isOut ? 'border-red-400 text-red-600' : 'border-emerald-400 text-emerald-600'}>
-                        {isOut ? 'Aplicação' : 'Resgate'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className={`text-right font-mono font-medium ${isOut ? 'text-red-600' : 'text-emerald-600'}`}>
-                      {fmt(Number(t.amount))}
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
         </div>
       )}
     </div>
