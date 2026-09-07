@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowDownCircle, ArrowUpCircle, BarChart3, Download, Loader2, TrendingUp, Wallet, Building2 } from 'lucide-react';
 import { Category } from '@/components/CategoriesManager';
-import { exportMonthlySummary } from '@/lib/monthlySummaryExport';
+import { exportMonthlySummary, fetchInvestmentBalance } from '@/lib/monthlySummaryExport';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 
@@ -47,6 +47,7 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [txs, setTxs] = useState<Tx[]>([]);
+  const [investmentBalance, setInvestmentBalance] = useState<number>(0);
   const [previousBalance, setPreviousBalance] = useState<number>(0);
   const [prevBalanceInput, setPrevBalanceInput] = useState<string>('0,00');
   const [prevBalanceEdited, setPrevBalanceEdited] = useState(false);
@@ -82,9 +83,14 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
         .lt('date', startDate);
 
 
-      const [{ data }, { data: prevData }] = await Promise.all([q, prevQ]);
+      const [{ data }, { data: prevData }, invBal] = await Promise.all([
+        q,
+        prevQ,
+        fetchInvestmentBalance(organizationId, y, m),
+      ]);
       if (!cancelled) {
         setTxs((data || []) as Tx[]);
+        setInvestmentBalance(invBal);
         let prev = 0;
         for (const t of (prevData || []) as { amount: number; is_transfer?: boolean | null }[]) {
           if (t.is_transfer) continue;
@@ -354,6 +360,17 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
                   <span>Saldo do mês: <span className={cn('tabular-nums', stats.saldo >= 0 ? 'text-emerald-300' : 'text-rose-300')}>{fmt(stats.saldo)}</span></span>
                 </div>
               </div>
+            </div>
+
+            {/* Saldo acumulado em aplicações financeiras */}
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-700/60 bg-slate-900/60 p-4">
+              <div className="flex items-center gap-2 min-w-0">
+                <TrendingUp className="w-4 h-4 text-cyan-300 shrink-0" />
+                <span className="text-xs uppercase tracking-wider text-slate-300">
+                  Saldo em aplicações financeiras (até {monthName}/{year})
+                </span>
+              </div>
+              <span className="text-lg font-bold tabular-nums text-cyan-200">{fmt(investmentBalance)}</span>
             </div>
           </div>
         )}
