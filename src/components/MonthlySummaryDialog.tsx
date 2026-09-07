@@ -83,9 +83,14 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
         .lt('date', startDate);
 
 
-      const [{ data }, { data: prevData }] = await Promise.all([q, prevQ]);
+      const [{ data }, { data: prevData }, invBal] = await Promise.all([
+        q,
+        prevQ,
+        fetchInvestmentBalance(organizationId, y, m),
+      ]);
       if (!cancelled) {
         setTxs((data || []) as Tx[]);
+        setInvestmentBalance(invBal);
         let prev = 0;
         for (const t of (prevData || []) as { amount: number; is_transfer?: boolean | null }[]) {
           if (t.is_transfer) continue;
