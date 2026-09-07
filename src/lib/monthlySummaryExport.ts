@@ -1,6 +1,48 @@
 import ExcelJS from 'exceljs';
 import { supabase } from '@/integrations/supabase/client';
 
+/**
+ * Saldo acumulado das contas "Aplicação Financeira" da organização
+ * até o último dia (inclusive) do mês/ano informado.
+ * Mesma fórmula de computeAccountBalances: saldo inicial + soma das transações.
+ */
+export async function fetchInvestmentBalance(
+  organizationId: string | null,
+  year: number,
+  month: number,
+): Promise<number> {
+  if (!organizationId) return 0;
+  const endExclusive = month === 12
+    ? `${year + 1}-01-01`
+    : `${year}-${String(month + 1).padStart(2, '0')}-01`;
+
+  const { data: accs } = await supabase
+    .from('accounts')
+    .select('id, opening_balance, opening_balance_date')
+    .eq('organization_id', organizationId)
+    .ilike('name', '%Aplicação Financeira%');
+
+  const accounts = (accs || []) as { id: string; opening_balance: number | null; opening_balance_date: string | null }[];
+  if (!accounts.length) return 0;
+
+  const { data: txs } = await supabase
+    .from('transactions')
+    .select('amount, date, account_id')
+    .eq('organization_id', organizationId)
+    .in('account_id', accounts.map(a => a.id))
+    .lt('date', endExclusive);
+
+  let total = 0;
+  for (const a of accounts) total += Number(a.opening_balance ?? 0);
+  for (const t of (txs || []) as { amount: number; date: string; account_id: string | null }[]) {
+    const acc = accounts.find(a => a.id === t.account_id);
+    const since = acc?.opening_balance_date ?? null;
+    if (since && String(t.date).slice(0, 10) < since) continue;
+    total += Number(t.amount) || 0;
+  }
+  return Math.round((total + Number.EPSILON) * 100) / 100;
+}
+
 interface Transaction {
   date: string;
   amount: number;
