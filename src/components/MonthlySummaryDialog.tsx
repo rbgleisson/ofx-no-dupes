@@ -361,6 +361,17 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
                 </div>
               </div>
             </div>
+
+            {/* Saldo acumulado em aplicações financeiras */}
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-700/60 bg-slate-900/60 p-4">
+              <div className="flex items-center gap-2 min-w-0">
+                <TrendingUp className="w-4 h-4 text-cyan-300 shrink-0" />
+                <span className="text-xs uppercase tracking-wider text-slate-300">
+                  Saldo em aplicações financeiras (até {monthName}/{year})
+                </span>
+              </div>
+              <span className="text-lg font-bold tabular-nums text-cyan-200">{fmt(investmentBalance)}</span>
+            </div>
           </div>
         )}
       </DialogContent>
