@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowDownCircle, ArrowUpCircle, BarChart3, Download, Loader2, TrendingUp, Wallet, Building2 } from 'lucide-react';
 import { Category } from '@/components/CategoriesManager';
-import { exportMonthlySummary } from '@/lib/monthlySummaryExport';
+import { exportMonthlySummary, fetchInvestmentBalance } from '@/lib/monthlySummaryExport';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 
