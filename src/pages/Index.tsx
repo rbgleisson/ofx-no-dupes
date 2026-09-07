@@ -50,7 +50,6 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet';
 import { exportCategoriesAndChartAccounts, importCategoriesAndChartAccounts } from '@/lib/catalogExportImport';
-import TransactionExportDialog from '@/components/TransactionExportDialog';
 import { toast } from 'sonner';
 import { exportMonthlySummary } from '@/lib/monthlySummaryExport';
 import MonthlySummaryDialog from '@/components/MonthlySummaryDialog';
@@ -1052,7 +1051,8 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
                 </TabsList>
                 <div className="flex items-center gap-2 flex-wrap">
                   {permissions.can_export && (
-                    <TransactionExportDialog
+                    <ExportDialog
+                      source="current"
                       transactions={transactions}
                       categories={categories}
                       accounts={accounts}
@@ -1115,7 +1115,7 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
           </TabsContent>
 
           <TabsContent value="investments">
-            <InvestmentsTab transactions={effectiveTransactions} accounts={accounts} />
+            <InvestmentsTab transactions={effectiveTransactions} accounts={accounts} installments={allInstallments} />
           </TabsContent>
         </Tabs>
 
