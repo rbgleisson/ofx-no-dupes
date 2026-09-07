@@ -493,6 +493,23 @@ export async function exportMonthlySummary(
     right: { style: 'thin', color: { argb: C_PRIMARY_DARK } },
   };
   sheet.getRow(row).height = 48;
+  row++;
+
+  // Saldo acumulado em aplicações financeiras (não entra em entradas/saídas do mês)
+  sheet.mergeCells(row, 2, row, 3);
+  const invLbl = sheet.getCell(row, 2);
+  invLbl.value = `SALDO EM APLICAÇÕES FINANCEIRAS (até ${monthName}/${year})`;
+  invLbl.font = { name: 'Calibri', size: 10, bold: true, color: { argb: C_GRAY } };
+  invLbl.alignment = { horizontal: 'left', vertical: 'middle', indent: 1, wrapText: true };
+  invLbl.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C_GRAY_LIGHT } };
+  sheet.mergeCells(row, 4, row, 5);
+  const invVal = sheet.getCell(row, 4);
+  invVal.value = investmentBalance;
+  invVal.numFmt = '"R$" #,##0.00';
+  invVal.font = { name: 'Calibri', size: 11, bold: true, color: { argb: C_PRIMARY_DARK } };
+  invVal.alignment = { horizontal: 'right', vertical: 'middle', indent: 1 };
+  invVal.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C_GRAY_LIGHT } };
+  sheet.getRow(row).height = 20;
   row += 2;
 
   // Footer note
