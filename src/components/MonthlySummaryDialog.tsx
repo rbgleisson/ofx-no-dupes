@@ -47,6 +47,7 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [txs, setTxs] = useState<Tx[]>([]);
+  const [investmentBalance, setInvestmentBalance] = useState<number>(0);
   const [previousBalance, setPreviousBalance] = useState<number>(0);
   const [prevBalanceInput, setPrevBalanceInput] = useState<string>('0,00');
   const [prevBalanceEdited, setPrevBalanceEdited] = useState(false);
