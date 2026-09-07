@@ -24,17 +24,20 @@ import {
 } from '@/components/ui/select';
 import { Download } from 'lucide-react';
 import { exportDemonstrativo, exportListagem } from '@/lib/excelExport';
+import { toast } from 'sonner';
 
 interface ExportColumn {
   key: string;
   label: string;
 }
 
-const ALL_COLUMNS: ExportColumn[] = [
+/** Definição única das colunas exportáveis, usada por todos os modos. */
+export const ALL_COLUMNS: ExportColumn[] = [
   { key: 'date', label: 'Data' },
   { key: 'description', label: 'Descrição' },
   { key: 'memo', label: 'Memo' },
   { key: 'amount', label: 'Valor' },
+  { key: 'category_code', label: 'Código Categoria' },
   { key: 'category', label: 'Categoria' },
   { key: 'account', label: 'Conta' },
   { key: 'chart_account', label: 'Conta Contábil' },
@@ -49,16 +52,45 @@ const MONTHS = [
 const currentYear = new Date().getFullYear();
 const YEARS = Array.from({ length: 10 }, (_, i) => currentYear - i);
 
-interface ExportDialogProps {
+export interface ExportDialogProps {
   transactions: Transaction[];
   categories: Category[];
   accounts: Account[];
   chartAccounts: ChartAccount[];
+  /**
+   * 'database' — busca todos os lançamentos da organização e aplica filtro próprio de mês/ano,
+   *              com os modos Demonstrativo / Listagem.
+   * 'current'  — exporta apenas a lista já filtrada recebida por prop.
+   */
+  source?: 'database' | 'current';
+  /** Nome do arquivo (modo 'current'). */
+  fileName?: string;
+  triggerLabel?: string;
+  triggerVariant?: 'default' | 'outline';
+  triggerClassName?: string;
 }
 
-const ExportDialog = ({ transactions, categories, accounts, chartAccounts }: ExportDialogProps) => {
+const DEFAULT_DB_COLUMNS = ['date', 'description', 'amount'];
+const DEFAULT_CURRENT_COLUMNS = [
+  'date', 'description', 'amount', 'category_code', 'category', 'account', 'chart_account', 'chart_account_code',
+];
+
+const ExportDialog = ({
+  transactions,
+  categories,
+  accounts,
+  chartAccounts,
+  source = 'database',
+  fileName,
+  triggerLabel,
+  triggerVariant,
+  triggerClassName,
+}: ExportDialogProps) => {
+  const fromDb = source === 'database';
   const { organizationId } = useOrganization();
-  const [selected, setSelected] = useState<Set<string>>(new Set(['date', 'description', 'amount']));
+  const [selected, setSelected] = useState<Set<string>>(
+    new Set(fromDb ? DEFAULT_DB_COLUMNS : DEFAULT_CURRENT_COLUMNS)
+  );
   const [open, setOpen] = useState(false);
   const [exportMonth, setExportMonth] = useState<string>('__all__');
   const [exportYear, setExportYear] = useState<string>(currentYear.toString());
@@ -69,7 +101,7 @@ const ExportDialog = ({ transactions, categories, accounts, chartAccounts }: Exp
   const [onlyReal, setOnlyReal] = useState(true);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open || !fromDb) return;
     if (!organizationId) { setAllTransactions([]); return; }
     const fetchAll = async () => {
       const { data } = await supabase
@@ -80,8 +112,7 @@ const ExportDialog = ({ transactions, categories, accounts, chartAccounts }: Exp
       setAllTransactions((data as Transaction[]) || []);
     };
     fetchAll();
-  }, [open, organizationId]);
-
+  }, [open, organizationId, fromDb]);
 
   const toggle = (key: string) => {
     setSelected(prev => {
@@ -93,23 +124,15 @@ const ExportDialog = ({ transactions, categories, accounts, chartAccounts }: Exp
   };
 
   const getFilteredTransactions = () => {
-    let filtered = allTransactions;
+    let filtered = fromDb ? allTransactions : transactions;
     if (onlyReal) filtered = filtered.filter(tx => !(tx as any).is_transfer);
+    if (!fromDb) return filtered;
+
     const year = exportYear !== '__all__' ? Number(exportYear) : null;
     const month = exportMonth !== '__all__' ? Number(exportMonth) : null;
 
-    if (year) {
-      filtered = filtered.filter(tx => {
-        const d = new Date(tx.date);
-        return d.getFullYear() === year;
-      });
-    }
-    if (month) {
-      filtered = filtered.filter(tx => {
-        const d = new Date(tx.date);
-        return d.getMonth() + 1 === month;
-      });
-    }
+    if (year) filtered = filtered.filter(tx => new Date(tx.date).getFullYear() === year);
+    if (month) filtered = filtered.filter(tx => new Date(tx.date).getMonth() + 1 === month);
     return filtered;
   };
 
@@ -132,115 +155,139 @@ const ExportDialog = ({ transactions, categories, accounts, chartAccounts }: Exp
   };
 
   const handleExport = async () => {
+    const filtered = getFilteredTransactions();
+    if (!fromDb && filtered.length === 0) {
+      toast.warning('Nenhum lançamento para exportar.');
+      return;
+    }
+    if (selected.size === 0) {
+      toast.warning('Selecione pelo menos uma coluna.');
+      return;
+    }
     setExporting(true);
     try {
-      const filtered = getFilteredTransactions();
-      const monthLabel = exportMonth !== '__all__' ? MONTHS[Number(exportMonth) - 1] : 'Todos';
-      const yearLabel = exportYear !== '__all__' ? exportYear : 'Todos';
-
-      if (exportType === 'demonstrativo') {
+      if (fromDb && exportType === 'demonstrativo') {
         const { start, end } = buildPeriodStrings();
         await exportDemonstrativo(
           filtered, chartAccounts, categories, accounts, selected,
           companyName || 'EMPRESA', start, end,
         );
       } else {
+        const monthLabel = exportMonth !== '__all__' ? MONTHS[Number(exportMonth) - 1] : 'Todos';
+        const yearLabel = exportYear !== '__all__' ? exportYear : 'Todos';
         await exportListagem(
           filtered, categories, accounts, chartAccounts, selected,
-          `transacoes_${yearLabel}_${monthLabel}.xlsx`,
+          fileName || `transacoes_${yearLabel}_${monthLabel}.xlsx`,
         );
+        if (!fromDb) toast.success('Exportação concluída!');
       }
       setOpen(false);
+    } catch (err: any) {
+      console.error('Export error:', err);
+      toast.error('Erro ao exportar: ' + (err?.message || ''));
     } finally {
       setExporting(false);
     }
   };
 
   const filteredCount = getFilteredTransactions().length;
+  const showColumns = !fromDb || exportType === 'listagem';
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="sm" className="bg-teal-700 hover:bg-teal-800 text-white border-0">
+        <Button
+          size="sm"
+          variant={triggerVariant ?? (fromDb ? 'default' : 'outline')}
+          className={triggerClassName ?? (fromDb ? 'bg-teal-700 hover:bg-teal-800 text-white border-0' : undefined)}
+        >
           <Download className="w-4 h-4 mr-1.5" />
-          Exportar
+          {triggerLabel ?? (fromDb ? 'Exportar' : 'Exportar Excel')}
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-sm">
+      <DialogContent className="max-w-sm max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Exportar para Excel</DialogTitle>
+          <DialogTitle>{fromDb ? 'Exportar para Excel' : 'Exportar Lançamentos'}</DialogTitle>
         </DialogHeader>
 
-        {/* Tipo de exportação */}
-        <div>
-          <p className="text-xs font-medium text-muted-foreground mb-1.5">Tipo</p>
-          <Select value={exportType} onValueChange={(v) => setExportType(v as 'listagem' | 'demonstrativo')}>
-            <SelectTrigger className="h-8 text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="demonstrativo">Demonstrativo da Tesouraria</SelectItem>
-              <SelectItem value="listagem">Listagem de Lançamentos</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+        {fromDb ? (
+          <>
+            {/* Tipo de exportação */}
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-1.5">Tipo</p>
+              <Select value={exportType} onValueChange={(v) => setExportType(v as 'listagem' | 'demonstrativo')}>
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="demonstrativo">Demonstrativo da Tesouraria</SelectItem>
+                  <SelectItem value="listagem">Listagem de Lançamentos</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-        {/* Nome da empresa (only for demonstrativo) */}
-        {exportType === 'demonstrativo' && (
-          <div>
-            <p className="text-xs font-medium text-muted-foreground mb-1.5">Nome da Empresa / Igreja</p>
-            <Input
-              className="h-8 text-xs"
-              placeholder="Ex: Igreja Assembleia de Deus"
-              value={companyName}
-              onChange={(e) => setCompanyName(e.target.value)}
-            />
-          </div>
+            {exportType === 'demonstrativo' && (
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-1.5">Nome da Empresa / Igreja</p>
+                <Input
+                  className="h-8 text-xs"
+                  placeholder="Ex: Igreja Assembleia de Deus"
+                  value={companyName}
+                  onChange={(e) => setCompanyName(e.target.value)}
+                />
+              </div>
+            )}
+
+            {/* Período */}
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-1.5">Período</p>
+              <div className="flex gap-2">
+                <Select value={exportYear} onValueChange={v => { setExportYear(v); if (v === '__all__') setExportMonth('__all__'); }}>
+                  <SelectTrigger className="h-8 text-xs flex-1">
+                    <SelectValue placeholder="Ano" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__all__">Todos anos</SelectItem>
+                    {YEARS.map(y => (
+                      <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={exportMonth} onValueChange={setExportMonth} disabled={exportYear === '__all__'}>
+                  <SelectTrigger className="h-8 text-xs flex-1">
+                    <SelectValue placeholder="Mês" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__all__">Todos meses</SelectItem>
+                    {MONTHS.map((m, i) => (
+                      <SelectItem key={i} value={(i + 1).toString()}>{m}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </>
+        ) : (
+          <p className="text-xs text-muted-foreground">
+            {filteredCount} lançamento{filteredCount !== 1 ? 's' : ''} serão exportados.
+          </p>
         )}
 
-        {/* Período */}
-        <div>
-          <p className="text-xs font-medium text-muted-foreground mb-1.5">Período</p>
-          <div className="flex gap-2">
-            <Select value={exportYear} onValueChange={v => { setExportYear(v); if (v === '__all__') setExportMonth('__all__'); }}>
-              <SelectTrigger className="h-8 text-xs flex-1">
-                <SelectValue placeholder="Ano" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__all__">Todos anos</SelectItem>
-                {YEARS.map(y => (
-                  <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={exportMonth} onValueChange={setExportMonth} disabled={exportYear === '__all__'}>
-              <SelectTrigger className="h-8 text-xs flex-1">
-                <SelectValue placeholder="Mês" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__all__">Todos meses</SelectItem>
-                {MONTHS.map((m, i) => (
-                  <SelectItem key={i} value={(i + 1).toString()}>{m}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
         {/* Somente movimentos reais */}
         <label className="flex items-start gap-2 cursor-pointer rounded-lg px-2 py-1.5 hover:bg-muted/50 transition-colors">
           <Checkbox checked={onlyReal} onCheckedChange={() => setOnlyReal(v => !v)} className="mt-0.5" />
           <span className="text-xs leading-snug">
             Somente receitas e despesas reais
-            <span className="block text-muted-foreground">Exclui aplicações, resgates e transferências internas (mesma titularidade/CNPJ).</span>
+            <span className="block text-muted-foreground">
+              Exclui aplicações, resgates e transferências internas (mesma titularidade/CNPJ).
+            </span>
           </span>
         </label>
 
-
-        {/* Colunas (only for listagem) */}
-        {exportType === 'listagem' && (
+        {showColumns && (
           <div>
             <p className="text-xs font-medium text-muted-foreground mb-1.5">Colunas</p>
-            <div className="space-y-1">
+            <div className="space-y-1 max-h-56 overflow-y-auto pr-1">
               {ALL_COLUMNS.map(col => (
                 <label key={col.key} className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 rounded-lg px-2 py-1.5 transition-colors">
                   <Checkbox
@@ -254,7 +301,7 @@ const ExportDialog = ({ transactions, categories, accounts, chartAccounts }: Exp
           </div>
         )}
 
-        {exportType === 'demonstrativo' && (
+        {fromDb && exportType === 'demonstrativo' && (
           <p className="text-xs text-muted-foreground">
             Gera o formulário do Demonstrativo Mensal da Tesouraria com bordas, cabeçalho e valores preenchidos automaticamente.
           </p>
@@ -262,9 +309,9 @@ const ExportDialog = ({ transactions, categories, accounts, chartAccounts }: Exp
 
         <div className="flex justify-end gap-2 pt-2">
           <Button variant="outline" size="sm" onClick={() => setOpen(false)}>Cancelar</Button>
-          <Button size="sm" onClick={handleExport} disabled={(exportType === 'listagem' && selected.size === 0) || exporting}>
+          <Button size="sm" onClick={handleExport} disabled={(showColumns && selected.size === 0) || exporting}>
             <Download className="w-4 h-4 mr-1.5" />
-            {exporting ? 'Exportando...' : `Exportar (${filteredCount})`}
+            {exporting ? 'Exportando...' : fromDb ? `Exportar (${filteredCount})` : 'Exportar'}
           </Button>
         </div>
       </DialogContent>
