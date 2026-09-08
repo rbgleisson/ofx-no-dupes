@@ -185,18 +185,31 @@ export default function TransferDialog({ accounts, categories, onDone }: Props) 
               <AccountSelect value={bankId} onChange={setBankId} label="Conta de origem" />
               <AccountSelect value={toId} onChange={setToId} label="Conta de destino" />
             </div>
-          ) : mode === 'rendimento' ? (
-            <p className="text-xs text-muted-foreground">
-              O valor será creditado diretamente em <strong>{INVESTMENT_ACCOUNT_NAME}</strong>
-              {investmentAccount ? '' : ' (a conta será criada automaticamente)'}.
-            </p>
           ) : (
-            <AccountSelect
-              value={bankId}
-              onChange={setBankId}
-              label={mode === 'aplicacao' ? 'Conta de origem (banco)' : 'Conta de destino (banco)'}
-            />
+            <div className="grid grid-cols-2 gap-3">
+              {mode !== 'rendimento' && (
+                <AccountSelect
+                  value={bankId}
+                  onChange={setBankId}
+                  label={mode === 'aplicacao' ? 'Conta de origem (banco)' : 'Conta de destino (banco)'}
+                />
+              )}
+              <div className={mode === 'rendimento' ? 'col-span-2' : ''}>
+                <Label className="text-xs">Conta de aplicação</Label>
+                <select
+                  value={investmentId}
+                  onChange={e => setInvestmentId(e.target.value)}
+                  className="h-9 w-full rounded-md border bg-background px-2 text-xs"
+                >
+                  {investmentAccounts.length === 0 && <option value="">Criar automaticamente</option>}
+                  {investmentAccounts.map(a => (
+                    <option key={a.id} value={a.id}>{a.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
           )}
+
 
           <div>
             <Label className="text-xs">Descrição</Label>
