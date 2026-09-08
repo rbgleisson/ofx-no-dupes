@@ -106,7 +106,7 @@ export async function createTransfer(input: TransferInput): Promise<void> {
 }
 
 /**
- * Rendimento de aplicação: crédito direto na conta "Aplicação Financeira".
+ * Rendimento de aplicação: crédito direto na conta de aplicação escolhida.
  * Não é transferência (é ganho real), mas fica isolado na conta de aplicação.
  */
 export async function createInvestmentYield(params: {
@@ -115,9 +115,11 @@ export async function createInvestmentYield(params: {
   description: string;
   memo?: string;
   categoryId?: string | null;
+  accountId?: string | null;
 }): Promise<void> {
   const { userId, orgId } = await currentUserAndOrg();
-  const accountId = await ensureInvestmentAccount();
+  const accountId = params.accountId || (await ensureInvestmentAccount());
+
   const value = round2(Math.abs(Number(params.amount) || 0));
   if (!value) throw new Error('Informe um valor maior que zero.');
 
