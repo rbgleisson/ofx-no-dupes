@@ -22,7 +22,9 @@ export interface AccountBalance {
 export function computeAccountBalances(
   accounts: Account[],
   transactions: Transaction[],
-  installments: Installment[]
+  installments: Installment[],
+  /** Saldos informados manualmente (contas de aplicação): substituem o cálculo por transações. */
+  balanceOverrides?: Map<string, number>
 ): AccountBalance[] {
   return accounts.map(acc => {
     const opening = round2(Number((acc as any).opening_balance ?? 0));
@@ -39,7 +41,9 @@ export function computeAccountBalances(
 
     income = round2(income);
     expense = round2(expense);
-    const realized = round2(opening + income - expense);
+    const override = balanceOverrides?.get(acc.id);
+    const realized = override !== undefined ? round2(override) : round2(opening + income - expense);
+
 
     let pendingIn = 0;
     let pendingOut = 0;
