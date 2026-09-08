@@ -377,7 +377,14 @@ const AccountsManager = ({ accounts, onAccountsChange, transactions = [], instal
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+    <InvestmentPositionDialog
+      account={positionAccount}
+      onClose={() => setPositionAccount(null)}
+      onSaved={() => { reloadPositions(); onAccountsChange(); }}
+    />
     </>
+
   );
 };
 
