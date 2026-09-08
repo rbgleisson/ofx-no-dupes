@@ -1,7 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { round2 } from '@/lib/accountBalances';
 
-export const INVESTMENT_ACCOUNT_NAME = 'Aplicação Financeira';
+export const DEFAULT_INVESTMENT_ACCOUNT_NAME = 'Aplicação Financeira';
 
 async function currentUserAndOrg() {
   const { data: { user } } = await supabase.auth.getUser();
@@ -12,27 +12,24 @@ async function currentUserAndOrg() {
 }
 
 /**
- * Garante que a organização possua a conta manual "Aplicação Financeira".
- * Multi-tenant: sempre filtrada/criada com o organization_id do usuário logado.
+ * Cria uma conta de aplicação com nome livre (ex.: "RDC Sicoob", "CDB Banco X").
+ * Sempre manual (sem OFX) e do tipo investment, isolada por organização.
  */
-export async function ensureInvestmentAccount(): Promise<string> {
+export async function createInvestmentAccount(params: {
+  name: string;
+  color?: string;
+  openingBalance?: number;
+}): Promise<string> {
   const { userId, orgId } = await currentUserAndOrg();
+  const name = params.name.trim();
+  if (!name) throw new Error('Informe o nome da conta de aplicação.');
 
-  const { data: existing } = await supabase
-    .from('accounts')
-    .select('id')
-    .eq('organization_id', orgId)
-    .ilike('name', INVESTMENT_ACCOUNT_NAME)
-    .maybeSingle();
-
-  if (existing?.id) return existing.id;
-
-  const { data: created, error } = await supabase
+  const { data, error } = await supabase
     .from('accounts')
     .insert({
-      name: INVESTMENT_ACCOUNT_NAME,
-      color: '#14b8a6',
-      opening_balance: 0,
+      name,
+      color: params.color || '#14b8a6',
+      opening_balance: round2(Number(params.openingBalance) || 0),
       is_manual: true,
       kind: 'investment',
       user_id: userId,
@@ -41,8 +38,29 @@ export async function ensureInvestmentAccount(): Promise<string> {
     .select('id')
     .single();
   if (error) throw error;
-  return created!.id;
+  return data!.id;
 }
+
+/**
+ * Garante que exista pelo menos uma conta de aplicação na organização.
+ * Não depende de nome fixo: usa qualquer conta kind = 'investment' existente.
+ */
+export async function ensureInvestmentAccount(): Promise<string> {
+  const { orgId } = await currentUserAndOrg();
+
+  const { data: existing } = await supabase
+    .from('accounts')
+    .select('id')
+    .eq('organization_id', orgId)
+    .eq('kind', 'investment')
+    .order('created_at', { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  if (existing?.id) return existing.id;
+  return createInvestmentAccount({ name: DEFAULT_INVESTMENT_ACCOUNT_NAME });
+}
+
 
 export interface TransferInput {
   date: string;
@@ -88,7 +106,7 @@ export async function createTransfer(input: TransferInput): Promise<void> {
 }
 
 /**
- * Rendimento de aplicação: crédito direto na conta "Aplicação Financeira".
+ * Rendimento de aplicação: crédito direto na conta de aplicação escolhida.
  * Não é transferência (é ganho real), mas fica isolado na conta de aplicação.
  */
 export async function createInvestmentYield(params: {
@@ -97,9 +115,11 @@ export async function createInvestmentYield(params: {
   description: string;
   memo?: string;
   categoryId?: string | null;
+  accountId?: string | null;
 }): Promise<void> {
   const { userId, orgId } = await currentUserAndOrg();
-  const accountId = await ensureInvestmentAccount();
+  const accountId = params.accountId || (await ensureInvestmentAccount());
+
   const value = round2(Math.abs(Number(params.amount) || 0));
   if (!value) throw new Error('Informe um valor maior que zero.');
 

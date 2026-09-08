@@ -1,47 +1,22 @@
 import ExcelJS from 'exceljs';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchInvestmentSummary, type InvestmentSummary } from '@/lib/investmentPositions';
+
+export { fetchInvestmentSummary };
 
 /**
- * Saldo acumulado das contas "Aplicação Financeira" da organização
- * até o último dia (inclusive) do mês/ano informado.
- * Mesma fórmula de computeAccountBalances: saldo inicial + soma das transações.
+ * Saldo consolidado das contas de aplicação (kind = 'investment') da organização,
+ * a partir da última posição mensal registrada até o mês/ano informado.
  */
 export async function fetchInvestmentBalance(
   organizationId: string | null,
   year: number,
   month: number,
 ): Promise<number> {
-  if (!organizationId) return 0;
-  const endExclusive = month === 12
-    ? `${year + 1}-01-01`
-    : `${year}-${String(month + 1).padStart(2, '0')}-01`;
-
-  const { data: accs } = await supabase
-    .from('accounts')
-    .select('id, opening_balance, opening_balance_date')
-    .eq('organization_id', organizationId)
-    .ilike('name', '%Aplicação Financeira%');
-
-  const accounts = (accs || []) as { id: string; opening_balance: number | null; opening_balance_date: string | null }[];
-  if (!accounts.length) return 0;
-
-  const { data: txs } = await supabase
-    .from('transactions')
-    .select('amount, date, account_id')
-    .eq('organization_id', organizationId)
-    .in('account_id', accounts.map(a => a.id))
-    .lt('date', endExclusive);
-
-  let total = 0;
-  for (const a of accounts) total += Number(a.opening_balance ?? 0);
-  for (const t of (txs || []) as { amount: number; date: string; account_id: string | null }[]) {
-    const acc = accounts.find(a => a.id === t.account_id);
-    const since = acc?.opening_balance_date ?? null;
-    if (since && String(t.date).slice(0, 10) < since) continue;
-    total += Number(t.amount) || 0;
-  }
-  return Math.round((total + Number.EPSILON) * 100) / 100;
+  const summary = await fetchInvestmentSummary(organizationId, year, month);
+  return summary.totalSaldo;
 }
+
 
 interface Transaction {
   date: string;
@@ -136,7 +111,9 @@ export async function exportMonthlySummary(
   const { data: transactions, error } = await query;
   if (error) throw error;
 
-  const investmentBalance = await fetchInvestmentBalance(organizationId, year, month);
+  const investmentSummary = await fetchInvestmentSummary(organizationId, year, month);
+  const investmentBalance = investmentSummary.totalSaldo;
+
 
   // Previous balance: use override if provided, else compute from all prior non-transfer tx
   let previousBalance = 0;
@@ -512,7 +489,38 @@ export async function exportMonthlySummary(
   invVal.alignment = { horizontal: 'right', vertical: 'middle', indent: 1 };
   invVal.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C_GRAY_LIGHT } };
   sheet.getRow(row).height = 20;
-  row += 2;
+  row++;
+
+  // Rendimento consolidado do mês nas aplicações
+  const invLine = (label: string, value: number, bold: boolean) => {
+    sheet.mergeCells(row, 2, row, 3);
+    const l = sheet.getCell(row, 2);
+    l.value = label;
+    l.font = { name: 'Calibri', size: bold ? 10 : 9, bold, color: { argb: C_GRAY } };
+    l.alignment = { horizontal: 'left', vertical: 'middle', indent: bold ? 1 : 2, wrapText: true };
+    l.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C_GRAY_LIGHT } };
+    sheet.mergeCells(row, 4, row, 5);
+    const v = sheet.getCell(row, 4);
+    v.value = value;
+    v.numFmt = '"R$" #,##0.00';
+    v.font = { name: 'Calibri', size: bold ? 11 : 9, bold, color: { argb: C_PRIMARY_DARK } };
+    v.alignment = { horizontal: 'right', vertical: 'middle', indent: 1 };
+    v.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C_GRAY_LIGHT } };
+    sheet.getRow(row).height = bold ? 20 : 16;
+    row++;
+  };
+
+  invLine(`RENDIMENTO DAS APLICAÇÕES EM ${monthName}/${year}`, investmentSummary.totalRendimento, true);
+
+  if (investmentSummary.byAccount.length > 1) {
+    for (const a of investmentSummary.byAccount) {
+      invLine(`${a.name} — saldo`, a.saldo, false);
+      invLine(`${a.name} — rendimento do mês`, a.rendimento, false);
+    }
+  }
+
+  row++;
+
 
   // Footer note
   sheet.mergeCells(row, 2, row, 5);

@@ -15,6 +15,10 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { round2, applyManualAdjustment, fetchAdjustments, AccountAdjustment, computeAccountBalances } from '@/lib/accountBalances';
+import { createInvestmentAccount } from '@/lib/transfers';
+import { isInvestmentAccount } from '@/lib/investmentPositions';
+import { useInvestmentPositions } from '@/hooks/useInvestmentPositions';
+import InvestmentPositionDialog from '@/components/InvestmentPositionDialog';
 import type { Transaction } from '@/lib/transactionStore';
 import type { Installment } from '@/lib/installmentStore';
 
@@ -46,6 +50,7 @@ const fmt = (v: number) => Number(v).toLocaleString('pt-BR', { style: 'currency'
 
 const AccountsManager = ({ accounts, onAccountsChange, transactions = [], installments = [] }: AccountsManagerProps) => {
   const [open, setOpen] = useState(false);
+  const [newKind, setNewKind] = useState<'bank' | 'investment'>('bank');
   const [newName, setNewName] = useState('');
   const [newColor, setNewColor] = useState(PRESET_COLORS[0]);
   const [newOpening, setNewOpening] = useState<string>('0');
@@ -55,7 +60,9 @@ const AccountsManager = ({ accounts, onAccountsChange, transactions = [], instal
   const [editColor, setEditColor] = useState('');
   const [editOpening, setEditOpening] = useState<string>('0');
   const [editOpeningDate, setEditOpeningDate] = useState<string>('');
+  const [positionAccount, setPositionAccount] = useState<Account | null>(null);
 
+  const { balances: investmentBalances, reload: reloadPositions } = useInvestmentPositions();
 
   const [adjustAccount, setAdjustAccount] = useState<Account | null>(null);
   const [adjustValue, setAdjustValue] = useState<string>('');
@@ -63,7 +70,7 @@ const AccountsManager = ({ accounts, onAccountsChange, transactions = [], instal
   const [adjustHistory, setAdjustHistory] = useState<AccountAdjustment[]>([]);
   const [adjustSaving, setAdjustSaving] = useState(false);
 
-  const balances = computeAccountBalances(accounts, transactions, installments);
+  const balances = computeAccountBalances(accounts, transactions, installments, investmentBalances);
   const balanceFor = (id: string) => balances.find(b => b.account.id === id)?.realized ?? 0;
 
   const parseAmount = (v: string) => {
@@ -72,8 +79,32 @@ const AccountsManager = ({ accounts, onAccountsChange, transactions = [], instal
     return isNaN(n) ? 0 : n;
   };
 
+  const resetNew = () => {
+    setNewName('');
+    setNewColor(PRESET_COLORS[0]);
+    setNewOpening('0');
+    setNewOpeningDate('');
+  };
+
   const handleAdd = async () => {
     if (!newName.trim()) return;
+
+    if (newKind === 'investment') {
+      try {
+        await createInvestmentAccount({
+          name: newName.trim(),
+          color: newColor,
+          openingBalance: parseAmount(newOpening),
+        });
+        resetNew();
+        onAccountsChange();
+        reloadPositions();
+      } catch (e: any) {
+        toast.error('Erro ao criar conta de aplicação: ' + (e?.message || e));
+      }
+      return;
+    }
+
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
     const { data: orgId } = await supabase.rpc('get_user_org_id', { _user_id: user.id });
@@ -86,16 +117,13 @@ const AccountsManager = ({ accounts, onAccountsChange, transactions = [], instal
       organization_id: orgId,
     } as any);
     if (!error) {
-      setNewName('');
-      setNewColor(PRESET_COLORS[0]);
-      setNewOpening('0');
-      setNewOpeningDate('');
+      resetNew();
       onAccountsChange();
-
     } else {
       toast.error('Erro ao adicionar conta: ' + error.message);
     }
   };
+
 
   const handleUpdate = async (id: string) => {
     if (!editName.trim()) return;
@@ -176,19 +204,47 @@ const AccountsManager = ({ accounts, onAccountsChange, transactions = [], instal
           <DialogDescription>Cadastre contas, defina o saldo inicial e ajuste manualmente o saldo atual quando necessário.</DialogDescription>
         </DialogHeader>
 
+        <div className="flex gap-2">
+          {([['bank', 'Nova conta bancária'], ['investment', 'Nova conta de Aplicação']] as const).map(([k, label]) => (
+            <button
+              key={k}
+              type="button"
+              onClick={() => setNewKind(k)}
+              className={`flex-1 rounded-md border px-3 py-2 text-xs transition-colors ${
+                newKind === k ? 'border-primary bg-primary/10 font-semibold' : 'hover:bg-muted/50'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        {newKind === 'investment' && (
+          <p className="text-xs text-muted-foreground -mt-1">
+            Conta manual de investimento (ex.: RDC Sicoob, CDB Banco X). O saldo é informado mês a mês,
+            sem importação de extrato.
+          </p>
+        )}
+
         <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto_auto_auto] gap-2 items-end">
           <div>
             <Label className="text-xs">Nome</Label>
-            <Input placeholder="Nova conta..." value={newName} onChange={e => setNewName(e.target.value)} />
+            <Input
+              placeholder={newKind === 'investment' ? 'Ex.: RDC Sicoob' : 'Nova conta...'}
+              value={newName}
+              onChange={e => setNewName(e.target.value)}
+            />
           </div>
           <div>
             <Label className="text-xs">Saldo inicial</Label>
             <Input value={newOpening} onChange={e => setNewOpening(e.target.value)} className="w-32" placeholder="0,00" />
           </div>
-          <div>
-            <Label className="text-xs">A partir de</Label>
-            <Input type="date" value={newOpeningDate} onChange={e => setNewOpeningDate(e.target.value)} className="w-40" />
-          </div>
+          {newKind === 'bank' && (
+            <div>
+              <Label className="text-xs">A partir de</Label>
+              <Input type="date" value={newOpeningDate} onChange={e => setNewOpeningDate(e.target.value)} className="w-40" />
+            </div>
+          )}
+
 
           <div>
             <Label className="text-xs block mb-1">Cor</Label>
@@ -234,17 +290,32 @@ const AccountsManager = ({ accounts, onAccountsChange, transactions = [], instal
                   <div className="flex items-center gap-3">
                     <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: acc.color }} />
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-foreground truncate">{acc.name}</div>
+                      <div className="text-sm font-medium text-foreground truncate flex items-center gap-2">
+                        {acc.name}
+                        {isInvestmentAccount(acc) && (
+                          <span className="text-[10px] uppercase rounded px-1.5 py-0.5 bg-cyan-500/15 text-cyan-600 font-semibold">
+                            Aplicação
+                          </span>
+                        )}
+                      </div>
                       <div className="text-xs text-muted-foreground">
                         Inicial: {fmt(Number(acc.opening_balance ?? 0))}
                         {acc.opening_balance_date ? ` (desde ${String(acc.opening_balance_date).slice(0,10).split('-').reverse().join('/')})` : ''}
                         {' · '}Saldo atual: <span className={realized < 0 ? 'text-red-500' : 'text-emerald-600'}>{fmt(realized)}</span>
-
+                        {isInvestmentAccount(acc) && ' (última posição informada)'}
                       </div>
                     </div>
-                    <button onClick={() => openAdjust(acc)} title="Ajuste manual de saldo" className="text-muted-foreground hover:text-blue-600 transition-colors">
-                      <Wallet className="w-4 h-4" />
-                    </button>
+                    {isInvestmentAccount(acc) ? (
+                      <button onClick={() => setPositionAccount(acc)} title="Informar saldo e rendimento do mês"
+                        className="text-cyan-600 hover:text-cyan-500 transition-colors text-xs font-medium whitespace-nowrap">
+                        Posição mensal
+                      </button>
+                    ) : (
+                      <button onClick={() => openAdjust(acc)} title="Ajuste manual de saldo" className="text-muted-foreground hover:text-blue-600 transition-colors">
+                        <Wallet className="w-4 h-4" />
+                      </button>
+                    )}
+
                     <button onClick={() => startEdit(acc)} className="text-muted-foreground hover:text-foreground transition-colors">
                       <Pencil className="w-3.5 h-3.5" />
                     </button>
@@ -306,7 +377,14 @@ const AccountsManager = ({ accounts, onAccountsChange, transactions = [], instal
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+    <InvestmentPositionDialog
+      account={positionAccount}
+      onClose={() => setPositionAccount(null)}
+      onSaved={() => { reloadPositions(); onAccountsChange(); }}
+    />
     </>
+
   );
 };
 

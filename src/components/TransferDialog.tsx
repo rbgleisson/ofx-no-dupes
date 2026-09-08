@@ -19,8 +19,8 @@ import {
   createInvestmentYield,
   createTransfer,
   ensureInvestmentAccount,
-  INVESTMENT_ACCOUNT_NAME,
 } from '@/lib/transfers';
+import { isInvestmentAccount } from '@/lib/investmentPositions';
 
 type Mode = 'aplicacao' | 'resgate' | 'rendimento' | 'livre';
 
@@ -31,9 +31,9 @@ interface Props {
 }
 
 const MODES: { key: Mode; label: string; hint: string }[] = [
-  { key: 'aplicacao', label: 'Aplicação', hint: `Saída do banco → entrada em ${INVESTMENT_ACCOUNT_NAME}` },
-  { key: 'resgate', label: 'Resgate', hint: `Saída de ${INVESTMENT_ACCOUNT_NAME} → entrada no banco` },
-  { key: 'rendimento', label: 'Rendimento', hint: `Crédito direto em ${INVESTMENT_ACCOUNT_NAME}` },
+  { key: 'aplicacao', label: 'Aplicação', hint: 'Saída do banco → entrada na conta de aplicação' },
+  { key: 'resgate', label: 'Resgate', hint: 'Saída da aplicação → entrada no banco' },
+  { key: 'rendimento', label: 'Rendimento', hint: 'Crédito direto na conta de aplicação' },
   { key: 'livre', label: 'Entre contas', hint: 'Transferência livre entre duas contas' },
 ];
 
@@ -46,27 +46,25 @@ export default function TransferDialog({ accounts, categories, onDone }: Props) 
   const [memo, setMemo] = useState('');
   const [bankId, setBankId] = useState('');
   const [toId, setToId] = useState('');
-  const [investmentId, setInvestmentId] = useState<string | null>(null);
+  const [investmentId, setInvestmentId] = useState<string>('');
   const [saving, setSaving] = useState(false);
 
-  const investmentAccount = useMemo(
-    () => accounts.find(a => a.name.toLowerCase() === INVESTMENT_ACCOUNT_NAME.toLowerCase()) || null,
-    [accounts]
-  );
+  const investmentAccounts = useMemo(() => accounts.filter(isInvestmentAccount), [accounts]);
   const otherAccounts = useMemo(
-    () => accounts.filter(a => a.id !== investmentAccount?.id),
-    [accounts, investmentAccount]
+    () => accounts.filter(a => !isInvestmentAccount(a)),
+    [accounts]
   );
 
   useEffect(() => {
     if (!open) return;
-    setInvestmentId(investmentAccount?.id ?? null);
+    setInvestmentId(investmentAccounts[0]?.id ?? '');
     setDate(new Date().toISOString().slice(0, 10));
     setAmount('');
     setMemo('');
     setBankId(otherAccounts[0]?.id ?? '');
     setToId(otherAccounts[1]?.id ?? '');
   }, [open]);
+
 
   useEffect(() => {
     const preset: Record<Mode, string> = {
@@ -94,7 +92,10 @@ export default function TransferDialog({ accounts, categories, onDone }: Props) 
     setSaving(true);
     try {
       if (mode === 'rendimento') {
-        await createInvestmentYield({ date, amount: value, description, memo, categoryId: rendimentoCategory });
+        const invId = investmentId || (await ensureInvestmentAccount());
+        setInvestmentId(invId);
+        await createInvestmentYield({ date, amount: value, description, memo, categoryId: rendimentoCategory, accountId: invId });
+
       } else if (mode === 'livre') {
         await createTransfer({ date, amount: value, fromAccountId: bankId, toAccountId: toId, description, memo });
       } else {
@@ -184,18 +185,31 @@ export default function TransferDialog({ accounts, categories, onDone }: Props) 
               <AccountSelect value={bankId} onChange={setBankId} label="Conta de origem" />
               <AccountSelect value={toId} onChange={setToId} label="Conta de destino" />
             </div>
-          ) : mode === 'rendimento' ? (
-            <p className="text-xs text-muted-foreground">
-              O valor será creditado diretamente em <strong>{INVESTMENT_ACCOUNT_NAME}</strong>
-              {investmentAccount ? '' : ' (a conta será criada automaticamente)'}.
-            </p>
           ) : (
-            <AccountSelect
-              value={bankId}
-              onChange={setBankId}
-              label={mode === 'aplicacao' ? 'Conta de origem (banco)' : 'Conta de destino (banco)'}
-            />
+            <div className="grid grid-cols-2 gap-3">
+              {mode !== 'rendimento' && (
+                <AccountSelect
+                  value={bankId}
+                  onChange={setBankId}
+                  label={mode === 'aplicacao' ? 'Conta de origem (banco)' : 'Conta de destino (banco)'}
+                />
+              )}
+              <div className={mode === 'rendimento' ? 'col-span-2' : ''}>
+                <Label className="text-xs">Conta de aplicação</Label>
+                <select
+                  value={investmentId}
+                  onChange={e => setInvestmentId(e.target.value)}
+                  className="h-9 w-full rounded-md border bg-background px-2 text-xs"
+                >
+                  {investmentAccounts.length === 0 && <option value="">Criar automaticamente</option>}
+                  {investmentAccounts.map(a => (
+                    <option key={a.id} value={a.id}>{a.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
           )}
+
 
           <div>
             <Label className="text-xs">Descrição</Label>

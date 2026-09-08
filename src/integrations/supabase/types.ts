@@ -438,6 +438,63 @@ export type Database = {
           },
         ]
       }
+      investment_positions: {
+        Row: {
+          account_id: string
+          created_at: string
+          id: string
+          month: number
+          organization_id: string
+          rendimento_mes: number
+          saldo_anterior: number
+          saldo_atual: number
+          updated_at: string
+          updated_by: string | null
+          year: number
+        }
+        Insert: {
+          account_id: string
+          created_at?: string
+          id?: string
+          month: number
+          organization_id: string
+          rendimento_mes?: number
+          saldo_anterior?: number
+          saldo_atual?: number
+          updated_at?: string
+          updated_by?: string | null
+          year: number
+        }
+        Update: {
+          account_id?: string
+          created_at?: string
+          id?: string
+          month?: number
+          organization_id?: string
+          rendimento_mes?: number
+          saldo_anterior?: number
+          saldo_atual?: number
+          updated_at?: string
+          updated_by?: string | null
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "investment_positions_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "investment_positions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       login_attempts: {
         Row: {
           created_at: string

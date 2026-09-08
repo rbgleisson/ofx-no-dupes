@@ -6,6 +6,8 @@ import { Transaction } from '@/lib/transactionStore';
 import { Account } from './AccountsManager';
 import { Installment } from '@/lib/installmentStore';
 import { computeAccountBalances, round2 } from '@/lib/accountBalances';
+import { isInvestmentAccount } from '@/lib/investmentPositions';
+import { useInvestmentPositions } from '@/hooks/useInvestmentPositions';
 
 interface Props {
   transactions: Transaction[];
@@ -23,22 +25,21 @@ function classify(desc: string): 'aplicacao' | 'resgate' | 'outro' {
   return 'outro';
 }
 
-const isInvestmentAccount = (a: Account) =>
-  (a.kind || '').toLowerCase() === 'investment' || /aplica/i.test(a.name || '');
-
 export default function InvestmentsTab({ transactions, accounts, installments = [] }: Props) {
+  const { balances: positionBalances } = useInvestmentPositions();
   const investmentAccounts = useMemo(() => accounts.filter(isInvestmentAccount), [accounts]);
   const investmentAccountIds = useMemo(
     () => new Set(investmentAccounts.map(a => a.id)),
     [investmentAccounts]
   );
 
-  // Fonte única do saldo: mesmo cálculo usado em AccountsManager.
+  // Saldo de cada aplicação: última posição mensal informada (fallback: transações).
   const balances = useMemo(
-    () => computeAccountBalances(investmentAccounts, transactions, installments),
-    [investmentAccounts, transactions, installments]
+    () => computeAccountBalances(investmentAccounts, transactions, installments, positionBalances),
+    [investmentAccounts, transactions, installments, positionBalances]
   );
   const totalBalance = round2(balances.reduce((s, b) => s + b.realized, 0));
+
 
   // Movimentações efetivamente vinculadas às contas de aplicação.
   const linked = useMemo(
