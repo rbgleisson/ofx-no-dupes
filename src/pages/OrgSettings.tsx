@@ -7,6 +7,8 @@ import { Label } from '@/components/ui/label';
 import { ArrowLeft, Building, Users, UserPlus, Trash2, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import AuthorizedEmailsManager from '@/components/AuthorizedEmailsManager';
+import AccountantSettings from '@/components/AccountantSettings';
+
 import {
   Dialog,
   DialogContent,
@@ -194,6 +196,14 @@ const OrgSettings = ({ onBack }: OrgSettingsProps) => {
             <AuthorizedEmailsManager />
           </div>
         )}
+
+        {/* Accountant export settings - only for owners */}
+        {isOwner && (
+          <div className="rounded-xl border bg-card p-4 mb-6">
+            <AccountantSettings />
+          </div>
+        )}
+
 
         {/* Users */}
         <div className="rounded-xl border bg-card p-6">

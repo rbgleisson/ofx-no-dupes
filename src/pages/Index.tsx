@@ -53,6 +53,8 @@ import { exportCategoriesAndChartAccounts, importCategoriesAndChartAccounts } fr
 import { toast } from 'sonner';
 import { exportMonthlySummary } from '@/lib/monthlySummaryExport';
 import MonthlySummaryDialog from '@/components/MonthlySummaryDialog';
+import SendToAccountantDialog from '@/components/SendToAccountantDialog';
+
 import { createFullBackup } from '@/lib/backupExport';
 
 import ChangePasswordDialog from '@/components/ChangePasswordDialog';
