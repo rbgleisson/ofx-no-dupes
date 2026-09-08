@@ -6,6 +6,8 @@ import { Transaction } from '@/lib/transactionStore';
 import { Account } from './AccountsManager';
 import { Installment } from '@/lib/installmentStore';
 import { computeAccountBalances, round2 } from '@/lib/accountBalances';
+import { isInvestmentAccount } from '@/lib/investmentPositions';
+import { useInvestmentPositions } from '@/hooks/useInvestmentPositions';
 
 interface Props {
   transactions: Transaction[];

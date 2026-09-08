@@ -3,6 +3,7 @@ import type { Account } from './AccountsManager';
 import type { Transaction } from '@/lib/transactionStore';
 import type { Installment } from '@/lib/installmentStore';
 import { computeAccountBalances } from '@/lib/accountBalances';
+import { useInvestmentPositions } from '@/hooks/useInvestmentPositions';
 
 interface Props {
   accounts: Account[];
@@ -13,8 +14,9 @@ interface Props {
 const fmt = (v: number) => Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
 export default function AccountBalanceCards({ accounts, transactions, installments }: Props) {
+  const { balances: positionBalances } = useInvestmentPositions();
   if (!accounts.length) return null;
-  const balances = computeAccountBalances(accounts, transactions, installments);
+  const balances = computeAccountBalances(accounts, transactions, installments, positionBalances);
   const total = balances.reduce((s, b) => s + b.realized, 0);
   const totalProj = balances.reduce((s, b) => s + b.projected, 0);
 
