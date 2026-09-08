@@ -53,6 +53,8 @@ import { exportCategoriesAndChartAccounts, importCategoriesAndChartAccounts } fr
 import { toast } from 'sonner';
 import { exportMonthlySummary } from '@/lib/monthlySummaryExport';
 import MonthlySummaryDialog from '@/components/MonthlySummaryDialog';
+import SendToAccountantDialog from '@/components/SendToAccountantDialog';
+
 import { createFullBackup } from '@/lib/backupExport';
 
 import ChangePasswordDialog from '@/components/ChangePasswordDialog';
@@ -666,7 +668,11 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
                           onError={() => setNotification({ type: 'warning', message: 'Erro ao exportar resumo.' })}
                         />
                       </div>
+                      <div className="px-1 pb-1">
+                        <SendToAccountantDialog />
+                      </div>
                     </>
+
                   )}
                   {(permissions.can_manage_categories || permissions.can_manage_chart_accounts) && (
                     <>
@@ -844,7 +850,11 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
                           onError={() => setNotification({ type: 'warning', message: 'Erro ao exportar resumo.' })}
                         />
                       </div>
+                      <div className="[&>button]:w-full [&>button]:justify-start">
+                        <SendToAccountantDialog />
+                      </div>
                     </>
+
                   )}
                   {(permissions.can_manage_categories || permissions.can_manage_chart_accounts) && (
                     <>
