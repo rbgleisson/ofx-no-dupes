@@ -92,7 +92,10 @@ export default function TransferDialog({ accounts, categories, onDone }: Props) 
     setSaving(true);
     try {
       if (mode === 'rendimento') {
-        await createInvestmentYield({ date, amount: value, description, memo, categoryId: rendimentoCategory });
+        const invId = investmentId || (await ensureInvestmentAccount());
+        setInvestmentId(invId);
+        await createInvestmentYield({ date, amount: value, description, memo, categoryId: rendimentoCategory, accountId: invId });
+
       } else if (mode === 'livre') {
         await createTransfer({ date, amount: value, fromAccountId: bankId, toAccountId: toId, description, memo });
       } else {
