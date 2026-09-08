@@ -204,19 +204,47 @@ const AccountsManager = ({ accounts, onAccountsChange, transactions = [], instal
           <DialogDescription>Cadastre contas, defina o saldo inicial e ajuste manualmente o saldo atual quando necessário.</DialogDescription>
         </DialogHeader>
 
+        <div className="flex gap-2">
+          {([['bank', 'Nova conta bancária'], ['investment', 'Nova conta de Aplicação']] as const).map(([k, label]) => (
+            <button
+              key={k}
+              type="button"
+              onClick={() => setNewKind(k)}
+              className={`flex-1 rounded-md border px-3 py-2 text-xs transition-colors ${
+                newKind === k ? 'border-primary bg-primary/10 font-semibold' : 'hover:bg-muted/50'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        {newKind === 'investment' && (
+          <p className="text-xs text-muted-foreground -mt-1">
+            Conta manual de investimento (ex.: RDC Sicoob, CDB Banco X). O saldo é informado mês a mês,
+            sem importação de extrato.
+          </p>
+        )}
+
         <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto_auto_auto] gap-2 items-end">
           <div>
             <Label className="text-xs">Nome</Label>
-            <Input placeholder="Nova conta..." value={newName} onChange={e => setNewName(e.target.value)} />
+            <Input
+              placeholder={newKind === 'investment' ? 'Ex.: RDC Sicoob' : 'Nova conta...'}
+              value={newName}
+              onChange={e => setNewName(e.target.value)}
+            />
           </div>
           <div>
             <Label className="text-xs">Saldo inicial</Label>
             <Input value={newOpening} onChange={e => setNewOpening(e.target.value)} className="w-32" placeholder="0,00" />
           </div>
-          <div>
-            <Label className="text-xs">A partir de</Label>
-            <Input type="date" value={newOpeningDate} onChange={e => setNewOpeningDate(e.target.value)} className="w-40" />
-          </div>
+          {newKind === 'bank' && (
+            <div>
+              <Label className="text-xs">A partir de</Label>
+              <Input type="date" value={newOpeningDate} onChange={e => setNewOpeningDate(e.target.value)} className="w-40" />
+            </div>
+          )}
+
 
           <div>
             <Label className="text-xs block mb-1">Cor</Label>
