@@ -111,7 +111,9 @@ export async function exportMonthlySummary(
   const { data: transactions, error } = await query;
   if (error) throw error;
 
-  const investmentBalance = await fetchInvestmentBalance(organizationId, year, month);
+  const investmentSummary = await fetchInvestmentSummary(organizationId, year, month);
+  const investmentBalance = investmentSummary.totalSaldo;
+
 
   // Previous balance: use override if provided, else compute from all prior non-transfer tx
   let previousBalance = 0;
