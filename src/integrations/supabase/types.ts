@@ -464,6 +464,8 @@ export type Database = {
       }
       organizations: {
         Row: {
+          accountant_columns: Json | null
+          accountant_email: string | null
           created_at: string
           id: string
           name: string
@@ -471,6 +473,8 @@ export type Database = {
           plan_status: string
         }
         Insert: {
+          accountant_columns?: Json | null
+          accountant_email?: string | null
           created_at?: string
           id?: string
           name: string
@@ -478,6 +482,8 @@ export type Database = {
           plan_status?: string
         }
         Update: {
+          accountant_columns?: Json | null
+          accountant_email?: string | null
           created_at?: string
           id?: string
           name?: string
