@@ -290,17 +290,32 @@ const AccountsManager = ({ accounts, onAccountsChange, transactions = [], instal
                   <div className="flex items-center gap-3">
                     <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: acc.color }} />
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-foreground truncate">{acc.name}</div>
+                      <div className="text-sm font-medium text-foreground truncate flex items-center gap-2">
+                        {acc.name}
+                        {isInvestmentAccount(acc) && (
+                          <span className="text-[10px] uppercase rounded px-1.5 py-0.5 bg-cyan-500/15 text-cyan-600 font-semibold">
+                            Aplicação
+                          </span>
+                        )}
+                      </div>
                       <div className="text-xs text-muted-foreground">
                         Inicial: {fmt(Number(acc.opening_balance ?? 0))}
                         {acc.opening_balance_date ? ` (desde ${String(acc.opening_balance_date).slice(0,10).split('-').reverse().join('/')})` : ''}
                         {' · '}Saldo atual: <span className={realized < 0 ? 'text-red-500' : 'text-emerald-600'}>{fmt(realized)}</span>
-
+                        {isInvestmentAccount(acc) && ' (última posição informada)'}
                       </div>
                     </div>
-                    <button onClick={() => openAdjust(acc)} title="Ajuste manual de saldo" className="text-muted-foreground hover:text-blue-600 transition-colors">
-                      <Wallet className="w-4 h-4" />
-                    </button>
+                    {isInvestmentAccount(acc) ? (
+                      <button onClick={() => setPositionAccount(acc)} title="Informar saldo e rendimento do mês"
+                        className="text-cyan-600 hover:text-cyan-500 transition-colors text-xs font-medium whitespace-nowrap">
+                        Posição mensal
+                      </button>
+                    ) : (
+                      <button onClick={() => openAdjust(acc)} title="Ajuste manual de saldo" className="text-muted-foreground hover:text-blue-600 transition-colors">
+                        <Wallet className="w-4 h-4" />
+                      </button>
+                    )}
+
                     <button onClick={() => startEdit(acc)} className="text-muted-foreground hover:text-foreground transition-colors">
                       <Pencil className="w-3.5 h-3.5" />
                     </button>
