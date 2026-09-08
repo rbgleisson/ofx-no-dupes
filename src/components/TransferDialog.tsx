@@ -19,8 +19,8 @@ import {
   createInvestmentYield,
   createTransfer,
   ensureInvestmentAccount,
-  INVESTMENT_ACCOUNT_NAME,
 } from '@/lib/transfers';
+import { isInvestmentAccount } from '@/lib/investmentPositions';
 
 type Mode = 'aplicacao' | 'resgate' | 'rendimento' | 'livre';
 
@@ -31,9 +31,9 @@ interface Props {
 }
 
 const MODES: { key: Mode; label: string; hint: string }[] = [
-  { key: 'aplicacao', label: 'Aplicação', hint: `Saída do banco → entrada em ${INVESTMENT_ACCOUNT_NAME}` },
-  { key: 'resgate', label: 'Resgate', hint: `Saída de ${INVESTMENT_ACCOUNT_NAME} → entrada no banco` },
-  { key: 'rendimento', label: 'Rendimento', hint: `Crédito direto em ${INVESTMENT_ACCOUNT_NAME}` },
+  { key: 'aplicacao', label: 'Aplicação', hint: 'Saída do banco → entrada na conta de aplicação' },
+  { key: 'resgate', label: 'Resgate', hint: 'Saída da aplicação → entrada no banco' },
+  { key: 'rendimento', label: 'Rendimento', hint: 'Crédito direto na conta de aplicação' },
   { key: 'livre', label: 'Entre contas', hint: 'Transferência livre entre duas contas' },
 ];
 
@@ -46,27 +46,25 @@ export default function TransferDialog({ accounts, categories, onDone }: Props) 
   const [memo, setMemo] = useState('');
   const [bankId, setBankId] = useState('');
   const [toId, setToId] = useState('');
-  const [investmentId, setInvestmentId] = useState<string | null>(null);
+  const [investmentId, setInvestmentId] = useState<string>('');
   const [saving, setSaving] = useState(false);
 
-  const investmentAccount = useMemo(
-    () => accounts.find(a => a.name.toLowerCase() === INVESTMENT_ACCOUNT_NAME.toLowerCase()) || null,
-    [accounts]
-  );
+  const investmentAccounts = useMemo(() => accounts.filter(isInvestmentAccount), [accounts]);
   const otherAccounts = useMemo(
-    () => accounts.filter(a => a.id !== investmentAccount?.id),
-    [accounts, investmentAccount]
+    () => accounts.filter(a => !isInvestmentAccount(a)),
+    [accounts]
   );
 
   useEffect(() => {
     if (!open) return;
-    setInvestmentId(investmentAccount?.id ?? null);
+    setInvestmentId(investmentAccounts[0]?.id ?? '');
     setDate(new Date().toISOString().slice(0, 10));
     setAmount('');
     setMemo('');
     setBankId(otherAccounts[0]?.id ?? '');
     setToId(otherAccounts[1]?.id ?? '');
   }, [open]);
+
 
   useEffect(() => {
     const preset: Record<Mode, string> = {
