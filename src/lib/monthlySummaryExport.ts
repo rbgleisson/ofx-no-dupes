@@ -489,7 +489,38 @@ export async function exportMonthlySummary(
   invVal.alignment = { horizontal: 'right', vertical: 'middle', indent: 1 };
   invVal.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C_GRAY_LIGHT } };
   sheet.getRow(row).height = 20;
-  row += 2;
+  row++;
+
+  // Rendimento consolidado do mês nas aplicações
+  const invLine = (label: string, value: number, bold: boolean) => {
+    sheet.mergeCells(row, 2, row, 3);
+    const l = sheet.getCell(row, 2);
+    l.value = label;
+    l.font = { name: 'Calibri', size: bold ? 10 : 9, bold, color: { argb: C_GRAY } };
+    l.alignment = { horizontal: 'left', vertical: 'middle', indent: bold ? 1 : 2, wrapText: true };
+    l.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C_GRAY_LIGHT } };
+    sheet.mergeCells(row, 4, row, 5);
+    const v = sheet.getCell(row, 4);
+    v.value = value;
+    v.numFmt = '"R$" #,##0.00';
+    v.font = { name: 'Calibri', size: bold ? 11 : 9, bold, color: { argb: C_PRIMARY_DARK } };
+    v.alignment = { horizontal: 'right', vertical: 'middle', indent: 1 };
+    v.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C_GRAY_LIGHT } };
+    sheet.getRow(row).height = bold ? 20 : 16;
+    row++;
+  };
+
+  invLine(`RENDIMENTO DAS APLICAÇÕES EM ${monthName}/${year}`, investmentSummary.totalRendimento, true);
+
+  if (investmentSummary.byAccount.length > 1) {
+    for (const a of investmentSummary.byAccount) {
+      invLine(`${a.name} — saldo`, a.saldo, false);
+      invLine(`${a.name} — rendimento do mês`, a.rendimento, false);
+    }
+  }
+
+  row++;
+
 
   // Footer note
   sheet.mergeCells(row, 2, row, 5);
