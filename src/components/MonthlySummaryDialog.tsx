@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowDownCircle, ArrowUpCircle, BarChart3, Download, Loader2, TrendingUp, Wallet, Building2 } from 'lucide-react';
 import { Category } from '@/components/CategoriesManager';
-import { exportMonthlySummary, fetchInvestmentBalance } from '@/lib/monthlySummaryExport';
+import { exportMonthlySummary, fetchInvestmentSummary } from '@/lib/monthlySummaryExport';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 
@@ -48,6 +48,8 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
   const [exporting, setExporting] = useState(false);
   const [txs, setTxs] = useState<Tx[]>([]);
   const [investmentBalance, setInvestmentBalance] = useState<number>(0);
+  const [investmentYield, setInvestmentYield] = useState<number>(0);
+  const [investmentByAccount, setInvestmentByAccount] = useState<{ accountId: string; name: string; saldo: number; rendimento: number }[]>([]);
   const [previousBalance, setPreviousBalance] = useState<number>(0);
   const [prevBalanceInput, setPrevBalanceInput] = useState<string>('0,00');
   const [prevBalanceEdited, setPrevBalanceEdited] = useState(false);
