@@ -15,6 +15,10 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { round2, applyManualAdjustment, fetchAdjustments, AccountAdjustment, computeAccountBalances } from '@/lib/accountBalances';
+import { createInvestmentAccount } from '@/lib/transfers';
+import { isInvestmentAccount } from '@/lib/investmentPositions';
+import { useInvestmentPositions } from '@/hooks/useInvestmentPositions';
+import InvestmentPositionDialog from '@/components/InvestmentPositionDialog';
 import type { Transaction } from '@/lib/transactionStore';
 import type { Installment } from '@/lib/installmentStore';
 
@@ -46,6 +50,7 @@ const fmt = (v: number) => Number(v).toLocaleString('pt-BR', { style: 'currency'
 
 const AccountsManager = ({ accounts, onAccountsChange, transactions = [], installments = [] }: AccountsManagerProps) => {
   const [open, setOpen] = useState(false);
+  const [newKind, setNewKind] = useState<'bank' | 'investment'>('bank');
   const [newName, setNewName] = useState('');
   const [newColor, setNewColor] = useState(PRESET_COLORS[0]);
   const [newOpening, setNewOpening] = useState<string>('0');
@@ -55,7 +60,9 @@ const AccountsManager = ({ accounts, onAccountsChange, transactions = [], instal
   const [editColor, setEditColor] = useState('');
   const [editOpening, setEditOpening] = useState<string>('0');
   const [editOpeningDate, setEditOpeningDate] = useState<string>('');
+  const [positionAccount, setPositionAccount] = useState<Account | null>(null);
 
+  const { balances: investmentBalances, reload: reloadPositions } = useInvestmentPositions();
 
   const [adjustAccount, setAdjustAccount] = useState<Account | null>(null);
   const [adjustValue, setAdjustValue] = useState<string>('');
@@ -63,7 +70,7 @@ const AccountsManager = ({ accounts, onAccountsChange, transactions = [], instal
   const [adjustHistory, setAdjustHistory] = useState<AccountAdjustment[]>([]);
   const [adjustSaving, setAdjustSaving] = useState(false);
 
-  const balances = computeAccountBalances(accounts, transactions, installments);
+  const balances = computeAccountBalances(accounts, transactions, installments, investmentBalances);
   const balanceFor = (id: string) => balances.find(b => b.account.id === id)?.realized ?? 0;
 
   const parseAmount = (v: string) => {
@@ -72,8 +79,32 @@ const AccountsManager = ({ accounts, onAccountsChange, transactions = [], instal
     return isNaN(n) ? 0 : n;
   };
 
+  const resetNew = () => {
+    setNewName('');
+    setNewColor(PRESET_COLORS[0]);
+    setNewOpening('0');
+    setNewOpeningDate('');
+  };
+
   const handleAdd = async () => {
     if (!newName.trim()) return;
+
+    if (newKind === 'investment') {
+      try {
+        await createInvestmentAccount({
+          name: newName.trim(),
+          color: newColor,
+          openingBalance: parseAmount(newOpening),
+        });
+        resetNew();
+        onAccountsChange();
+        reloadPositions();
+      } catch (e: any) {
+        toast.error('Erro ao criar conta de aplicação: ' + (e?.message || e));
+      }
+      return;
+    }
+
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
     const { data: orgId } = await supabase.rpc('get_user_org_id', { _user_id: user.id });
@@ -86,16 +117,13 @@ const AccountsManager = ({ accounts, onAccountsChange, transactions = [], instal
       organization_id: orgId,
     } as any);
     if (!error) {
-      setNewName('');
-      setNewColor(PRESET_COLORS[0]);
-      setNewOpening('0');
-      setNewOpeningDate('');
+      resetNew();
       onAccountsChange();
-
     } else {
       toast.error('Erro ao adicionar conta: ' + error.message);
     }
   };
+
 
   const handleUpdate = async (id: string) => {
     if (!editName.trim()) return;
