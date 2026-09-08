@@ -366,16 +366,37 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
               </div>
             </div>
 
-            {/* Saldo acumulado em aplicações financeiras */}
-            <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-700/60 bg-slate-900/60 p-4">
-              <div className="flex items-center gap-2 min-w-0">
-                <TrendingUp className="w-4 h-4 text-cyan-300 shrink-0" />
-                <span className="text-xs uppercase tracking-wider text-slate-300">
-                  Saldo em aplicações financeiras (até {monthName}/{year})
-                </span>
+            {/* Saldo e rendimento consolidados das aplicações */}
+            <div className="rounded-xl border border-slate-700/60 bg-slate-900/60 p-4 space-y-2">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 min-w-0">
+                  <TrendingUp className="w-4 h-4 text-cyan-300 shrink-0" />
+                  <span className="text-xs uppercase tracking-wider text-slate-300">
+                    Saldo em aplicações financeiras (até {monthName}/{year})
+                  </span>
+                </div>
+                <span className="text-lg font-bold tabular-nums text-cyan-200">{fmt(investmentBalance)}</span>
               </div>
-              <span className="text-lg font-bold tabular-nums text-cyan-200">{fmt(investmentBalance)}</span>
+              <div className="flex items-center justify-between gap-3 border-t border-cyan-500/10 pt-2">
+                <span className="text-xs uppercase tracking-wider text-slate-300">
+                  Rendimento das aplicações em {monthName}/{year}
+                </span>
+                <span className="text-sm font-semibold tabular-nums text-emerald-300">{fmt(investmentYield)}</span>
+              </div>
+              {investmentByAccount.length > 1 && (
+                <div className="space-y-1 border-t border-cyan-500/10 pt-2">
+                  {investmentByAccount.map(a => (
+                    <div key={a.accountId} className="flex items-center justify-between gap-3 text-xs text-slate-400">
+                      <span className="truncate">{a.name}</span>
+                      <span className="tabular-nums">
+                        {fmt(a.saldo)} <span className="text-emerald-300">(+{fmt(a.rendimento)})</span>
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
+
           </div>
         )}
       </DialogContent>
