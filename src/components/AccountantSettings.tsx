@@ -26,6 +26,7 @@ const AccountantSettings = () => {
     const org = organization as any;
     if (!org) return;
     setEmail(org.accountant_email || '');
+    setDebitCode(org.accountant_debit_code || '35');
     const saved: string[] | null = Array.isArray(org.accountant_columns) ? org.accountant_columns : null;
     const base = saved?.length ? saved : DEFAULT_ACCOUNTANT_COLUMNS;
     const rest = ALL_COLUMNS.map(c => c.key).filter(k => !base.includes(k));
