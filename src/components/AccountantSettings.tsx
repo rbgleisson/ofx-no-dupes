@@ -17,6 +17,7 @@ const AccountantSettings = () => {
   const { organization, organizationId, reload } = useOrganization();
   const { toast } = useToast();
   const [email, setEmail] = useState('');
+  const [debitCode, setDebitCode] = useState('35');
   const [order, setOrder] = useState<string[]>(DEFAULT_ACCOUNTANT_COLUMNS);
   const [selected, setSelected] = useState<Set<string>>(new Set(DEFAULT_ACCOUNTANT_COLUMNS));
   const [saving, setSaving] = useState(false);
@@ -25,6 +26,7 @@ const AccountantSettings = () => {
     const org = organization as any;
     if (!org) return;
     setEmail(org.accountant_email || '');
+    setDebitCode(org.accountant_debit_code || '35');
     const saved: string[] | null = Array.isArray(org.accountant_columns) ? org.accountant_columns : null;
     const base = saved?.length ? saved : DEFAULT_ACCOUNTANT_COLUMNS;
     const rest = ALL_COLUMNS.map(c => c.key).filter(k => !base.includes(k));
@@ -61,7 +63,11 @@ const AccountantSettings = () => {
     try {
       const { error } = await supabase
         .from('organizations')
-        .update({ accountant_email: email.trim() || null, accountant_columns: columns } as any)
+        .update({
+          accountant_email: email.trim() || null,
+          accountant_columns: columns,
+          accountant_debit_code: debitCode.trim() || '35',
+        } as any)
         .eq('id', organizationId);
       if (error) throw error;
       toast({ title: 'Salvo', description: 'Configuração do contador atualizada.' });
@@ -91,6 +97,19 @@ const AccountantSettings = () => {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
         />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="debit-code">Código Contábil Fixo (Débito)</Label>
+        <Input
+          id="debit-code"
+          value={debitCode}
+          onChange={(e) => setDebitCode(e.target.value)}
+          placeholder="35"
+        />
+        <p className="text-xs text-muted-foreground">
+          Usado na coluna "debito" do formato Alterdata. Padrão: 35.
+        </p>
       </div>
 
       <div className="space-y-1">

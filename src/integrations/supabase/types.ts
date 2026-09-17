@@ -522,6 +522,7 @@ export type Database = {
       organizations: {
         Row: {
           accountant_columns: Json | null
+          accountant_debit_code: string
           accountant_email: string | null
           created_at: string
           id: string
@@ -531,6 +532,7 @@ export type Database = {
         }
         Insert: {
           accountant_columns?: Json | null
+          accountant_debit_code?: string
           accountant_email?: string | null
           created_at?: string
           id?: string
@@ -540,6 +542,7 @@ export type Database = {
         }
         Update: {
           accountant_columns?: Json | null
+          accountant_debit_code?: string
           accountant_email?: string | null
           created_at?: string
           id?: string
