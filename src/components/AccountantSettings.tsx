@@ -99,6 +99,19 @@ const AccountantSettings = () => {
         />
       </div>
 
+      <div className="space-y-2">
+        <Label htmlFor="debit-code">Código Contábil Fixo (Débito)</Label>
+        <Input
+          id="debit-code"
+          value={debitCode}
+          onChange={(e) => setDebitCode(e.target.value)}
+          placeholder="35"
+        />
+        <p className="text-xs text-muted-foreground">
+          Usado na coluna "debito" do formato Alterdata. Padrão: 35.
+        </p>
+      </div>
+
       <div className="space-y-1">
         <Label>Modelo de exportação (colunas e ordem)</Label>
         <p className="text-xs text-muted-foreground pb-1">
