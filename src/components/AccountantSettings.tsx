@@ -63,7 +63,11 @@ const AccountantSettings = () => {
     try {
       const { error } = await supabase
         .from('organizations')
-        .update({ accountant_email: email.trim() || null, accountant_columns: columns } as any)
+        .update({
+          accountant_email: email.trim() || null,
+          accountant_columns: columns,
+          accountant_debit_code: debitCode.trim() || '35',
+        } as any)
         .eq('id', organizationId);
       if (error) throw error;
       toast({ title: 'Salvo', description: 'Configuração do contador atualizada.' });
