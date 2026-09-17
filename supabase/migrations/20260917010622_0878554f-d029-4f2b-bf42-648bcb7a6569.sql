@@ -1,0 +1,1 @@
+ALTER TABLE public.organizations ADD COLUMN IF NOT EXISTS accountant_debit_code text NOT NULL DEFAULT '35';
