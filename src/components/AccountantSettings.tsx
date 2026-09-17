@@ -17,6 +17,7 @@ const AccountantSettings = () => {
   const { organization, organizationId, reload } = useOrganization();
   const { toast } = useToast();
   const [email, setEmail] = useState('');
+  const [debitCode, setDebitCode] = useState('35');
   const [order, setOrder] = useState<string[]>(DEFAULT_ACCOUNTANT_COLUMNS);
   const [selected, setSelected] = useState<Set<string>>(new Set(DEFAULT_ACCOUNTANT_COLUMNS));
   const [saving, setSaving] = useState(false);
