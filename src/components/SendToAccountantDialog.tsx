@@ -23,6 +23,7 @@ const SendToAccountantDialog = () => {
   const [open, setOpen] = useState(false);
   const [month, setMonth] = useState(String(new Date().getMonth() + 1));
   const [year, setYear] = useState(String(currentYear));
+  const [format, setFormat] = useState<'generic' | 'alterdata'>('generic');
   const [sending, setSending] = useState(false);
 
   const accountantEmail = (organization as any)?.accountant_email as string | undefined;
