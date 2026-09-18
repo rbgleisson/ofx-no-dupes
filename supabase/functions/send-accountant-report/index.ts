@@ -1,7 +1,9 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "npm:@supabase/supabase-js@2";
+import { corsHeaders as sdkCorsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import ExcelJS from "npm:exceljs@4.4.0";
 
 const corsHeaders = {
+  ...sdkCorsHeaders,
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
@@ -79,9 +81,11 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const month = Number(body?.month);
     const year = Number(body?.year);
+    const format = body?.format === "alterdata" ? "alterdata" : body?.format === "generic" || body?.format == null ? "generic" : null;
     if (!Number.isInteger(month) || month < 1 || month > 12 || !Number.isInteger(year) || year < 2000 || year > 2100) {
       return json({ error: "Mês/ano inválidos." }, 400);
     }
+    if (!format) return json({ error: "Formato de exportação inválido." }, 400);
 
     // Organização do usuário autenticado (nunca vinda do cliente)
     const { data: orgId } = await admin.rpc("get_user_org_id", { _user_id: caller.id });
@@ -89,7 +93,7 @@ Deno.serve(async (req) => {
 
     const { data: org } = await admin
       .from("organizations")
-      .select("id, name, accountant_email, accountant_columns")
+      .select("id, name, accountant_email, accountant_columns, accountant_debit_code")
       .eq("id", orgId)
       .maybeSingle();
     if (!org) return json({ error: "Empresa não encontrada." }, 404);
@@ -119,6 +123,20 @@ Deno.serve(async (req) => {
     const catById = new Map((categories || []).map((c: any) => [c.id, c]));
     const accById = new Map((accounts || []).map((a: any) => [a.id, a]));
     const chartById = new Map((chartAccounts || []).map((c: any) => [c.id, c]));
+
+    if (format === "alterdata") {
+      const missing = rows.filter((tx: any) => {
+        const chartAccount: any = chartById.get(tx.chart_account_id);
+        return !tx.chart_account_id || !String(chartAccount?.code || "").trim();
+      });
+      if (missing.length > 0) {
+        return json({
+          error: `${missing.length} lançamento${missing.length === 1 ? " precisa" : "s precisam"} de conta contábil antes do envio no formato Alterdata. Revise o período e tente novamente.`,
+          code: "MISSING_CHART_ACCOUNTS",
+          missingCount: missing.length,
+        }, 422);
+      }
+    }
 
     const wb = new ExcelJS.Workbook();
 
@@ -184,8 +202,47 @@ Deno.serve(async (req) => {
       }
     };
 
-    buildSheet("Entradas", rows.filter((t: any) => Number(t.amount) >= 0));
-    buildSheet("Saídas", rows.filter((t: any) => Number(t.amount) < 0));
+    if (format === "alterdata") {
+      const ws = wb.addWorksheet("Lançamentos");
+      ws.columns = [
+        { header: "lancto auto", key: "auto", width: 16 },
+        { header: "debito", key: "debit", width: 14 },
+        { header: "credito", key: "credit", width: 16 },
+        { header: "data", key: "date", width: 14 },
+        { header: "valor", key: "amount", width: 16 },
+        { header: "cód histórico", key: "historyCode", width: 16 },
+        { header: "complemento historico", key: "history", width: 42 },
+      ];
+      const header = ws.getRow(1);
+      header.font = { bold: true, size: 10, name: "Arial" };
+      header.alignment = { horizontal: "center" };
+      header.eachCell((cell: any) => {
+        cell.border = thinBorder;
+        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFD9E1F2" } };
+      });
+
+      for (const tx of rows) {
+        const chartAccount: any = chartById.get(tx.chart_account_id);
+        const chartCode = String(chartAccount?.code || "").trim();
+        const row = ws.addRow({
+          auto: chartCode,
+          debit: String(org.accountant_debit_code || "35").trim() || "35",
+          credit: chartCode,
+          date: formatDate(tx.date),
+          amount: Number(tx.amount),
+          historyCode: "",
+          history: tx.description || "",
+        });
+        row.font = { size: 10, name: "Arial" };
+        row.eachCell({ includeEmpty: true }, (cell: any) => { cell.border = thinBorder; });
+        row.getCell(5).numFmt = "#,##0.00;[Red]-#,##0.00;0.00";
+      }
+      ws.views = [{ state: "frozen", ySplit: 1 }];
+      ws.autoFilter = { from: "A1", to: "G1" };
+    } else {
+      buildSheet("Entradas", rows.filter((t: any) => Number(t.amount) >= 0));
+      buildSheet("Saídas", rows.filter((t: any) => Number(t.amount) < 0));
+    }
 
     const buffer = await wb.xlsx.writeBuffer();
     const bytes = new Uint8Array(buffer as ArrayBuffer);
@@ -217,7 +274,7 @@ Deno.serve(async (req) => {
       return json({ error: "Falha ao enviar o e-mail.", status: res.status, details }, res.status);
     }
 
-    return json({ success: true, to, fileName, subject, count: rows.length });
+    return json({ success: true, to, fileName, subject, count: rows.length, format });
   } catch (err) {
     console.error("send-accountant-report error:", err);
     return json({ error: (err as Error).message || "Erro inesperado." }, 500);

@@ -8,6 +8,8 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Label } from '@/components/ui/label';
 import { Send, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -32,7 +34,7 @@ const SendToAccountantDialog = () => {
     setSending(true);
     try {
       const { data, error } = await supabase.functions.invoke('send-accountant-report', {
-        body: { month: Number(month), year: Number(year) },
+        body: { month: Number(month), year: Number(year), format },
       });
       let details: any = data;
       if (error) {
@@ -81,6 +83,38 @@ const SendToAccountantDialog = () => {
               {MONTHS.map((m, i) => <SelectItem key={i} value={String(i + 1)}>{m}</SelectItem>)}
             </SelectContent>
           </Select>
+        </div>
+
+        <div className="space-y-2">
+          <Label>Formato da planilha</Label>
+          <RadioGroup
+            value={format}
+            onValueChange={(value) => setFormat(value as 'generic' | 'alterdata')}
+            className="gap-2"
+          >
+            <Label
+              htmlFor="accountant-format-generic"
+              className="flex cursor-pointer items-start gap-3 rounded-md border p-3 font-normal"
+            >
+              <RadioGroupItem id="accountant-format-generic" value="generic" className="mt-0.5" />
+              <span>
+                <span className="block text-sm font-medium">Formato genérico por colunas</span>
+                <span className="block text-xs text-muted-foreground">Usa as colunas e a ordem salvas nas configurações.</span>
+              </span>
+            </Label>
+            <Label
+              htmlFor="accountant-format-alterdata"
+              className="flex cursor-pointer items-start gap-3 rounded-md border p-3 font-normal"
+            >
+              <RadioGroupItem id="accountant-format-alterdata" value="alterdata" className="mt-0.5" />
+              <span>
+                <span className="block text-sm font-medium">Alterdata — Lançamentos Contábeis</span>
+                <span className="block text-xs text-muted-foreground">
+                  Exige conta contábil em todos os lançamentos. O envio será bloqueado se houver pendências.
+                </span>
+              </span>
+            </Label>
+          </RadioGroup>
         </div>
 
         <div className="flex justify-end gap-2 pt-2">
