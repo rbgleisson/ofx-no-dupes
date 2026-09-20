@@ -280,6 +280,7 @@ type UpsertRow = {
 export interface UpsertResult {
   inserted: number;
   updated: number;
+  skipped?: number;
 }
 
 /** Extracts the economic portion of our legacy composite OFX id safely.
@@ -440,6 +441,7 @@ export async function upsertTransactionsByFitId(rows: UpsertRow[]): Promise<Upse
 
   const batchSize = 100;
   let insertedCount = 0;
+  let skippedCount = 0;
   const insertErrors: string[] = [];
   for (let i = 0; i < toInsert.length; i += batchSize) {
     const batch = toInsert.slice(i, i + batchSize);
@@ -453,6 +455,10 @@ export async function upsertTransactionsByFitId(rows: UpsertRow[]): Promise<Upse
     for (const row of batch) {
       const single = await supabase.from('transactions').insert(row).select('id').maybeSingle();
       if (single.error) {
+        if (single.error.code === '23505') {
+          skippedCount += 1;
+          continue;
+        }
         insertErrors.push(single.error.message);
         continue;
       }
@@ -484,7 +490,7 @@ export async function upsertTransactionsByFitId(rows: UpsertRow[]): Promise<Upse
     throw new Error(insertErrors[0]);
   }
 
-  return { inserted: insertedCount, updated: updatedCount };
+  return { inserted: insertedCount, updated: updatedCount, skipped: skippedCount };
 }
 
 /** Returns how many of the given transaction ids currently have an attachment linked. */

@@ -236,7 +236,7 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
 
       // Never deletes: existing rows (same FITID or marked to update) are updated
       // in place and their attachment_url is preserved.
-      const { inserted, updated } = await upsertTransactionsByFitId(toUpsert);
+      const { inserted, updated, skipped = 0 } = await upsertTransactionsByFitId(toUpsert);
 
       setExcelReviewOpen(false);
       setImportExisting(null);
@@ -256,7 +256,7 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
       } else {
         await loadTransactions();
       }
-      const successMessage = `${inserted} transações importadas${updated > 0 ? ` e ${updated} atualizadas (anexos, categorias e contas contábeis preservados)` : ''}.`;
+      const successMessage = `${inserted} transações importadas${updated > 0 ? ` e ${updated} atualizadas (anexos, categorias e contas contábeis preservados)` : ''}${skipped > 0 ? `; ${skipped} já existiam e foram ignorados` : ''}.`;
       setNotification({ type: 'success', message: successMessage });
       toast.success(successMessage);
     } catch (error) {
