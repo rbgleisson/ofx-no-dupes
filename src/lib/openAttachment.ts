@@ -1,4 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+
+const showOpenError = () => toast.error('Não foi possível abrir o anexo');
 
 /**
  * Opens an attachment by downloading it through the Supabase SDK,
@@ -8,8 +11,7 @@ export async function openAttachment(url: string): Promise<void> {
   // Extract the storage path from the URL
   const match = url.match(/transaction-docs\/(.+)$/);
   if (!match) {
-    // Fallback: try opening directly
-    window.open(url, '_blank');
+    showOpenError();
     return;
   }
 
@@ -20,8 +22,7 @@ export async function openAttachment(url: string): Promise<void> {
     .download(path);
 
   if (error || !data) {
-    // Fallback
-    window.open(url, '_blank');
+    showOpenError();
     return;
   }
 
