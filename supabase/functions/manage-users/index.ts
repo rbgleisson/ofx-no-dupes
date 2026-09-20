@@ -55,18 +55,80 @@ Deno.serve(async (req) => {
         });
       }
 
-      let orgId = organizationId;
-      if (!orgId) {
-        const { data: callerOrgId } = await supabaseAdmin.rpc("get_user_org_id", { _user_id: caller.id });
-        orgId = callerOrgId;
+      const normalizedEmail = String(email).trim().toLowerCase();
+      const { data: callerOrgId, error: callerOrgErr } = await supabaseAdmin.rpc("get_user_org_id", {
+        _user_id: caller.id,
+      });
+      if (callerOrgErr) {
+        return new Response(JSON.stringify({ error: "Não foi possível identificar a organização do chamador." }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
 
-      await supabaseAdmin
+      // Usuários comuns, owners e admins só podem criar membros na própria organização.
+      const orgId = isSuperAdmin ? (organizationId || callerOrgId) : callerOrgId;
+      if (!orgId) {
+        return new Response(JSON.stringify({ error: "O chamador não está vinculado a uma organização." }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const { data: targetOrg, error: targetOrgErr } = await supabaseAdmin
+        .from("organizations")
+        .select("id")
+        .eq("id", orgId)
+        .maybeSingle();
+      if (targetOrgErr) {
+        return new Response(JSON.stringify({ error: "Não foi possível validar a organização informada." }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (!targetOrg) {
+        return new Response(JSON.stringify({ error: "A organização informada não existe." }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const { data: existingAuthorization, error: authorizationLookupErr } = await supabaseAdmin
         .from("authorized_emails")
-        .upsert({ email: email.toLowerCase(), created_by: caller.id, organization_id: orgId }, { onConflict: "email" });
+        .select("id, organization_id")
+        .ilike("email", normalizedEmail)
+        .limit(1)
+        .maybeSingle();
+      if (authorizationLookupErr) {
+        return new Response(JSON.stringify({ error: "Não foi possível verificar a autorização deste e-mail." }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (existingAuthorization?.organization_id && existingAuthorization.organization_id !== orgId) {
+        return new Response(JSON.stringify({ error: "Este e-mail já está autorizado em outra organização." }), {
+          status: 409,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const authorizationResult = existingAuthorization
+        ? await supabaseAdmin
+            .from("authorized_emails")
+            .update({ organization_id: orgId })
+            .eq("id", existingAuthorization.id)
+        : await supabaseAdmin
+            .from("authorized_emails")
+            .insert({ email: normalizedEmail, created_by: caller.id, organization_id: orgId });
+      if (authorizationResult.error) {
+        return new Response(JSON.stringify({ error: "Não foi possível autorizar o e-mail na organização." }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
 
       const { data: newUser, error: createErr } = await supabaseAdmin.auth.admin.createUser({
-        email,
+        email: normalizedEmail,
         password,
         email_confirm: true,
       });
@@ -78,13 +140,32 @@ Deno.serve(async (req) => {
         });
       }
 
-      if (newUser?.user && orgId) {
-        await supabaseAdmin.from("profiles").insert({ user_id: newUser.user.id, organization_id: orgId });
-        await supabaseAdmin.from("user_permissions").insert({ user_id: newUser.user.id, organization_id: orgId });
-        await supabaseAdmin.from("user_roles").insert({ user_id: newUser.user.id, role: "user" });
+      if (!newUser?.user) {
+        return new Response(JSON.stringify({ error: "O usuário não foi criado." }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
 
-      return new Response(JSON.stringify({ success: true, userId: newUser?.user?.id }), {
+      const { error: profileErr } = await supabaseAdmin
+        .from("profiles")
+        .insert({ user_id: newUser.user.id, organization_id: orgId });
+      const { error: permissionsErr } = await supabaseAdmin
+        .from("user_permissions")
+        .insert({ user_id: newUser.user.id, organization_id: orgId });
+      const { error: roleErr } = await supabaseAdmin
+        .from("user_roles")
+        .insert({ user_id: newUser.user.id, role: "user" });
+
+      if (profileErr || permissionsErr || roleErr) {
+        await supabaseAdmin.auth.admin.deleteUser(newUser.user.id);
+        return new Response(JSON.stringify({ error: "O usuário não pôde ser vinculado à organização." }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      return new Response(JSON.stringify({ success: true, userId: newUser.user.id }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -102,6 +183,60 @@ Deno.serve(async (req) => {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
+      }
+
+      const { data: targetProfile, error: targetProfileErr } = await supabaseAdmin
+        .from("profiles")
+        .select("organization_id")
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (targetProfileErr) {
+        return new Response(JSON.stringify({ error: "Não foi possível consultar a organização do usuário alvo." }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (!targetProfile) {
+        return new Response(JSON.stringify({ error: "Usuário alvo não encontrado ou sem organização vinculada." }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      if (!isSuperAdmin) {
+        const { data: callerOrgId, error: callerOrgErr } = await supabaseAdmin.rpc("get_user_org_id", {
+          _user_id: caller.id,
+        });
+        if (callerOrgErr) {
+          return new Response(JSON.stringify({ error: "Não foi possível identificar a organização do chamador." }), {
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        if (!callerOrgId || targetProfile.organization_id !== callerOrgId) {
+          return new Response(JSON.stringify({ error: "Você não pode excluir usuários de outra organização." }), {
+            status: 403,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        const { data: protectedRoles, error: rolesErr } = await supabaseAdmin
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", userId)
+          .in("role", ["super_admin", "owner"]);
+        if (rolesErr) {
+          return new Response(JSON.stringify({ error: "Não foi possível verificar o nível de acesso do usuário alvo." }), {
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        if ((protectedRoles || []).length > 0) {
+          return new Response(JSON.stringify({ error: "Apenas um Super Admin pode excluir usuários Owner ou Super Admin." }), {
+            status: 403,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
       }
 
       const { error: delErr } = await supabaseAdmin.auth.admin.deleteUser(userId);
