@@ -121,8 +121,9 @@ Deno.serve(async (req) => {
             .from("authorized_emails")
             .insert({ email: normalizedEmail, created_by: caller.id, organization_id: orgId });
       if (authorizationResult.error) {
+        const status = authorizationResult.error.code === "23505" ? 409 : 500;
         return new Response(JSON.stringify({ error: "Não foi possível autorizar o e-mail na organização." }), {
-          status: 500,
+          status,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
@@ -134,6 +135,9 @@ Deno.serve(async (req) => {
       });
 
       if (createErr) {
+        if (!existingAuthorization) {
+          await supabaseAdmin.from("authorized_emails").delete().eq("email", normalizedEmail).eq("organization_id", orgId);
+        }
         return new Response(JSON.stringify({ error: createErr.message }), {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -152,13 +156,16 @@ Deno.serve(async (req) => {
         .insert({ user_id: newUser.user.id, organization_id: orgId });
       const { error: permissionsErr } = await supabaseAdmin
         .from("user_permissions")
-        .insert({ user_id: newUser.user.id, organization_id: orgId });
+        .upsert({ user_id: newUser.user.id, organization_id: orgId }, { onConflict: "user_id" });
       const { error: roleErr } = await supabaseAdmin
         .from("user_roles")
         .insert({ user_id: newUser.user.id, role: "user" });
 
       if (profileErr || permissionsErr || roleErr) {
         await supabaseAdmin.auth.admin.deleteUser(newUser.user.id);
+        if (!existingAuthorization) {
+          await supabaseAdmin.from("authorized_emails").delete().eq("email", normalizedEmail).eq("organization_id", orgId);
+        }
         return new Response(JSON.stringify({ error: "O usuário não pôde ser vinculado à organização." }), {
           status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
