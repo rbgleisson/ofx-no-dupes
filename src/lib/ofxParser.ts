@@ -76,7 +76,7 @@ function generateTransactionId(tx: { fitId: string; date: string; amount: number
   return `${tx.fitId}_${tx.date}_${tx.amount}_${tx.description}`.replace(/\s+/g, '_').toLowerCase();
 }
 
-export function parseOFX(content: string): OFXData {
+function parseOFXContent(content: string): OFXData {
   const bankId = extractTag(content, 'BANKID');
   const accountId = extractTag(content, 'ACCTID');
   const accountType = extractTag(content, 'ACCTTYPE');
@@ -117,4 +117,20 @@ export function parseOFX(content: string): OFXData {
   }
 
   return { bankId, accountId, accountType, currency, transactions };
+}
+
+export function parseOFX(content: string, legacyContent?: string): OFXData {
+  const parsed = parseOFXContent(content);
+  if (!legacyContent || legacyContent === content) return parsed;
+
+  const legacyParsed = parseOFXContent(legacyContent);
+  if (legacyParsed.transactions.length !== parsed.transactions.length) return parsed;
+
+  return {
+    ...parsed,
+    transactions: parsed.transactions.map((transaction, index) => ({
+      ...transaction,
+      id: legacyParsed.transactions[index].id,
+    })),
+  };
 }

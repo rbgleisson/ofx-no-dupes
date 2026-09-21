@@ -1,20 +1,17 @@
 import { useCallback, useState } from 'react';
 import { Upload, FileText } from 'lucide-react';
+import { readOfxFile } from '@/lib/ofxFile';
 
 interface FileDropzoneProps {
-  onFileSelect: (content: string, fileName: string) => void;
+  onFileSelect: (content: string, fileName: string, legacyContent?: string) => void;
 }
 
 const FileDropzone = ({ onFileSelect }: FileDropzoneProps) => {
   const [isDragging, setIsDragging] = useState(false);
 
-  const handleFile = useCallback((file: File) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const content = e.target?.result as string;
-      onFileSelect(content, file.name);
-    };
-    reader.readAsText(file);
+  const handleFile = useCallback(async (file: File) => {
+    const { content, legacyContent } = await readOfxFile(file);
+    onFileSelect(content, file.name, legacyContent);
   }, [onFileSelect]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {

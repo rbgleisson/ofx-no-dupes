@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { parseOFX, matchContactForOfxTx } from '@/lib/ofxParser';
+import { readOfxFile } from '@/lib/ofxFile';
 import ContactsManager, { fetchContacts } from '@/components/ContactsManager';
 import logoImg from '@/assets/logo.png';
 import {
@@ -187,15 +188,11 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const handleOfxFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleOfxFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const content = ev.target?.result as string;
-      handleFileSelect(content, file.name);
-    };
-    reader.readAsText(file);
+    const { content, legacyContent } = await readOfxFile(file);
+    await handleFileSelect(content, file.name, legacyContent);
     e.target.value = '';
   };
 
@@ -344,7 +341,7 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
     }
   }, [notification]);
 
-  const handleFileSelect = async (content: string, fileName: string) => {
+  const handleFileSelect = async (content: string, fileName: string, legacyContent?: string) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
@@ -352,7 +349,7 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
         return;
       }
 
-      const data = parseOFX(content);
+      const data = parseOFX(content, legacyContent);
       if (data.transactions.length === 0) {
         setNotification({ type: 'warning', message: 'Nenhuma transação encontrada no arquivo.' });
         return;
