@@ -1,6 +1,7 @@
 import ExcelJS from 'exceljs';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchInvestmentSummary, type InvestmentSummary } from '@/lib/investmentPositions';
+import { fetchAllRows } from '@/lib/fetchAllRows';
 
 export { fetchInvestmentSummary };
 
@@ -19,6 +20,7 @@ export async function fetchInvestmentBalance(
 
 
 interface Transaction {
+  id: string;
   date: string;
   amount: number;
   category_id: string | null;
@@ -100,16 +102,12 @@ export async function exportMonthlySummary(
 
   if (!organizationId) throw new Error('Organização não identificada. Faça login novamente.');
 
-  const query = supabase
+  const transactions = await fetchAllRows<Transaction>(() => supabase
     .from('transactions')
-    .select('date, amount, category_id, chart_account_id, is_transfer')
+    .select('id, date, amount, category_id, chart_account_id, is_transfer')
     .eq('organization_id', organizationId)
     .gte('date', startDate)
-    .lt('date', endDate)
-    .order('date');
-
-  const { data: transactions, error } = await query;
-  if (error) throw error;
+    .lt('date', endDate));
 
   const investmentSummary = await fetchInvestmentSummary(organizationId, year, month);
   const investmentBalance = investmentSummary.totalSaldo;
@@ -120,14 +118,13 @@ export async function exportMonthlySummary(
   if (previousBalanceOverride !== undefined && previousBalanceOverride !== null) {
     previousBalance = previousBalanceOverride;
   } else {
-    const prevQ = supabase
+    const prevTx = await fetchAllRows<{ id: string; date: string; amount: number; is_transfer?: boolean | null }>(() => supabase
       .from('transactions')
-      .select('amount, is_transfer')
+      .select('id, date, amount, is_transfer')
       .eq('organization_id', organizationId)
-      .lt('date', startDate);
-    const { data: prevTx } = await prevQ;
+      .lt('date', startDate));
 
-    for (const t of (prevTx || []) as { amount: number; is_transfer?: boolean | null }[]) {
+    for (const t of prevTx) {
       if (t.is_transfer) continue;
       previousBalance += t.amount;
     }
@@ -144,7 +141,7 @@ export async function exportMonthlySummary(
   let totalExits = 0;
   let countTx = 0;
 
-  for (const tx of (transactions || []) as Transaction[]) {
+  for (const tx of transactions) {
     if (tx.is_transfer) continue;
     countTx++;
     const catKey = tx.category_id || '__none__';

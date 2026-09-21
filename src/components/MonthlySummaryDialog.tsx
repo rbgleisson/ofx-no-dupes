@@ -8,6 +8,7 @@ import { Category } from '@/components/CategoriesManager';
 import { exportMonthlySummary, fetchInvestmentSummary } from '@/lib/monthlySummaryExport';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
+import { fetchAllRows } from '@/lib/fetchAllRows';
 
 const MONTHS = [
   'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -29,6 +30,7 @@ interface Props {
 }
 
 interface Tx {
+  id: string;
   date: string;
   amount: number;
   category_id: string | null;
@@ -71,32 +73,27 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
       const m = Number(month);
       const startDate = `${y}-${String(m).padStart(2, '0')}-01`;
       const endDate = m === 12 ? `${y + 1}-01-01` : `${y}-${String(m + 1).padStart(2, '0')}-01`;
-      const q = supabase
-        .from('transactions')
-        .select('date, amount, category_id, is_transfer')
-        .eq('organization_id', organizationId)
-        .gte('date', startDate)
-        .lt('date', endDate);
-
-      const prevQ = supabase
-        .from('transactions')
-        .select('amount, is_transfer')
-        .eq('organization_id', organizationId)
-        .lt('date', startDate);
-
-
-      const [{ data }, { data: prevData }, invSummary] = await Promise.all([
-        q,
-        prevQ,
+      const [data, prevData, invSummary] = await Promise.all([
+        fetchAllRows<Tx>(() => supabase
+          .from('transactions')
+          .select('id, date, amount, category_id, is_transfer')
+          .eq('organization_id', organizationId)
+          .gte('date', startDate)
+          .lt('date', endDate)),
+        fetchAllRows<{ id: string; date: string; amount: number; is_transfer?: boolean | null }>(() => supabase
+          .from('transactions')
+          .select('id, date, amount, is_transfer')
+          .eq('organization_id', organizationId)
+          .lt('date', startDate)),
         fetchInvestmentSummary(organizationId, y, m),
       ]);
       if (!cancelled) {
-        setTxs((data || []) as Tx[]);
+        setTxs(data);
         setInvestmentBalance(invSummary.totalSaldo);
         setInvestmentYield(invSummary.totalRendimento);
         setInvestmentByAccount(invSummary.byAccount);
         let prev = 0;
-        for (const t of (prevData || []) as { amount: number; is_transfer?: boolean | null }[]) {
+        for (const t of prevData) {
           if (t.is_transfer) continue;
           prev += t.amount;
         }
