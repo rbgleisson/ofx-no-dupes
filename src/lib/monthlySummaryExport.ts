@@ -2,6 +2,7 @@ import ExcelJS from 'exceljs';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchInvestmentSummary, type InvestmentSummary } from '@/lib/investmentPositions';
 import { fetchAllRows } from '@/lib/fetchAllRows';
+import { computePeriodCashBalance, type CashBalanceAccount } from '@/lib/accountBalances';
 
 export { fetchInvestmentSummary };
 
@@ -23,6 +24,7 @@ interface Transaction {
   id: string;
   date: string;
   amount: number;
+  account_id: string | null;
   category_id: string | null;
   chart_account_id: string | null;
   is_transfer?: boolean | null;
@@ -102,33 +104,34 @@ export async function exportMonthlySummary(
 
   if (!organizationId) throw new Error('Organização não identificada. Faça login novamente.');
 
-  const transactions = await fetchAllRows<Transaction>(() => supabase
-    .from('transactions')
-    .select('id, date, amount, category_id, chart_account_id, is_transfer')
-    .eq('organization_id', organizationId)
-    .gte('date', startDate)
-    .lt('date', endDate));
-
-  const investmentSummary = await fetchInvestmentSummary(organizationId, year, month);
-  const investmentBalance = investmentSummary.totalSaldo;
-
-
-  // Previous balance: use override if provided, else compute from all prior non-transfer tx
-  let previousBalance = 0;
-  if (previousBalanceOverride !== undefined && previousBalanceOverride !== null) {
-    previousBalance = previousBalanceOverride;
-  } else {
-    const prevTx = await fetchAllRows<{ id: string; date: string; amount: number; is_transfer?: boolean | null }>(() => supabase
+  const [transactions, previousTransactions, accountsResult, investmentSummary] = await Promise.all([
+    fetchAllRows<Transaction>(() => supabase
       .from('transactions')
-      .select('id, date, amount, is_transfer')
+      .select('id, date, amount, account_id, category_id, chart_account_id, is_transfer')
       .eq('organization_id', organizationId)
-      .lt('date', startDate));
-
-    for (const t of prevTx) {
-      if (t.is_transfer) continue;
-      previousBalance += t.amount;
-    }
-  }
+      .gte('date', startDate)
+      .lt('date', endDate)),
+    fetchAllRows<Transaction>(() => supabase
+      .from('transactions')
+      .select('id, date, amount, account_id, category_id, chart_account_id, is_transfer')
+      .eq('organization_id', organizationId)
+      .lt('date', startDate)),
+    supabase
+      .from('accounts')
+      .select('id, opening_balance, opening_balance_date')
+      .eq('organization_id', organizationId),
+    fetchInvestmentSummary(organizationId, year, month),
+  ]);
+  if (accountsResult.error) throw accountsResult.error;
+  const investmentBalance = investmentSummary.totalSaldo;
+  const cashBalance = computePeriodCashBalance(
+    (accountsResult.data || []) as CashBalanceAccount[],
+    previousTransactions,
+    transactions,
+    startDate,
+    previousBalanceOverride,
+  );
+  const { previousBalance, monthlyMovement, finalBalance } = cashBalance;
 
   const catMap = new Map(categories.map(c => [c.id, c]));
   const chartMap = new Map(chartAccounts.map(c => [c.id, c]));
@@ -406,8 +409,6 @@ export async function exportMonthlySummary(
   buildCategorySection('▼  SAÍDAS POR CATEGORIA', exitsByCategory, totalExits, C_RED, C_RED_BG);
 
   // === SALDO ANTERIOR + SALDO PARA PRÓXIMO MÊS ===
-  const finalBalance = previousBalance + saldo;
-
   // Saldo Anterior line
   sheet.mergeCells(row, 2, row, 3);
   const prevLbl = sheet.getCell(row, 2);
@@ -428,15 +429,15 @@ export async function exportMonthlySummary(
   // Saldo do mês (linha resumo)
   sheet.mergeCells(row, 2, row, 3);
   const mLbl = sheet.getCell(row, 2);
-  mLbl.value = `(+) SALDO DE ${monthName.toUpperCase()}/${year}`;
+  mLbl.value = `(+) MOVIMENTO BANCÁRIO DE ${monthName.toUpperCase()}/${year}`;
   mLbl.font = { name: 'Calibri', size: 10, bold: true, color: { argb: C_GRAY } };
   mLbl.alignment = { horizontal: 'left', vertical: 'middle', indent: 1 };
   mLbl.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C_GRAY_LIGHT } };
   sheet.mergeCells(row, 4, row, 5);
   const mVal = sheet.getCell(row, 4);
-  mVal.value = saldo;
+  mVal.value = monthlyMovement;
   mVal.numFmt = '"R$" #,##0.00';
-  mVal.font = { name: 'Calibri', size: 11, bold: true, color: { argb: saldo >= 0 ? C_GREEN : C_RED } };
+  mVal.font = { name: 'Calibri', size: 11, bold: true, color: { argb: monthlyMovement >= 0 ? C_GREEN : C_RED } };
   mVal.alignment = { horizontal: 'right', vertical: 'middle', indent: 1 };
   mVal.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C_GRAY_LIGHT } };
   sheet.getRow(row).height = 20;
