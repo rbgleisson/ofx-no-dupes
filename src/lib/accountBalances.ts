@@ -47,8 +47,6 @@ export function computePeriodCashBalance(
   const previousBalance = previousBalanceOverride ?? calculatedPreviousBalance;
   const monthlyMovement = currentTransactions.reduce((sum, transaction) => {
     if (!transaction.account_id || !openingDateByAccount.has(transaction.account_id)) return sum;
-    const openingDate = openingDateByAccount.get(transaction.account_id);
-    if (openingDate && transaction.date < openingDate) return sum;
     return sum + Number(transaction.amount || 0);
   }, 0);
 
