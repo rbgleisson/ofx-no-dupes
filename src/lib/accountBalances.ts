@@ -8,6 +8,22 @@ export function round2(n: number): number {
   return Math.round((Number(n) + Number.EPSILON) * 100) / 100;
 }
 
+/** Closing cascade used by the monthly summary screen and workbook. */
+export function computeMonthlyClosing(
+  previousBalance: number,
+  totalEntries: number,
+  totalExits: number,
+  appliedAmounts: number[],
+) {
+  const accumulatedBalance = round2(previousBalance + totalEntries - totalExits);
+  const totalApplied = round2(appliedAmounts.reduce((sum, value) => sum + Number(value || 0), 0));
+  return {
+    accumulatedBalance,
+    totalApplied,
+    nextMonthBalance: round2(accumulatedBalance - totalApplied),
+  };
+}
+
 export interface CashBalanceAccount {
   id: string;
   opening_balance?: number | null;
