@@ -79,6 +79,7 @@ export default function InvestmentPositionDialog({ account, onClose, onSaved }: 
         saldoAnterior,
         saldoAtual: parseAmount(saldoAtual),
         rendimentoMes: parseAmount(rendimento),
+        aplicadoNoMes: existing?.aplicado_no_mes ?? 0,
       });
       toast.success('Posição da aplicação salva.');
       setPositions(await fetchPositions(account.id));

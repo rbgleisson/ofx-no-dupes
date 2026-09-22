@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { computePeriodCashBalance } from '@/lib/accountBalances';
+import { computeMonthlyClosing, computePeriodCashBalance } from '@/lib/accountBalances';
 
 describe('computePeriodCashBalance', () => {
   const accounts = [
@@ -46,5 +46,23 @@ describe('computePeriodCashBalance', () => {
     expect(result.previousBalance).toBe(2000);
     expect(result.monthlyMovement).toBe(50);
     expect(result.finalBalance).toBe(2050);
+  });
+});
+
+describe('computeMonthlyClosing', () => {
+  it('shows accumulated balance when applied amounts are zero', () => {
+    expect(computeMonthlyClosing(1000, 500, 200, [0, 0])).toEqual({
+      accumulatedBalance: 1300,
+      totalApplied: 0,
+      nextMonthBalance: 1300,
+    });
+  });
+
+  it('subtracts every investment account from the accumulated balance', () => {
+    expect(computeMonthlyClosing(1000, 500, 200, [125.55, 74.45])).toEqual({
+      accumulatedBalance: 1300,
+      totalApplied: 200,
+      nextMonthBalance: 1100,
+    });
   });
 });

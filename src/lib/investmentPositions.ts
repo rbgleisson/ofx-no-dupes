@@ -11,6 +11,7 @@ export interface InvestmentPosition {
   saldo_anterior: number;
   saldo_atual: number;
   rendimento_mes: number;
+  aplicado_no_mes: number;
   updated_at: string;
 }
 
@@ -23,6 +24,7 @@ const normalize = (r: any): InvestmentPosition => ({
   saldo_anterior: Number(r.saldo_anterior) || 0,
   saldo_atual: Number(r.saldo_atual) || 0,
   rendimento_mes: Number(r.rendimento_mes) || 0,
+  aplicado_no_mes: Number(r.aplicado_no_mes) || 0,
 });
 
 /** Todas as posições de uma conta, mais recentes primeiro. */
@@ -102,6 +104,7 @@ export async function savePosition(params: {
   saldoAnterior: number;
   saldoAtual: number;
   rendimentoMes: number;
+  aplicadoNoMes?: number;
 }): Promise<void> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Usuário não autenticado.');
@@ -118,6 +121,7 @@ export async function savePosition(params: {
       saldo_anterior: round2(params.saldoAnterior),
       saldo_atual: round2(params.saldoAtual),
       rendimento_mes: round2(params.rendimentoMes),
+      aplicado_no_mes: round2(params.aplicadoNoMes ?? 0),
       updated_by: user.id,
       updated_at: new Date().toISOString(),
     } as any, { onConflict: 'account_id,year,month' });
@@ -127,7 +131,8 @@ export async function savePosition(params: {
 export interface InvestmentSummary {
   totalSaldo: number;
   totalRendimento: number;
-  byAccount: { accountId: string; name: string; saldo: number; rendimento: number }[];
+  totalAplicado: number;
+  byAccount: { accountId: string; name: string; saldo: number; rendimento: number; aplicado: number }[];
 }
 
 /**
@@ -140,7 +145,7 @@ export async function fetchInvestmentSummary(
   year: number,
   month: number,
 ): Promise<InvestmentSummary> {
-  const empty: InvestmentSummary = { totalSaldo: 0, totalRendimento: 0, byAccount: [] };
+  const empty: InvestmentSummary = { totalSaldo: 0, totalRendimento: 0, totalAplicado: 0, byAccount: [] };
   if (!organizationId) return empty;
 
   const { data: accs } = await supabase
@@ -163,12 +168,36 @@ export async function fetchInvestmentSummary(
       name: a.name,
       saldo: p?.saldo_atual ?? 0,
       rendimento: monthly?.rendimento_mes ?? 0,
+      aplicado: monthly?.aplicado_no_mes ?? 0,
     };
   });
 
   return {
     totalSaldo: round2(byAccount.reduce((s, a) => s + a.saldo, 0)),
     totalRendimento: round2(byAccount.reduce((s, a) => s + a.rendimento, 0)),
+    totalAplicado: round2(byAccount.reduce((s, a) => s + a.aplicado, 0)),
     byAccount,
   };
+}
+
+/** Saves only the monthly applied amount while preserving position and yield data. */
+export async function saveAppliedAmount(params: {
+  accountId: string;
+  year: number;
+  month: number;
+  amount: number;
+}): Promise<void> {
+  const positions = await fetchPositions(params.accountId);
+  const existing = positions.find(p => p.year === params.year && p.month === params.month);
+  const saldoAnterior = existing?.saldo_anterior
+    ?? previousBalanceFor(positions, params.accountId, params.year, params.month);
+  await savePosition({
+    accountId: params.accountId,
+    year: params.year,
+    month: params.month,
+    saldoAnterior,
+    saldoAtual: existing?.saldo_atual ?? saldoAnterior,
+    rendimentoMes: existing?.rendimento_mes ?? 0,
+    aplicadoNoMes: params.amount,
+  });
 }

@@ -441,6 +441,7 @@ export type Database = {
       investment_positions: {
         Row: {
           account_id: string
+          aplicado_no_mes: number
           created_at: string
           id: string
           month: number
@@ -454,6 +455,7 @@ export type Database = {
         }
         Insert: {
           account_id: string
+          aplicado_no_mes?: number
           created_at?: string
           id?: string
           month: number
@@ -467,6 +469,7 @@ export type Database = {
         }
         Update: {
           account_id?: string
+          aplicado_no_mes?: number
           created_at?: string
           id?: string
           month?: number
