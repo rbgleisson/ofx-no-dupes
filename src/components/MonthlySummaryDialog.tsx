@@ -119,11 +119,6 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, year, month, organizationId]);
 
-  // Reset edit flag when month/year changes
-  useEffect(() => {
-    setPrevBalanceEdited(false);
-  }, [year, month]);
-
   const parsedPrevBalance = useMemo(() => {
     const cleaned = prevBalanceInput.replace(/\./g, '').replace(',', '.').replace(/[^\d.-]/g, '');
     const n = parseFloat(cleaned);
@@ -233,14 +228,14 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
           <div className="flex flex-wrap items-end gap-3">
             <div className="flex-1 min-w-[120px]">
               <p className="text-[10px] font-medium text-cyan-300/70 uppercase tracking-wider mb-1">Ano</p>
-              <Select value={year} onValueChange={setYear}>
+               <Select value={year} onValueChange={(value) => { setPrevBalanceEdited(false); setYear(value); }}>
                 <SelectTrigger className="h-9 text-sm bg-slate-900/80 border-cyan-500/20"><SelectValue /></SelectTrigger>
                 <SelectContent>{YEARS.map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="flex-1 min-w-[160px]">
               <p className="text-[10px] font-medium text-cyan-300/70 uppercase tracking-wider mb-1">Mês</p>
-              <Select value={month} onValueChange={setMonth}>
+               <Select value={month} onValueChange={(value) => { setPrevBalanceEdited(false); setMonth(value); }}>
                 <SelectTrigger className="h-9 text-sm bg-slate-900/80 border-cyan-500/20"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {MONTHS.map((m, i) => <SelectItem key={i} value={String(i + 1)}>{m}</SelectItem>)}
