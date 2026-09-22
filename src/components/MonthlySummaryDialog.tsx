@@ -9,6 +9,7 @@ import { exportMonthlySummary, fetchInvestmentSummary } from '@/lib/monthlySumma
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { fetchAllRows } from '@/lib/fetchAllRows';
+import { computePeriodCashBalance, type CashBalanceAccount } from '@/lib/accountBalances';
 
 const MONTHS = [
   'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -33,6 +34,7 @@ interface Tx {
   id: string;
   date: string;
   amount: number;
+  account_id: string | null;
   category_id: string | null;
   is_transfer?: boolean | null;
 }
@@ -53,6 +55,7 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
   const [investmentYield, setInvestmentYield] = useState<number>(0);
   const [investmentByAccount, setInvestmentByAccount] = useState<{ accountId: string; name: string; saldo: number; rendimento: number }[]>([]);
   const [previousBalance, setPreviousBalance] = useState<number>(0);
+  const [monthlyBankMovement, setMonthlyBankMovement] = useState<number>(0);
   const [prevBalanceInput, setPrevBalanceInput] = useState<string>('0,00');
   const [prevBalanceEdited, setPrevBalanceEdited] = useState(false);
 
@@ -73,31 +76,39 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
       const m = Number(month);
       const startDate = `${y}-${String(m).padStart(2, '0')}-01`;
       const endDate = m === 12 ? `${y + 1}-01-01` : `${y}-${String(m + 1).padStart(2, '0')}-01`;
-      const [data, prevData, invSummary] = await Promise.all([
+      const [data, prevData, accountsResult, invSummary] = await Promise.all([
         fetchAllRows<Tx>(() => supabase
           .from('transactions')
-          .select('id, date, amount, category_id, is_transfer')
+          .select('id, date, amount, account_id, category_id, is_transfer')
           .eq('organization_id', organizationId)
           .gte('date', startDate)
           .lt('date', endDate)),
-        fetchAllRows<{ id: string; date: string; amount: number; is_transfer?: boolean | null }>(() => supabase
+        fetchAllRows<Tx>(() => supabase
           .from('transactions')
-          .select('id, date, amount, is_transfer')
+          .select('id, date, amount, account_id, category_id, is_transfer')
           .eq('organization_id', organizationId)
           .lt('date', startDate)),
+        supabase
+          .from('accounts')
+          .select('id, opening_balance, opening_balance_date')
+          .eq('organization_id', organizationId),
         fetchInvestmentSummary(organizationId, y, m),
       ]);
+      if (accountsResult.error) throw accountsResult.error;
+      const cashBalance = computePeriodCashBalance(
+        (accountsResult.data || []) as CashBalanceAccount[],
+        prevData,
+        data,
+        startDate,
+      );
       if (!cancelled) {
         setTxs(data);
         setInvestmentBalance(invSummary.totalSaldo);
         setInvestmentYield(invSummary.totalRendimento);
         setInvestmentByAccount(invSummary.byAccount);
-        let prev = 0;
-        for (const t of prevData) {
-          if (t.is_transfer) continue;
-          prev += t.amount;
-        }
+        const prev = cashBalance.calculatedPreviousBalance;
         setPreviousBalance(prev);
+        setMonthlyBankMovement(cashBalance.monthlyMovement);
         if (!prevBalanceEdited) {
           setPrevBalanceInput(prev.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
         }
@@ -170,7 +181,7 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
         Number(month),
         chartAccounts,
         (headerName || orgName || '').trim(),
-        parsedPrevBalance,
+        prevBalanceEdited ? parsedPrevBalance : null,
       );
       onSuccess?.();
     } catch {
@@ -180,7 +191,7 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
     }
   };
 
-  const finalBalance = parsedPrevBalance + stats.saldo;
+  const finalBalance = parsedPrevBalance + monthlyBankMovement;
 
   const monthName = MONTHS[Number(month) - 1];
 
@@ -358,7 +369,7 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
                 <div className="flex items-center justify-end gap-4 text-xs text-slate-400 border-t border-cyan-500/10 pt-2">
                   <span>Saldo anterior: <span className="text-slate-200 tabular-nums">{fmt(parsedPrevBalance)}</span></span>
                   <span className="text-slate-600">+</span>
-                  <span>Saldo do mês: <span className={cn('tabular-nums', stats.saldo >= 0 ? 'text-emerald-300' : 'text-rose-300')}>{fmt(stats.saldo)}</span></span>
+                   <span>Movimento bancário do mês: <span className={cn('tabular-nums', monthlyBankMovement >= 0 ? 'text-emerald-300' : 'text-rose-300')}>{fmt(monthlyBankMovement)}</span></span>
                 </div>
               </div>
             </div>

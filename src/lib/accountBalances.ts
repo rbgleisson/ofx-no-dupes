@@ -8,6 +8,58 @@ export function round2(n: number): number {
   return Math.round((Number(n) + Number.EPSILON) * 100) / 100;
 }
 
+export interface CashBalanceAccount {
+  id: string;
+  opening_balance?: number | null;
+  opening_balance_date?: string | null;
+}
+
+export interface CashBalanceTransaction {
+  account_id?: string | null;
+  date: string;
+  amount: number;
+}
+
+/** Cash balance at a period boundary, matching the main dashboard rule. */
+export function computePeriodCashBalance(
+  accounts: CashBalanceAccount[],
+  previousTransactions: CashBalanceTransaction[],
+  currentTransactions: CashBalanceTransaction[],
+  periodStart: string,
+  previousBalanceOverride?: number | null,
+) {
+  const openingDateByAccount = new Map(
+    accounts.map(account => [account.id, account.opening_balance_date || null]),
+  );
+  const calculatedPreviousBalance = round2(
+    accounts.reduce((sum, account) => {
+      const openingDate = account.opening_balance_date;
+      return !openingDate || openingDate <= periodStart
+        ? sum + Number(account.opening_balance || 0)
+        : sum;
+    }, 0) + previousTransactions.reduce((sum, transaction) => {
+      if (!transaction.account_id || !openingDateByAccount.has(transaction.account_id)) return sum;
+      const openingDate = openingDateByAccount.get(transaction.account_id);
+      if (openingDate && transaction.date < openingDate) return sum;
+      return sum + Number(transaction.amount || 0);
+    }, 0),
+  );
+  const previousBalance = previousBalanceOverride ?? calculatedPreviousBalance;
+  const monthlyMovement = currentTransactions.reduce((sum, transaction) => {
+    if (!transaction.account_id || !openingDateByAccount.has(transaction.account_id)) return sum;
+    const openingDate = openingDateByAccount.get(transaction.account_id);
+    if (openingDate && transaction.date < openingDate) return sum;
+    return sum + Number(transaction.amount || 0);
+  }, 0);
+
+  return {
+    calculatedPreviousBalance,
+    previousBalance,
+    monthlyMovement,
+    finalBalance: round2(previousBalance + monthlyMovement),
+  };
+}
+
 export interface AccountBalance {
   account: Account;
   opening: number;
