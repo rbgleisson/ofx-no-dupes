@@ -8,6 +8,13 @@
       "when": 1789944632088,
       "tag": "0000_add_transactions_org_account_fit_id_unique_index",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790039222699,
+      "tag": "0001_add_aplicado_no_mes_to_investment_positions",
+      "breakpoints": true
     }
   ]
 }
