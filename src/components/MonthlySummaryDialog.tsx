@@ -9,7 +9,9 @@ import { exportMonthlySummary, fetchInvestmentSummary } from '@/lib/monthlySumma
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { fetchAllRows } from '@/lib/fetchAllRows';
-import { computePeriodCashBalance, type CashBalanceAccount } from '@/lib/accountBalances';
+import { computeMonthlyClosing, computePeriodCashBalance, type CashBalanceAccount } from '@/lib/accountBalances';
+import { saveAppliedAmount } from '@/lib/investmentPositions';
+import { toast } from 'sonner';
 
 const MONTHS = [
   'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -53,9 +55,10 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
   const [txs, setTxs] = useState<Tx[]>([]);
   const [investmentBalance, setInvestmentBalance] = useState<number>(0);
   const [investmentYield, setInvestmentYield] = useState<number>(0);
-  const [investmentByAccount, setInvestmentByAccount] = useState<{ accountId: string; name: string; saldo: number; rendimento: number }[]>([]);
+  const [investmentByAccount, setInvestmentByAccount] = useState<{ accountId: string; name: string; saldo: number; rendimento: number; aplicado: number }[]>([]);
+  const [appliedInputs, setAppliedInputs] = useState<Record<string, string>>({});
+  const [savingApplied, setSavingApplied] = useState<string | null>(null);
   const [previousBalance, setPreviousBalance] = useState<number>(0);
-  const [monthlyBankMovement, setMonthlyBankMovement] = useState<number>(0);
   const [prevBalanceInput, setPrevBalanceInput] = useState<string>('0,00');
   const [prevBalanceEdited, setPrevBalanceEdited] = useState(false);
 
@@ -106,9 +109,12 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
         setInvestmentBalance(invSummary.totalSaldo);
         setInvestmentYield(invSummary.totalRendimento);
         setInvestmentByAccount(invSummary.byAccount);
+        setAppliedInputs(Object.fromEntries(invSummary.byAccount.map(account => [
+          account.accountId,
+          account.aplicado.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+        ])));
         const prev = cashBalance.calculatedPreviousBalance;
         setPreviousBalance(prev);
-        setMonthlyBankMovement(cashBalance.monthlyMovement);
         if (!prevBalanceEdited) {
           setPrevBalanceInput(prev.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
         }
@@ -125,15 +131,19 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
     return isNaN(n) ? 0 : n;
   }, [prevBalanceInput]);
 
+  const parseAmount = (value: string) => {
+    const cleaned = value.replace(/\./g, '').replace(',', '.').replace(/[^\d.-]/g, '');
+    const parsed = parseFloat(cleaned);
+    return isNaN(parsed) ? 0 : parsed;
+  };
+
   const stats = useMemo(() => {
     const entriesByCat = new Map<string, number>();
     const exitsByCat = new Map<string, number>();
     let totalEntries = 0;
     let totalExits = 0;
-    let count = 0;
     for (const tx of txs) {
       if (tx.is_transfer) continue;
-      count++;
       const catKey = tx.category_id || '__none__';
       if (tx.amount >= 0) {
         entriesByCat.set(catKey, (entriesByCat.get(catKey) || 0) + tx.amount);
@@ -159,16 +169,44 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
     return {
       totalEntries,
       totalExits,
-      saldo: totalEntries - totalExits,
       entries: toList(entriesByCat),
       exits: toList(exitsByCat),
-      count,
     };
   }, [txs, catMap]);
+
+  const appliedAmounts = useMemo(
+    () => investmentByAccount.map(account => parseAmount(appliedInputs[account.accountId] || '0')),
+    [investmentByAccount, appliedInputs],
+  );
+  const closing = useMemo(
+    () => computeMonthlyClosing(parsedPrevBalance, stats.totalEntries, stats.totalExits, appliedAmounts),
+    [parsedPrevBalance, stats.totalEntries, stats.totalExits, appliedAmounts],
+  );
+
+  const persistAppliedAmount = async (accountId: string) => {
+    const value = parseAmount(appliedInputs[accountId] || '0');
+    setAppliedInputs(current => ({
+      ...current,
+      [accountId]: value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+    }));
+    setSavingApplied(accountId);
+    try {
+      await saveAppliedAmount({ accountId, year: Number(year), month: Number(month), amount: value });
+      setInvestmentByAccount(current => current.map(account => (
+        account.accountId === accountId ? { ...account, aplicado: value } : account
+      )));
+    } catch {
+      toast.error('Não foi possível salvar o valor aplicado.');
+      throw new Error('Falha ao salvar valor aplicado');
+    } finally {
+      setSavingApplied(current => current === accountId ? null : current);
+    }
+  };
 
   const handleExport = async () => {
     setExporting(true);
     try {
+      await Promise.all(investmentByAccount.map(account => persistAppliedAmount(account.accountId)));
       await exportMonthlySummary(
         categories,
         organizationId,
@@ -185,8 +223,6 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
       setExporting(false);
     }
   };
-
-  const finalBalance = parsedPrevBalance + monthlyBankMovement;
 
   const monthName = MONTHS[Number(month) - 1];
 
@@ -292,7 +328,7 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
         ) : (
           <div className="space-y-4 pt-2">
             {/* KPI Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <StatCard
                 icon={<ArrowUpCircle className="w-5 h-5" />}
                 label="Entradas"
@@ -304,17 +340,6 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
                 label="Saídas"
                 value={fmt(stats.totalExits)}
                 accent="from-rose-500/20 to-rose-500/5 border-rose-400/30 text-rose-300"
-              />
-              <StatCard
-                icon={<Wallet className="w-5 h-5" />}
-                label="Saldo do Mês"
-                value={fmt(stats.saldo)}
-                accent={cn(
-                  stats.saldo >= 0
-                    ? 'from-cyan-500/20 to-blue-500/5 border-cyan-400/30 text-cyan-200'
-                    : 'from-amber-500/20 to-orange-500/5 border-amber-400/30 text-amber-300'
-                )}
-                highlight
               />
             </div>
 
@@ -334,37 +359,39 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
               />
             </div>
 
-            {/* Carry-over balance */}
+            {/* Monthly closing cascade */}
             <div className="relative overflow-hidden rounded-xl border border-cyan-400/30 bg-gradient-to-br from-cyan-950/60 via-slate-900 to-blue-950/40 p-5">
-              <div className="absolute -right-12 -top-12 w-40 h-40 rounded-full bg-cyan-500/10 blur-3xl" />
-              <div className="relative space-y-3">
-                <div className="flex items-center justify-between flex-wrap gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2.5 rounded-lg bg-cyan-500/15 border border-cyan-400/30">
-                      <TrendingUp className="w-5 h-5 text-cyan-300" />
-                    </div>
-                    <div>
-                      <p className="text-[11px] uppercase tracking-wider text-cyan-300/70 font-medium">
-                        Saldo para o próximo mês
-                      </p>
-                      <p className="text-xs text-slate-400">
-                        {monthName}/{year} — {stats.count} lançamento{stats.count === 1 ? '' : 's'}
-                      </p>
-                    </div>
-                  </div>
-                  <div
-                    className={cn(
-                      'text-3xl md:text-4xl font-bold tabular-nums',
-                      finalBalance >= 0 ? 'text-cyan-200' : 'text-amber-300'
-                    )}
-                  >
-                    {fmt(finalBalance)}
-                  </div>
+              <div className="relative space-y-2 text-sm">
+                <ClosingLine label="Saldo Anterior" value={parsedPrevBalance} />
+                <ClosingLine label="(+) Entradas Reais" value={stats.totalEntries} valueClass="text-emerald-300" />
+                <ClosingLine label="(–) Saídas Reais" value={stats.totalExits} valueClass="text-rose-300" />
+                <div className="border-t border-cyan-500/20 pt-2">
+                  <ClosingLine label="(=) Saldo Acumulado" value={closing.accumulatedBalance} strong />
                 </div>
-                <div className="flex items-center justify-end gap-4 text-xs text-slate-400 border-t border-cyan-500/10 pt-2">
-                  <span>Saldo anterior: <span className="text-slate-200 tabular-nums">{fmt(parsedPrevBalance)}</span></span>
-                  <span className="text-slate-600">+</span>
-                   <span>Movimento bancário do mês: <span className={cn('tabular-nums', monthlyBankMovement >= 0 ? 'text-emerald-300' : 'text-rose-300')}>{fmt(monthlyBankMovement)}</span></span>
+                {investmentByAccount.map(account => (
+                  <div key={account.accountId} className="grid grid-cols-1 sm:grid-cols-[1fr_180px] items-center gap-2 border-t border-cyan-500/10 pt-2">
+                    <label htmlFor={`aplicado-${account.accountId}`} className="text-slate-300">
+                      (–) Aplicação {account.name}
+                    </label>
+                    <div className="relative">
+                      <Input
+                        id={`aplicado-${account.accountId}`}
+                        inputMode="decimal"
+                        value={appliedInputs[account.accountId] || '0,00'}
+                        onChange={event => setAppliedInputs(current => ({ ...current, [account.accountId]: event.target.value }))}
+                        onBlur={() => { void persistAppliedAmount(account.accountId).catch(() => undefined); }}
+                        className="h-9 bg-slate-900/80 border-cyan-500/20 text-right tabular-nums pr-8"
+                        aria-label={`Aplicação ${account.name}`}
+                      />
+                      {savingApplied === account.accountId && <Loader2 className="absolute right-2.5 top-2.5 h-4 w-4 animate-spin text-cyan-300" />}
+                    </div>
+                  </div>
+                ))}
+                <div className="border-t border-cyan-400/30 pt-3 mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                  <span className="font-semibold uppercase text-cyan-200">(=) Saldo para o Próximo Mês</span>
+                  <span className={cn('text-2xl md:text-3xl font-bold tabular-nums', closing.nextMonthBalance >= 0 ? 'text-cyan-200' : 'text-amber-300')}>
+                    {fmt(closing.nextMonthBalance)}
+                  </span>
                 </div>
               </div>
             </div>
@@ -420,6 +447,15 @@ const StatCard = ({
       <span className="text-xs font-medium uppercase tracking-wider">{label}</span>
     </div>
     <div className="text-2xl font-bold tabular-nums">{value}</div>
+  </div>
+);
+
+const ClosingLine = ({
+  label, value, valueClass, strong,
+}: { label: string; value: number; valueClass?: string; strong?: boolean }) => (
+  <div className={cn('flex items-center justify-between gap-3', strong && 'font-semibold text-cyan-100')}>
+    <span className="text-slate-300">{label}</span>
+    <span className={cn('tabular-nums text-slate-100', valueClass, strong && 'text-lg')}>{fmt(value)}</span>
   </div>
 );
 

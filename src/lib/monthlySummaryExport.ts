@@ -2,7 +2,7 @@ import ExcelJS from 'exceljs';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchInvestmentSummary, type InvestmentSummary } from '@/lib/investmentPositions';
 import { fetchAllRows } from '@/lib/fetchAllRows';
-import { computePeriodCashBalance, type CashBalanceAccount } from '@/lib/accountBalances';
+import { computeMonthlyClosing, computePeriodCashBalance, type CashBalanceAccount } from '@/lib/accountBalances';
 
 export { fetchInvestmentSummary };
 
@@ -131,7 +131,7 @@ export async function exportMonthlySummary(
     startDate,
     previousBalanceOverride,
   );
-  const { previousBalance, monthlyMovement, finalBalance } = cashBalance;
+  const { previousBalance } = cashBalance;
 
   const catMap = new Map(categories.map(c => [c.id, c]));
   const chartMap = new Map(chartAccounts.map(c => [c.id, c]));
@@ -162,7 +162,12 @@ export async function exportMonthlySummary(
     }
   }
 
-  const saldo = totalEntries - totalExits;
+  const closing = computeMonthlyClosing(
+    previousBalance,
+    totalEntries,
+    totalExits,
+    investmentSummary.byAccount.map(account => account.aplicado),
+  );
   const monthName = MONTHS[month - 1];
 
   const wb = new ExcelJS.Workbook();
@@ -238,22 +243,12 @@ export async function exportMonthlySummary(
   row += 2;
 
   // === KPI ROW ===
-  const kpiStart = row;
   sheet.getRow(row).height = 22;
-  // Labels row
-  const labels = [
-    { col: 2, span: 1, text: 'ENTRADAS', color: C_GREEN, bg: C_GREEN_BG },
-    { col: 3, span: 1, text: 'SAÍDAS', color: C_RED, bg: C_RED_BG },
-    { col: 4, span: 2, text: 'SALDO DO MÊS', color: C_PRIMARY_DARK, bg: C_BLUE_BG },
-  ];
-  // We'll do KPI as 3 columns: B, C, D-E
-  sheet.mergeCells(row, 2, row, 2);
-  sheet.mergeCells(row, 3, row, 3);
+  sheet.mergeCells(row, 2, row, 3);
   sheet.mergeCells(row, 4, row, 5);
   [
     { col: 2, text: 'ENTRADAS', color: C_GREEN, bg: C_GREEN_BG },
-    { col: 3, text: 'SAÍDAS', color: C_RED, bg: C_RED_BG },
-    { col: 4, text: 'SALDO DO MÊS', color: C_PRIMARY_DARK, bg: C_BLUE_BG },
+    { col: 4, text: 'SAÍDAS', color: C_RED, bg: C_RED_BG },
   ].forEach(k => {
     const c = sheet.getCell(row, k.col);
     c.value = k.text;
@@ -269,14 +264,12 @@ export async function exportMonthlySummary(
   row++;
 
   // Values row
-  sheet.mergeCells(row, 2, row, 2);
-  sheet.mergeCells(row, 3, row, 3);
+  sheet.mergeCells(row, 2, row, 3);
   sheet.mergeCells(row, 4, row, 5);
   sheet.getRow(row).height = 38;
   const kpis = [
     { col: 2, val: totalEntries, color: C_GREEN, bg: C_GREEN_BG },
-    { col: 3, val: totalExits, color: C_RED, bg: C_RED_BG },
-    { col: 4, val: saldo, color: saldo >= 0 ? C_PRIMARY_DARK : 'FFB45309', bg: C_BLUE_BG },
+    { col: 4, val: totalExits, color: C_RED, bg: C_RED_BG },
   ];
   kpis.forEach(k => {
     const c = sheet.getCell(row, k.col);
@@ -408,40 +401,33 @@ export async function exportMonthlySummary(
   buildCategorySection('▲  ENTRADAS POR CATEGORIA', entriesByCategory, totalEntries, C_GREEN, C_GREEN_BG);
   buildCategorySection('▼  SAÍDAS POR CATEGORIA', exitsByCategory, totalExits, C_RED, C_RED_BG);
 
-  // === SALDO ANTERIOR + SALDO PARA PRÓXIMO MÊS ===
-  // Saldo Anterior line
-  sheet.mergeCells(row, 2, row, 3);
-  const prevLbl = sheet.getCell(row, 2);
-  prevLbl.value = 'SALDO ANTERIOR';
-  prevLbl.font = { name: 'Calibri', size: 10, bold: true, color: { argb: C_GRAY } };
-  prevLbl.alignment = { horizontal: 'left', vertical: 'middle', indent: 1 };
-  prevLbl.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C_GRAY_LIGHT } };
-  sheet.mergeCells(row, 4, row, 5);
-  const prevVal = sheet.getCell(row, 4);
-  prevVal.value = previousBalance;
-  prevVal.numFmt = '"R$" #,##0.00';
-  prevVal.font = { name: 'Calibri', size: 11, bold: true, color: { argb: C_DARK } };
-  prevVal.alignment = { horizontal: 'right', vertical: 'middle', indent: 1 };
-  prevVal.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C_GRAY_LIGHT } };
-  sheet.getRow(row).height = 20;
-  row++;
+  // === CASCATA DE FECHAMENTO ===
+  const closingLine = (label: string, value: number, color = C_DARK, bold = true) => {
+    sheet.mergeCells(row, 2, row, 3);
+    const labelCell = sheet.getCell(row, 2);
+    labelCell.value = label;
+    labelCell.font = { name: 'Calibri', size: 10, bold, color: { argb: C_GRAY } };
+    labelCell.alignment = { horizontal: 'left', vertical: 'middle', indent: 1 };
+    labelCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C_GRAY_LIGHT } };
+    sheet.mergeCells(row, 4, row, 5);
+    const valueCell = sheet.getCell(row, 4);
+    valueCell.value = value;
+    valueCell.numFmt = '"R$" #,##0.00';
+    valueCell.font = { name: 'Calibri', size: 11, bold, color: { argb: color } };
+    valueCell.alignment = { horizontal: 'right', vertical: 'middle', indent: 1 };
+    valueCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C_GRAY_LIGHT } };
+    sheet.getRow(row).height = 20;
+    row++;
+  };
 
-  // Saldo do mês (linha resumo)
-  sheet.mergeCells(row, 2, row, 3);
-  const mLbl = sheet.getCell(row, 2);
-  mLbl.value = `(+) MOVIMENTO BANCÁRIO DE ${monthName.toUpperCase()}/${year}`;
-  mLbl.font = { name: 'Calibri', size: 10, bold: true, color: { argb: C_GRAY } };
-  mLbl.alignment = { horizontal: 'left', vertical: 'middle', indent: 1 };
-  mLbl.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C_GRAY_LIGHT } };
-  sheet.mergeCells(row, 4, row, 5);
-  const mVal = sheet.getCell(row, 4);
-  mVal.value = monthlyMovement;
-  mVal.numFmt = '"R$" #,##0.00';
-  mVal.font = { name: 'Calibri', size: 11, bold: true, color: { argb: monthlyMovement >= 0 ? C_GREEN : C_RED } };
-  mVal.alignment = { horizontal: 'right', vertical: 'middle', indent: 1 };
-  mVal.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C_GRAY_LIGHT } };
-  sheet.getRow(row).height = 20;
-  row += 2;
+  closingLine('SALDO ANTERIOR', previousBalance);
+  closingLine('(+) ENTRADAS REAIS', totalEntries, C_GREEN);
+  closingLine('(–) SAÍDAS REAIS', totalExits, C_RED);
+  closingLine('(=) SALDO ACUMULADO', closing.accumulatedBalance, C_PRIMARY_DARK);
+  for (const account of investmentSummary.byAccount) {
+    closingLine(`(–) APLICAÇÃO ${account.name}`, account.aplicado, C_RED, false);
+  }
+  row++;
 
   sheet.mergeCells(row, 2, row, 5);
   const banner = sheet.getCell(row, 2);
@@ -454,13 +440,13 @@ export async function exportMonthlySummary(
 
   sheet.mergeCells(row, 2, row, 5);
   const bigSaldo = sheet.getCell(row, 2);
-  bigSaldo.value = finalBalance;
+  bigSaldo.value = closing.nextMonthBalance;
   bigSaldo.numFmt = '"R$" #,##0.00';
   bigSaldo.font = {
     name: 'Calibri',
     size: 28,
     bold: true,
-    color: { argb: finalBalance >= 0 ? C_PRIMARY_DARK : C_RED },
+    color: { argb: closing.nextMonthBalance >= 0 ? C_PRIMARY_DARK : C_RED },
   };
   bigSaldo.alignment = { horizontal: 'center', vertical: 'middle' };
   bigSaldo.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C_BLUE_BG } };
