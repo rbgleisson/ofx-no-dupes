@@ -162,7 +162,6 @@ export async function exportMonthlySummary(
     }
   }
 
-  const saldo = totalEntries - totalExits;
   const closing = computeMonthlyClosing(
     previousBalance,
     totalEntries,

@@ -142,10 +142,8 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
     const exitsByCat = new Map<string, number>();
     let totalEntries = 0;
     let totalExits = 0;
-    let count = 0;
     for (const tx of txs) {
       if (tx.is_transfer) continue;
-      count++;
       const catKey = tx.category_id || '__none__';
       if (tx.amount >= 0) {
         entriesByCat.set(catKey, (entriesByCat.get(catKey) || 0) + tx.amount);
