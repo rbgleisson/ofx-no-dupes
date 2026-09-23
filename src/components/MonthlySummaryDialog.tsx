@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowDownCircle, ArrowUpCircle, BarChart3, Download, Loader2, TrendingUp, Wallet, Building2 } from 'lucide-react';
+import { ArrowDownCircle, ArrowUpCircle, BarChart3, Download, Loader2, Plus, TrendingUp, Wallet, Building2 } from 'lucide-react';
 import { Category } from '@/components/CategoriesManager';
 import { exportMonthlySummary, fetchInvestmentSummary } from '@/lib/monthlySummaryExport';
 import { supabase } from '@/integrations/supabase/client';
@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils';
 import { fetchAllRows } from '@/lib/fetchAllRows';
 import { computeMonthlyClosing, computePeriodCashBalance, type CashBalanceAccount } from '@/lib/accountBalances';
 import { saveAppliedAmount } from '@/lib/investmentPositions';
+import { createInvestmentAccount } from '@/lib/transfers';
 import { toast } from 'sonner';
 
 const MONTHS = [
@@ -58,6 +59,8 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
   const [investmentByAccount, setInvestmentByAccount] = useState<{ accountId: string; name: string; saldo: number; rendimento: number; aplicado: number }[]>([]);
   const [appliedInputs, setAppliedInputs] = useState<Record<string, string>>({});
   const [savingApplied, setSavingApplied] = useState<string | null>(null);
+  const [newInvestmentName, setNewInvestmentName] = useState('');
+  const [addingInvestment, setAddingInvestment] = useState(false);
   const [previousBalance, setPreviousBalance] = useState<number>(0);
   const [prevBalanceInput, setPrevBalanceInput] = useState<string>('0,00');
   const [prevBalanceEdited, setPrevBalanceEdited] = useState(false);
@@ -200,6 +203,31 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
       throw new Error('Falha ao salvar valor aplicado');
     } finally {
       setSavingApplied(current => current === accountId ? null : current);
+    }
+  };
+
+  const addInvestmentField = async () => {
+    const name = newInvestmentName.trim();
+    if (!name || !organizationId) return;
+    setAddingInvestment(true);
+    try {
+      await createInvestmentAccount({ name });
+      const summary = await fetchInvestmentSummary(organizationId, Number(year), Number(month));
+      setInvestmentBalance(summary.totalSaldo);
+      setInvestmentYield(summary.totalRendimento);
+      setInvestmentByAccount(summary.byAccount);
+      setAppliedInputs(current => ({
+        ...current,
+        ...Object.fromEntries(summary.byAccount
+          .filter(account => current[account.accountId] === undefined)
+          .map(account => [account.accountId, account.aplicado.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })])),
+      }));
+      setNewInvestmentName('');
+      toast.success('Campo de aplicação adicionado.');
+    } catch {
+      toast.error('Não foi possível adicionar a aplicação.');
+    } finally {
+      setAddingInvestment(false);
     }
   };
 
@@ -387,6 +415,35 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
                     </div>
                   </div>
                 ))}
+                <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] items-end gap-2 border-t border-cyan-500/10 pt-3">
+                  <div>
+                    <label htmlFor="nova-aplicacao" className="mb-1 block text-xs text-slate-400">Nova aplicação</label>
+                    <Input
+                      id="nova-aplicacao"
+                      value={newInvestmentName}
+                      onChange={event => setNewInvestmentName(event.target.value)}
+                      onKeyDown={event => {
+                        if (event.key === 'Enter') {
+                          event.preventDefault();
+                          void addInvestmentField();
+                        }
+                      }}
+                      placeholder="Ex.: Poupança, CDB, RDC"
+                      className="h-9 bg-slate-900/80 border-cyan-500/20"
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => void addInvestmentField()}
+                    disabled={!newInvestmentName.trim() || addingInvestment}
+                    className="h-9 border-cyan-500/30 text-cyan-200 hover:bg-cyan-500/10"
+                  >
+                    {addingInvestment ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Plus className="mr-1.5 h-4 w-4" />}
+                    Adicionar aplicação
+                  </Button>
+                </div>
                 <div className="border-t border-cyan-400/30 pt-3 mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                   <span className="font-semibold uppercase text-cyan-200">(=) Total Geral</span>
                   <span className={cn('text-2xl md:text-3xl font-bold tabular-nums', closing.totalGeral >= 0 ? 'text-cyan-200' : 'text-amber-300')}>
