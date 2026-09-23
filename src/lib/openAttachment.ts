@@ -37,6 +37,6 @@ export async function openAttachment(url: string): Promise<void> {
   }
 
   const blobUrl = URL.createObjectURL(data);
-  attachmentWindow.location.replace(blobUrl);
+  attachmentWindow.location.href = blobUrl;
   window.setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
 }
