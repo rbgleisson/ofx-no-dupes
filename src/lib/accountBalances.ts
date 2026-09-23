@@ -15,12 +15,12 @@ export function computeMonthlyClosing(
   totalExits: number,
   appliedAmounts: number[],
 ) {
-  const accumulatedBalance = round2(previousBalance + totalEntries - totalExits);
+  const subtotal = round2(previousBalance + totalEntries - totalExits);
   const totalApplied = round2(appliedAmounts.reduce((sum, value) => sum + Number(value || 0), 0));
   return {
-    accumulatedBalance,
+    subtotal,
     totalApplied,
-    nextMonthBalance: round2(accumulatedBalance - totalApplied),
+    totalGeral: round2(subtotal + totalApplied),
   };
 }
 

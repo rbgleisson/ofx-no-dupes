@@ -50,19 +50,27 @@ describe('computePeriodCashBalance', () => {
 });
 
 describe('computeMonthlyClosing', () => {
-  it('shows accumulated balance when applied amounts are zero', () => {
+  it('keeps total geral equal to subtotal when investment balances are zero', () => {
     expect(computeMonthlyClosing(1000, 500, 200, [0, 0])).toEqual({
-      accumulatedBalance: 1300,
+      subtotal: 1300,
       totalApplied: 0,
-      nextMonthBalance: 1300,
+      totalGeral: 1300,
     });
   });
 
-  it('subtracts every investment account from the accumulated balance', () => {
+  it('adds every investment account balance to the subtotal', () => {
     expect(computeMonthlyClosing(1000, 500, 200, [125.55, 74.45])).toEqual({
-      accumulatedBalance: 1300,
+      subtotal: 1300,
       totalApplied: 200,
-      nextMonthBalance: 1100,
+      totalGeral: 1500,
+    });
+  });
+
+  it('adds one investment account balance to the subtotal', () => {
+    expect(computeMonthlyClosing(800, 300, 100, [250])).toEqual({
+      subtotal: 1000,
+      totalApplied: 250,
+      totalGeral: 1250,
     });
   });
 });
