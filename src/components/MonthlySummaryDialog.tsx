@@ -366,12 +366,12 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
                 <ClosingLine label="(+) Entradas Reais" value={stats.totalEntries} valueClass="text-emerald-300" />
                 <ClosingLine label="(–) Saídas Reais" value={stats.totalExits} valueClass="text-rose-300" />
                 <div className="border-t border-cyan-500/20 pt-2">
-                  <ClosingLine label="(=) Saldo Acumulado" value={closing.accumulatedBalance} strong />
+                  <ClosingLine label="(=) Subtotal" value={closing.subtotal} strong />
                 </div>
                 {investmentByAccount.map(account => (
                   <div key={account.accountId} className="grid grid-cols-1 sm:grid-cols-[1fr_180px] items-center gap-2 border-t border-cyan-500/10 pt-2">
                     <label htmlFor={`aplicado-${account.accountId}`} className="text-slate-300">
-                      (–) Aplicação {account.name}
+                      (+) Saldo de Aplicação {account.name}
                     </label>
                     <div className="relative">
                       <Input
@@ -381,16 +381,16 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
                         onChange={event => setAppliedInputs(current => ({ ...current, [account.accountId]: event.target.value }))}
                         onBlur={() => { void persistAppliedAmount(account.accountId).catch(() => undefined); }}
                         className="h-9 bg-slate-900/80 border-cyan-500/20 text-right tabular-nums pr-8"
-                        aria-label={`Aplicação ${account.name}`}
+                        aria-label={`Saldo de Aplicação ${account.name}`}
                       />
                       {savingApplied === account.accountId && <Loader2 className="absolute right-2.5 top-2.5 h-4 w-4 animate-spin text-cyan-300" />}
                     </div>
                   </div>
                 ))}
                 <div className="border-t border-cyan-400/30 pt-3 mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                  <span className="font-semibold uppercase text-cyan-200">(=) Saldo para o Próximo Mês</span>
-                  <span className={cn('text-2xl md:text-3xl font-bold tabular-nums', closing.nextMonthBalance >= 0 ? 'text-cyan-200' : 'text-amber-300')}>
-                    {fmt(closing.nextMonthBalance)}
+                  <span className="font-semibold uppercase text-cyan-200">(=) Total Geral</span>
+                  <span className={cn('text-2xl md:text-3xl font-bold tabular-nums', closing.totalGeral >= 0 ? 'text-cyan-200' : 'text-amber-300')}>
+                    {fmt(closing.totalGeral)}
                   </span>
                 </div>
               </div>

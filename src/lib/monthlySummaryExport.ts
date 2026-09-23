@@ -423,15 +423,15 @@ export async function exportMonthlySummary(
   closingLine('SALDO ANTERIOR', previousBalance);
   closingLine('(+) ENTRADAS REAIS', totalEntries, C_GREEN);
   closingLine('(–) SAÍDAS REAIS', totalExits, C_RED);
-  closingLine('(=) SALDO ACUMULADO', closing.accumulatedBalance, C_PRIMARY_DARK);
+  closingLine('(=) SUBTOTAL', closing.subtotal, C_PRIMARY_DARK);
   for (const account of investmentSummary.byAccount) {
-    closingLine(`(–) APLICAÇÃO ${account.name}`, account.aplicado, C_RED, false);
+    closingLine(`(+) SALDO DE APLICAÇÃO ${account.name}`, account.aplicado, C_GREEN, false);
   }
   row++;
 
   sheet.mergeCells(row, 2, row, 5);
   const banner = sheet.getCell(row, 2);
-  banner.value = `SALDO PARA O PRÓXIMO MÊS`;
+  banner.value = `TOTAL GERAL`;
   banner.font = { name: 'Calibri', size: 11, bold: true, color: { argb: C_WHITE } };
   banner.alignment = { horizontal: 'center', vertical: 'middle' };
   banner.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C_PRIMARY_DARK } };
@@ -440,13 +440,13 @@ export async function exportMonthlySummary(
 
   sheet.mergeCells(row, 2, row, 5);
   const bigSaldo = sheet.getCell(row, 2);
-  bigSaldo.value = closing.nextMonthBalance;
+  bigSaldo.value = closing.totalGeral;
   bigSaldo.numFmt = '"R$" #,##0.00';
   bigSaldo.font = {
     name: 'Calibri',
     size: 28,
     bold: true,
-    color: { argb: closing.nextMonthBalance >= 0 ? C_PRIMARY_DARK : C_RED },
+    color: { argb: closing.totalGeral >= 0 ? C_PRIMARY_DARK : C_RED },
   };
   bigSaldo.alignment = { horizontal: 'center', vertical: 'middle' };
   bigSaldo.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C_BLUE_BG } };
