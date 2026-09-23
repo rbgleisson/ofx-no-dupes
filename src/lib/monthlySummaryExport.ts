@@ -244,22 +244,12 @@ export async function exportMonthlySummary(
   row += 2;
 
   // === KPI ROW ===
-  const kpiStart = row;
   sheet.getRow(row).height = 22;
-  // Labels row
-  const labels = [
-    { col: 2, span: 1, text: 'ENTRADAS', color: C_GREEN, bg: C_GREEN_BG },
-    { col: 3, span: 1, text: 'SAÍDAS', color: C_RED, bg: C_RED_BG },
-    { col: 4, span: 2, text: 'SALDO DO MÊS', color: C_PRIMARY_DARK, bg: C_BLUE_BG },
-  ];
-  // We'll do KPI as 3 columns: B, C, D-E
-  sheet.mergeCells(row, 2, row, 2);
-  sheet.mergeCells(row, 3, row, 3);
+  sheet.mergeCells(row, 2, row, 3);
   sheet.mergeCells(row, 4, row, 5);
   [
     { col: 2, text: 'ENTRADAS', color: C_GREEN, bg: C_GREEN_BG },
-    { col: 3, text: 'SAÍDAS', color: C_RED, bg: C_RED_BG },
-    { col: 4, text: 'SALDO DO MÊS', color: C_PRIMARY_DARK, bg: C_BLUE_BG },
+    { col: 4, text: 'SAÍDAS', color: C_RED, bg: C_RED_BG },
   ].forEach(k => {
     const c = sheet.getCell(row, k.col);
     c.value = k.text;
@@ -275,14 +265,12 @@ export async function exportMonthlySummary(
   row++;
 
   // Values row
-  sheet.mergeCells(row, 2, row, 2);
-  sheet.mergeCells(row, 3, row, 3);
+  sheet.mergeCells(row, 2, row, 3);
   sheet.mergeCells(row, 4, row, 5);
   sheet.getRow(row).height = 38;
   const kpis = [
     { col: 2, val: totalEntries, color: C_GREEN, bg: C_GREEN_BG },
-    { col: 3, val: totalExits, color: C_RED, bg: C_RED_BG },
-    { col: 4, val: saldo, color: saldo >= 0 ? C_PRIMARY_DARK : 'FFB45309', bg: C_BLUE_BG },
+    { col: 4, val: totalExits, color: C_RED, bg: C_RED_BG },
   ];
   kpis.forEach(k => {
     const c = sheet.getCell(row, k.col);

@@ -171,10 +171,8 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
     return {
       totalEntries,
       totalExits,
-      saldo: totalEntries - totalExits,
       entries: toList(entriesByCat),
       exits: toList(exitsByCat),
-      count,
     };
   }, [txs, catMap]);
 
