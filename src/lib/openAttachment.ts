@@ -46,5 +46,4 @@ export async function openAttachment(url: string): Promise<void> {
   viewer.style.height = '100vh';
   viewer.style.border = '0';
   attachmentWindow.document.body.appendChild(viewer);
-  window.setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
 }
