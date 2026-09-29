@@ -33,6 +33,19 @@ describe('computeChainedPreviousBalance', () => {
       0,
     )).toBe(16113.96);
   });
+
+  it('uses one month subtotal as the following month opening balance', () => {
+    expect(computeChainedPreviousBalance(
+      anchor(2025, 12, 27278.61),
+      [
+        { date: '2025-12-05', amount: 338487.57, is_transfer: false },
+        { date: '2025-12-20', amount: -347191.74, is_transfer: false },
+        { date: '2025-12-22', amount: 7834.30, is_transfer: true },
+      ],
+      '2026-01-01',
+      0,
+    )).toBe(18574.44);
+  });
 });
 
 describe('computePeriodCashBalance', () => {

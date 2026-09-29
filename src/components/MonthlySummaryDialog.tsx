@@ -228,24 +228,17 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
   const persistPreviousBalance = async (inputValue = prevBalanceInput) => {
     if (!organizationId) return;
     const value = parseAmount(inputValue);
-    const isCalculated = Math.abs(value - previousBalance) <= 0.001;
     setPrevBalanceInput(value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+    if (!prevBalanceEdited) return;
     setSavingPreviousBalance(true);
     try {
-      if (isCalculated) {
-        if (hasSavedPreviousBalance) {
-          await deleteOpeningBalance(organizationId, Number(year), Number(month));
-        }
-        setHasSavedPreviousBalance(false);
-      } else {
-        await saveOpeningBalance({
-          organizationId,
-          year: Number(year),
-          month: Number(month),
-          amount: value,
-        });
-        setHasSavedPreviousBalance(true);
-      }
+      await saveOpeningBalance({
+        organizationId,
+        year: Number(year),
+        month: Number(month),
+        amount: value,
+      });
+      setHasSavedPreviousBalance(true);
       setPrevBalanceEdited(false);
     } catch {
       toast.error('Não foi possível salvar o Saldo Anterior.');
