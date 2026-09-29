@@ -15,6 +15,13 @@
       "when": 1790039222699,
       "tag": "0001_add_aplicado_no_mes_to_investment_positions",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790699602314,
+      "tag": "0002_create_monthly_opening_balances",
+      "breakpoints": true
     }
   ]
 }
