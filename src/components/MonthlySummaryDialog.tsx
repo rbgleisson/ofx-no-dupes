@@ -225,9 +225,9 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
     }
   };
 
-  const persistPreviousBalance = async () => {
+  const persistPreviousBalance = async (inputValue = prevBalanceInput) => {
     if (!organizationId) return;
-    const value = parsedPrevBalance;
+    const value = parseAmount(inputValue);
     const isCalculated = Math.abs(value - previousBalance) <= 0.001;
     setPrevBalanceInput(value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
     setSavingPreviousBalance(true);
@@ -395,7 +395,7 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
             <Input
               value={prevBalanceInput}
               onChange={(e) => { setPrevBalanceInput(e.target.value); setPrevBalanceEdited(true); }}
-              onBlur={() => { void persistPreviousBalance().catch(() => undefined); }}
+              onBlur={(event) => { void persistPreviousBalance(event.currentTarget.value).catch(() => undefined); }}
               placeholder="0,00"
               className="h-9 text-sm bg-slate-900/80 border-cyan-500/20 text-slate-100 tabular-nums pr-8"
             />
