@@ -1,5 +1,39 @@
 import { describe, expect, it } from 'vitest';
 import { computeMonthlyClosing, computePeriodCashBalance } from '@/lib/accountBalances';
+import { computeChainedPreviousBalance, type MonthlyOpeningAnchor } from '@/lib/monthlyOpeningBalance';
+
+const anchor = (year: number, month: number, amount: number): MonthlyOpeningAnchor => ({
+  id: 'anchor', organization_id: 'org', year, month, amount,
+});
+
+describe('computeChainedPreviousBalance', () => {
+  it('uses the fallback when there is no anchor', () => {
+    expect(computeChainedPreviousBalance(null, [], '2026-02-01', 1550)).toBe(1550);
+  });
+
+  it('chains from the previous anchor and ignores transfers', () => {
+    expect(computeChainedPreviousBalance(
+      anchor(2026, 1, 1000),
+      [
+        { date: '2025-12-31', amount: 900, is_transfer: false },
+        { date: '2026-01-05', amount: 250, is_transfer: false },
+        { date: '2026-01-10', amount: -75, is_transfer: false },
+        { date: '2026-01-15', amount: -500, is_transfer: true },
+      ],
+      '2026-02-01',
+      0,
+    )).toBe(1175);
+  });
+
+  it('uses the anchor amount unchanged in its own month', () => {
+    expect(computeChainedPreviousBalance(
+      anchor(2026, 1, 16113.96),
+      [{ date: '2026-01-05', amount: 500, is_transfer: false }],
+      '2026-01-01',
+      0,
+    )).toBe(16113.96);
+  });
+});
 
 describe('computePeriodCashBalance', () => {
   const accounts = [

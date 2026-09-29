@@ -12,6 +12,13 @@ import { fetchAllRows } from '@/lib/fetchAllRows';
 import { computeMonthlyClosing, computePeriodCashBalance, type CashBalanceAccount } from '@/lib/accountBalances';
 import { saveAppliedAmount } from '@/lib/investmentPositions';
 import { createInvestmentAccount } from '@/lib/transfers';
+import {
+  computeChainedPreviousBalance,
+  deleteOpeningBalance,
+  fetchOpeningAnchors,
+  isSameOpeningPeriod,
+  saveOpeningBalance,
+} from '@/lib/monthlyOpeningBalance';
 import { toast } from 'sonner';
 
 const MONTHS = [
@@ -64,6 +71,8 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
   const [previousBalance, setPreviousBalance] = useState<number>(0);
   const [prevBalanceInput, setPrevBalanceInput] = useState<string>('0,00');
   const [prevBalanceEdited, setPrevBalanceEdited] = useState(false);
+  const [hasSavedPreviousBalance, setHasSavedPreviousBalance] = useState(false);
+  const [savingPreviousBalance, setSavingPreviousBalance] = useState(false);
 
   useEffect(() => {
     if (orgName && !headerName) setHeaderName(orgName);
@@ -82,7 +91,7 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
       const m = Number(month);
       const startDate = `${y}-${String(m).padStart(2, '0')}-01`;
       const endDate = m === 12 ? `${y + 1}-01-01` : `${y}-${String(m + 1).padStart(2, '0')}-01`;
-      const [data, prevData, accountsResult, invSummary] = await Promise.all([
+      const [data, prevData, accountsResult, invSummary, openingAnchors] = await Promise.all([
         fetchAllRows<Tx>(() => supabase
           .from('transactions')
           .select('id, date, amount, account_id, category_id, is_transfer')
@@ -99,6 +108,7 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
           .select('id, opening_balance, opening_balance_date')
           .eq('organization_id', organizationId),
         fetchInvestmentSummary(organizationId, y, m),
+        fetchOpeningAnchors(organizationId, y, m),
       ]);
       if (accountsResult.error) throw accountsResult.error;
       const cashBalance = computePeriodCashBalance(
@@ -116,16 +126,25 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
           account.accountId,
           account.aplicado.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
         ])));
-        const prev = cashBalance.calculatedPreviousBalance;
-        setPreviousBalance(prev);
-        if (!prevBalanceEdited) {
-          setPrevBalanceInput(prev.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
-        }
+        const currentAnchor = openingAnchors.find(anchor => isSameOpeningPeriod(anchor, y, m)) || null;
+        const priorAnchor = openingAnchors.find(anchor => !isSameOpeningPeriod(anchor, y, m)) || null;
+        const calculated = computeChainedPreviousBalance(
+          currentAnchor ? priorAnchor : openingAnchors[0] || null,
+          prevData,
+          startDate,
+          cashBalance.calculatedPreviousBalance,
+        );
+        const displayed = currentAnchor
+          ? computeChainedPreviousBalance(currentAnchor, prevData, startDate, cashBalance.calculatedPreviousBalance)
+          : calculated;
+        setPreviousBalance(calculated);
+        setPrevBalanceInput(displayed.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+        setHasSavedPreviousBalance(Boolean(currentAnchor));
+        setPrevBalanceEdited(false);
         setLoading(false);
       }
     })();
     return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, year, month, organizationId]);
 
   const parsedPrevBalance = useMemo(() => {
@@ -206,6 +225,53 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
     }
   };
 
+  const persistPreviousBalance = async () => {
+    if (!organizationId) return;
+    const value = parsedPrevBalance;
+    const isCalculated = Math.abs(value - previousBalance) <= 0.001;
+    setPrevBalanceInput(value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+    setSavingPreviousBalance(true);
+    try {
+      if (isCalculated) {
+        if (hasSavedPreviousBalance) {
+          await deleteOpeningBalance(organizationId, Number(year), Number(month));
+        }
+        setHasSavedPreviousBalance(false);
+      } else {
+        await saveOpeningBalance({
+          organizationId,
+          year: Number(year),
+          month: Number(month),
+          amount: value,
+        });
+        setHasSavedPreviousBalance(true);
+      }
+      setPrevBalanceEdited(false);
+    } catch {
+      toast.error('Não foi possível salvar o Saldo Anterior.');
+      throw new Error('Falha ao salvar Saldo Anterior');
+    } finally {
+      setSavingPreviousBalance(false);
+    }
+  };
+
+  const restorePreviousBalance = async () => {
+    if (!organizationId) return;
+    setSavingPreviousBalance(true);
+    try {
+      if (hasSavedPreviousBalance) {
+        await deleteOpeningBalance(organizationId, Number(year), Number(month));
+      }
+      setPrevBalanceInput(previousBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+      setHasSavedPreviousBalance(false);
+      setPrevBalanceEdited(false);
+    } catch {
+      toast.error('Não foi possível restaurar o Saldo Anterior.');
+    } finally {
+      setSavingPreviousBalance(false);
+    }
+  };
+
   const addInvestmentField = async () => {
     const name = newInvestmentName.trim();
     if (!name || !organizationId) return;
@@ -234,7 +300,10 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
   const handleExport = async () => {
     setExporting(true);
     try {
-      await Promise.all(investmentByAccount.map(account => persistAppliedAmount(account.accountId)));
+      await Promise.all([
+        persistPreviousBalance(),
+        ...investmentByAccount.map(account => persistAppliedAmount(account.accountId)),
+      ]);
       await exportMonthlySummary(
         categories,
         organizationId,
@@ -242,7 +311,7 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
         Number(month),
         chartAccounts,
         (headerName || orgName || '').trim(),
-        prevBalanceEdited ? parsedPrevBalance : null,
+        parsedPrevBalance,
       );
       onSuccess?.();
     } catch {
@@ -318,29 +387,24 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
 
           <div>
             <p className="text-[10px] font-medium text-cyan-300/70 uppercase tracking-wider mb-1 flex items-center gap-1.5">
-              <Wallet className="w-3 h-3" /> Saldo Anterior (editável)
-              {!prevBalanceEdited && (
-                <span className="text-[9px] text-slate-500 normal-case tracking-normal">
-                  — calculado automaticamente
-                </span>
-              )}
+               <Wallet className="w-3 h-3" /> Saldo Anterior (editável)
+               <span className="text-[9px] text-slate-500 normal-case tracking-normal">
+                 {hasSavedPreviousBalance ? '— definido por você (salvo)' : '— encadeado do mês anterior'}
+               </span>
             </p>
             <Input
               value={prevBalanceInput}
               onChange={(e) => { setPrevBalanceInput(e.target.value); setPrevBalanceEdited(true); }}
-              onBlur={() => {
-                setPrevBalanceInput(parsedPrevBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
-              }}
+              onBlur={() => { void persistPreviousBalance().catch(() => undefined); }}
               placeholder="0,00"
-              className="h-9 text-sm bg-slate-900/80 border-cyan-500/20 text-slate-100 tabular-nums"
+              className="h-9 text-sm bg-slate-900/80 border-cyan-500/20 text-slate-100 tabular-nums pr-8"
             />
-            {prevBalanceEdited && Math.abs(parsedPrevBalance - previousBalance) > 0.001 && (
+            {savingPreviousBalance && <Loader2 className="h-4 w-4 animate-spin text-cyan-300 mt-1" />}
+            {(hasSavedPreviousBalance || prevBalanceEdited) && (
               <button
                 type="button"
-                onClick={() => {
-                  setPrevBalanceInput(previousBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
-                  setPrevBalanceEdited(false);
-                }}
+                onClick={() => { void restorePreviousBalance(); }}
+                disabled={savingPreviousBalance}
                 className="text-[10px] text-cyan-400 hover:text-cyan-300 mt-1"
               >
                 ↺ Restaurar valor calculado ({fmt(previousBalance)})
