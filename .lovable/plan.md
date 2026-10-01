@@ -1,14 +1,13 @@
-# Simplificar o Resumo Mensal
+# Simplificar o saldo na tela principal
 
 ## Implementação
-- Exibir no fechamento apenas a sequência: `Saldo Anterior + Entradas Reais − Saídas Reais = Saldo para o Próximo Mês`.
-- Calcular o saldo final com os mesmos valores de entradas e saídas reais já mostrados, sem transferências internas.
-- Remover do fechamento os campos de saldo de aplicação, o Subtotal e o Total Geral, evitando fórmulas concorrentes.
-- Manter o detalhamento por categoria, o bloco informativo de aplicações financeiras e rendimentos fora do fechamento.
-- Aplicar a mesma sequência simples no Excel.
-- Preservar o saldo anterior manual e seu encadeamento para os meses seguintes.
+- Manter os três valores visíveis na tela principal: Saldo Anterior, Entradas Reais e Saídas Reais.
+- Trocar o cálculo exibido no último card para: `Saldo Anterior + Entradas Reais − Saídas Reais`.
+- Renomear o resultado para `Saldo para o Próximo Mês`.
+- Não incluir aplicações, resgates ou outras transferências internas nessa fórmula.
+- Não alterar o Resumo Mensal, o Excel, as classificações ou os dados salvos.
 
 ## Validação
-- Conferir que `Saldo para o Próximo Mês = Saldo Anterior + Entradas Reais − Saídas Reais`.
-- Conferir a mesma fórmula no diálogo e no Excel.
-- Confirmar que a troca de mês continua trazendo o saldo anterior encadeado.
+- Em setembro/2026, conferir: `R$ 33.365,72 + R$ 269.147,23 − R$ 307.685,39 = −R$ 5.172,44`.
+- Confirmar que os valores de Entradas Reais e Saídas Reais permanecem inalterados.
+- Conferir a linha no celular e no computador.
