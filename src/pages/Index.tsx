@@ -53,6 +53,7 @@ import {
 import { exportCategoriesAndChartAccounts, importCategoriesAndChartAccounts } from '@/lib/catalogExportImport';
 import { toast } from 'sonner';
 import { exportMonthlySummary } from '@/lib/monthlySummaryExport';
+import { computeChainedPreviousBalance, fetchOpeningAnchors } from '@/lib/monthlyOpeningBalance';
 import MonthlySummaryDialog from '@/components/MonthlySummaryDialog';
 import SendToAccountantDialog from '@/components/SendToAccountantDialog';
 
@@ -139,10 +140,15 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
       const periodStart = `${filters.year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 
       try {
-        const history = await fetchTransactions(
-          { account_id: filters.account_id },
-          organizationId,
-        );
+        const [history, openingAnchors] = await Promise.all([
+          fetchTransactions(
+            { account_id: filters.account_id },
+            organizationId,
+          ),
+          organizationId && !filters.account_id && !filters.day
+            ? fetchOpeningAnchors(organizationId, filters.year, month)
+            : Promise.resolve([]),
+        ]);
         const selectedAccounts = filters.account_id
           ? accounts.filter(account => account.id === filters.account_id)
           : accounts;
@@ -167,7 +173,44 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
           if (openingDate && transaction.date < openingDate) return sum;
           return sum + Number(transaction.amount || 0);
         }, 0);
-        setPreviousBalance(Math.round((opening + movement + Number.EPSILON) * 100) / 100);
+        const calculatedBankBalance = Math.round((opening + movement + Number.EPSILON) * 100) / 100;
+        const latestAnchor = openingAnchors[0] || null;
+
+        if (latestAnchor) {
+          setPreviousBalance(computeChainedPreviousBalance(
+            latestAnchor,
+            history,
+            periodStart,
+            calculatedBankBalance,
+          ));
+          return;
+        }
+
+        // Sem uma âncora manual, janeiro vira o ponto inicial implícito do ano.
+        // Assim, fevereiro começa exatamente com o fechamento simples de janeiro,
+        // sem reintroduzir transferências internas no saldo entre os meses.
+        const yearStart = `${filters.year}-01-01`;
+        const openingAtYearStart = selectedAccounts.reduce((sum, account) => {
+          const openingDate = account.opening_balance_date;
+          return !openingDate || openingDate <= yearStart
+            ? sum + Number(account.opening_balance || 0)
+            : sum;
+        }, 0);
+        const movementBeforeYear = history.reduce((sum, transaction) => {
+          if (transaction.date >= yearStart) return sum;
+          if (!transaction.account_id || !openingByAccount.has(transaction.account_id)) return sum;
+          const openingDate = openingByAccount.get(transaction.account_id);
+          if (openingDate && transaction.date < openingDate) return sum;
+          return sum + Number(transaction.amount || 0);
+        }, 0);
+        const realMovementThisYear = history.reduce((sum, transaction) => {
+          if (transaction.is_transfer || transaction.date < yearStart || transaction.date >= periodStart) return sum;
+          if (!transaction.account_id || !openingByAccount.has(transaction.account_id)) return sum;
+          const openingDate = openingByAccount.get(transaction.account_id);
+          if (openingDate && transaction.date < openingDate) return sum;
+          return sum + Number(transaction.amount || 0);
+        }, 0);
+        setPreviousBalance(Math.round((openingAtYearStart + movementBeforeYear + realMovementThisYear + Number.EPSILON) * 100) / 100);
       } catch (error) {
         console.error('Error loading previous balance:', error);
         setPreviousBalance(0);
