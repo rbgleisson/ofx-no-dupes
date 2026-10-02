@@ -966,10 +966,7 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
           const nonTransfer = effectiveTransactions.filter(t => !t.is_transfer);
           const totalReceber = nonTransfer.filter(t => Number(t.amount) >= 0).reduce((s, t) => s + Number(t.amount), 0);
           const totalPagar = nonTransfer.filter(t => Number(t.amount) < 0).reduce((s, t) => s + Math.abs(Number(t.amount)), 0);
-           // O saldo bancário deve refletir todos os lançamentos do extrato,
-           // inclusive aplicações e resgates marcados como movimentação interna.
-           const movimentoPeriodo = effectiveTransactions.reduce((sum, transaction) => sum + Number(transaction.amount || 0), 0);
-          const saldo = previousBalance + movimentoPeriodo;
+           const saldo = previousBalance + totalReceber - totalPagar;
           const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
           return (
             <>
@@ -985,9 +982,11 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
                   <p className="text-[10px] text-muted-foreground mt-1">Sem aplicações, resgates e transferências</p>
                 </div>
                 <div className={`rounded-xl border p-4 ${saldo >= 0 ? 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800' : 'bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-800'}`}>
-                  <p className="text-xs font-medium text-muted-foreground mb-1">Saldo acumulado</p>
+                  <p className="text-xs font-medium text-muted-foreground mb-1">Saldo para o Próximo Mês</p>
                   <p className={`text-lg font-bold ${saldo >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>{fmt(saldo)}</p>
-                  <p className="text-[10px] text-muted-foreground mt-1">Anterior: {fmt(previousBalance)} · Movimento: {fmt(movimentoPeriodo)}</p>
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    Anterior: {fmt(previousBalance)} + Entradas − Saídas
+                  </p>
                 </div>
               </div>
 
