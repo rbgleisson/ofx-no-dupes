@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { fetchInvestmentSummary, type InvestmentSummary } from '@/lib/investmentPositions';
 import { fetchAllRows } from '@/lib/fetchAllRows';
 import { computeMonthlyClosing, computePeriodCashBalance, type CashBalanceAccount } from '@/lib/accountBalances';
+import { computeMonthlyPreviousBalance, fetchOpeningAnchors } from '@/lib/monthlyOpeningBalance';
 
 export { fetchInvestmentSummary };
 
@@ -104,7 +105,7 @@ export async function exportMonthlySummary(
 
   if (!organizationId) throw new Error('Organização não identificada. Faça login novamente.');
 
-  const [transactions, previousTransactions, accountsResult, investmentSummary] = await Promise.all([
+  const [transactions, previousTransactions, accountsResult, investmentSummary, openingAnchors] = await Promise.all([
     fetchAllRows<Transaction>(() => supabase
       .from('transactions')
       .select('id, date, amount, account_id, category_id, chart_account_id, is_transfer')
@@ -121,6 +122,7 @@ export async function exportMonthlySummary(
       .select('id, opening_balance, opening_balance_date')
       .eq('organization_id', organizationId),
     fetchInvestmentSummary(organizationId, year, month),
+    fetchOpeningAnchors(organizationId, year, month),
   ]);
   if (accountsResult.error) throw accountsResult.error;
   const investmentBalance = investmentSummary.totalSaldo;
@@ -131,7 +133,13 @@ export async function exportMonthlySummary(
     startDate,
     previousBalanceOverride,
   );
-  const { previousBalance } = cashBalance;
+  const previousBalance = previousBalanceOverride ?? computeMonthlyPreviousBalance(
+    (accountsResult.data || []) as CashBalanceAccount[],
+    previousTransactions,
+    openingAnchors,
+    year,
+    month,
+  ).displayed;
 
   const catMap = new Map(categories.map(c => [c.id, c]));
   const chartMap = new Map(chartAccounts.map(c => [c.id, c]));
