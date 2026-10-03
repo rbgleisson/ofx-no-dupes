@@ -101,6 +101,7 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
   const { organization, organizationId } = useOrganization();
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const periodAutoAdjusted = useRef(false);
+  const previousBalanceRequestRef = useRef(0);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUserEmail(data.user?.email ?? null));
@@ -131,6 +132,7 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
 
   useEffect(() => {
     const loadPreviousBalance = async () => {
+      const requestId = ++previousBalanceRequestRef.current;
       if (!filters.year) {
         setPreviousBalance(0);
         return;
@@ -190,13 +192,19 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
             filters.year,
             month,
           );
-          setPreviousBalance(monthlyBalance.displayed);
+          if (requestId === previousBalanceRequestRef.current) {
+            setPreviousBalance(monthlyBalance.displayed);
+          }
           return;
         }
-        setPreviousBalance(calculatedBankBalance);
+        if (requestId === previousBalanceRequestRef.current) {
+          setPreviousBalance(calculatedBankBalance);
+        }
       } catch (error) {
         console.error('Error loading previous balance:', error);
-        setPreviousBalance(0);
+        if (requestId === previousBalanceRequestRef.current) {
+          setPreviousBalance(0);
+        }
       }
     };
 
