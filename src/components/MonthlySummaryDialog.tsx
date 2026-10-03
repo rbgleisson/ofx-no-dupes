@@ -9,7 +9,7 @@ import { exportMonthlySummary, fetchInvestmentSummary } from '@/lib/monthlySumma
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { fetchAllRows } from '@/lib/fetchAllRows';
-import { computeMonthlyClosing, computePeriodCashBalance, type CashBalanceAccount } from '@/lib/accountBalances';
+import { computeMonthlyClosing, type CashBalanceAccount } from '@/lib/accountBalances';
 import { saveAppliedAmount } from '@/lib/investmentPositions';
 import { createInvestmentAccount } from '@/lib/transfers';
 import {
@@ -110,12 +110,6 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
         fetchOpeningAnchors(organizationId, y, m),
       ]);
       if (accountsResult.error) throw accountsResult.error;
-      const cashBalance = computePeriodCashBalance(
-        (accountsResult.data || []) as CashBalanceAccount[],
-        prevData,
-        data,
-        startDate,
-      );
       if (!cancelled) {
         setTxs(data);
         setInvestmentBalance(invSummary.totalSaldo);

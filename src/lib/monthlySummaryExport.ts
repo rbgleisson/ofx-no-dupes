@@ -2,7 +2,7 @@ import ExcelJS from 'exceljs';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchInvestmentSummary, type InvestmentSummary } from '@/lib/investmentPositions';
 import { fetchAllRows } from '@/lib/fetchAllRows';
-import { computeMonthlyClosing, computePeriodCashBalance, type CashBalanceAccount } from '@/lib/accountBalances';
+import { computeMonthlyClosing, type CashBalanceAccount } from '@/lib/accountBalances';
 import { computeMonthlyPreviousBalance, fetchOpeningAnchors } from '@/lib/monthlyOpeningBalance';
 
 export { fetchInvestmentSummary };
@@ -126,13 +126,6 @@ export async function exportMonthlySummary(
   ]);
   if (accountsResult.error) throw accountsResult.error;
   const investmentBalance = investmentSummary.totalSaldo;
-  const cashBalance = computePeriodCashBalance(
-    (accountsResult.data || []) as CashBalanceAccount[],
-    previousTransactions,
-    transactions,
-    startDate,
-    previousBalanceOverride,
-  );
   const previousBalance = previousBalanceOverride ?? computeMonthlyPreviousBalance(
     (accountsResult.data || []) as CashBalanceAccount[],
     previousTransactions,
