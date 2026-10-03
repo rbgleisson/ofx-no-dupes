@@ -53,7 +53,8 @@ import {
 import { exportCategoriesAndChartAccounts, importCategoriesAndChartAccounts } from '@/lib/catalogExportImport';
 import { toast } from 'sonner';
 import { exportMonthlySummary } from '@/lib/monthlySummaryExport';
-import { computeChainedPreviousBalance, fetchOpeningAnchors } from '@/lib/monthlyOpeningBalance';
+import { computeMonthlyPreviousBalance, fetchOpeningAnchors } from '@/lib/monthlyOpeningBalance';
+import { fetchAllRows } from '@/lib/fetchAllRows';
 import MonthlySummaryDialog from '@/components/MonthlySummaryDialog';
 import SendToAccountantDialog from '@/components/SendToAccountantDialog';
 
@@ -100,6 +101,7 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
   const { organization, organizationId } = useOrganization();
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const periodAutoAdjusted = useRef(false);
+  const previousBalanceRequestRef = useRef(0);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUserEmail(data.user?.email ?? null));
@@ -130,6 +132,7 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
 
   useEffect(() => {
     const loadPreviousBalance = async () => {
+      const requestId = ++previousBalanceRequestRef.current;
       if (!filters.year) {
         setPreviousBalance(0);
         return;
@@ -141,10 +144,17 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
 
       try {
         const [history, openingAnchors] = await Promise.all([
-          fetchTransactions(
-            { account_id: filters.account_id },
-            organizationId,
-          ),
+          organizationId
+            ? fetchAllRows<Transaction>(() => {
+              let query = supabase
+                .from('transactions')
+                .select('*')
+                .eq('organization_id', organizationId)
+                .lt('date', periodStart);
+              if (filters.account_id) query = query.eq('account_id', filters.account_id);
+              return query;
+            })
+            : Promise.resolve([]),
           organizationId && !filters.account_id && !filters.day
             ? fetchOpeningAnchors(organizationId, filters.year, month)
             : Promise.resolve([]),
@@ -174,46 +184,27 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
           return sum + Number(transaction.amount || 0);
         }, 0);
         const calculatedBankBalance = Math.round((opening + movement + Number.EPSILON) * 100) / 100;
-        const latestAnchor = openingAnchors[0] || null;
-
-        if (latestAnchor) {
-          setPreviousBalance(computeChainedPreviousBalance(
-            latestAnchor,
+        if (organizationId && !filters.account_id && !filters.day) {
+          const monthlyBalance = computeMonthlyPreviousBalance(
+            selectedAccounts,
             history,
-            periodStart,
-            calculatedBankBalance,
-          ));
+            openingAnchors,
+            filters.year,
+            month,
+          );
+          if (requestId === previousBalanceRequestRef.current) {
+            setPreviousBalance(monthlyBalance.displayed);
+          }
           return;
         }
-
-        // Sem uma âncora manual, janeiro vira o ponto inicial implícito do ano.
-        // Assim, fevereiro começa exatamente com o fechamento simples de janeiro,
-        // sem reintroduzir transferências internas no saldo entre os meses.
-        const yearStart = `${filters.year}-01-01`;
-        const openingAtYearStart = selectedAccounts.reduce((sum, account) => {
-          const openingDate = account.opening_balance_date;
-          return !openingDate || openingDate <= yearStart
-            ? sum + Number(account.opening_balance || 0)
-            : sum;
-        }, 0);
-        const movementBeforeYear = history.reduce((sum, transaction) => {
-          if (transaction.date >= yearStart) return sum;
-          if (!transaction.account_id || !openingByAccount.has(transaction.account_id)) return sum;
-          const openingDate = openingByAccount.get(transaction.account_id);
-          if (openingDate && transaction.date < openingDate) return sum;
-          return sum + Number(transaction.amount || 0);
-        }, 0);
-        const realMovementThisYear = history.reduce((sum, transaction) => {
-          if (transaction.is_transfer || transaction.date < yearStart || transaction.date >= periodStart) return sum;
-          if (!transaction.account_id || !openingByAccount.has(transaction.account_id)) return sum;
-          const openingDate = openingByAccount.get(transaction.account_id);
-          if (openingDate && transaction.date < openingDate) return sum;
-          return sum + Number(transaction.amount || 0);
-        }, 0);
-        setPreviousBalance(Math.round((openingAtYearStart + movementBeforeYear + realMovementThisYear + Number.EPSILON) * 100) / 100);
+        if (requestId === previousBalanceRequestRef.current) {
+          setPreviousBalance(calculatedBankBalance);
+        }
       } catch (error) {
         console.error('Error loading previous balance:', error);
-        setPreviousBalance(0);
+        if (requestId === previousBalanceRequestRef.current) {
+          setPreviousBalance(0);
+        }
       }
     };
 

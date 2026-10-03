@@ -9,14 +9,13 @@ import { exportMonthlySummary, fetchInvestmentSummary } from '@/lib/monthlySumma
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { fetchAllRows } from '@/lib/fetchAllRows';
-import { computeMonthlyClosing, computePeriodCashBalance, type CashBalanceAccount } from '@/lib/accountBalances';
+import { computeMonthlyClosing, type CashBalanceAccount } from '@/lib/accountBalances';
 import { saveAppliedAmount } from '@/lib/investmentPositions';
 import { createInvestmentAccount } from '@/lib/transfers';
 import {
-  computeChainedPreviousBalance,
+  computeMonthlyPreviousBalance,
   deleteOpeningBalance,
   fetchOpeningAnchors,
-  isSameOpeningPeriod,
   saveOpeningBalance,
 } from '@/lib/monthlyOpeningBalance';
 import { toast } from 'sonner';
@@ -111,12 +110,6 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
         fetchOpeningAnchors(organizationId, y, m),
       ]);
       if (accountsResult.error) throw accountsResult.error;
-      const cashBalance = computePeriodCashBalance(
-        (accountsResult.data || []) as CashBalanceAccount[],
-        prevData,
-        data,
-        startDate,
-      );
       if (!cancelled) {
         setTxs(data);
         setInvestmentBalance(invSummary.totalSaldo);
@@ -126,20 +119,16 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
           account.accountId,
           account.aplicado.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
         ])));
-        const currentAnchor = openingAnchors.find(anchor => isSameOpeningPeriod(anchor, y, m)) || null;
-        const priorAnchor = openingAnchors.find(anchor => !isSameOpeningPeriod(anchor, y, m)) || null;
-        const calculated = computeChainedPreviousBalance(
-          currentAnchor ? priorAnchor : openingAnchors[0] || null,
+        const monthlyBalance = computeMonthlyPreviousBalance(
+          (accountsResult.data || []) as CashBalanceAccount[],
           prevData,
-          startDate,
-          cashBalance.calculatedPreviousBalance,
+          openingAnchors,
+          y,
+          m,
         );
-        const displayed = currentAnchor
-          ? computeChainedPreviousBalance(currentAnchor, prevData, startDate, cashBalance.calculatedPreviousBalance)
-          : calculated;
-        setPreviousBalance(calculated);
-        setPrevBalanceInput(displayed.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
-        setHasSavedPreviousBalance(Boolean(currentAnchor));
+        setPreviousBalance(monthlyBalance.calculated);
+        setPrevBalanceInput(monthlyBalance.displayed.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+        setHasSavedPreviousBalance(monthlyBalance.hasSavedValue);
         setPrevBalanceEdited(false);
         setLoading(false);
       }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { computeMonthlyClosing, computePeriodCashBalance } from '@/lib/accountBalances';
-import { computeChainedPreviousBalance, type MonthlyOpeningAnchor } from '@/lib/monthlyOpeningBalance';
+import { computeChainedPreviousBalance, computeMonthlyPreviousBalance, type MonthlyOpeningAnchor } from '@/lib/monthlyOpeningBalance';
 
 const anchor = (year: number, month: number, amount: number): MonthlyOpeningAnchor => ({
   id: 'anchor', organization_id: 'org', year, month, amount,
@@ -93,6 +93,37 @@ describe('computePeriodCashBalance', () => {
     expect(result.previousBalance).toBe(2000);
     expect(result.monthlyMovement).toBe(50);
     expect(result.finalBalance).toBe(2050);
+  });
+});
+
+describe('computeMonthlyPreviousBalance', () => {
+  const accounts = [{ id: 'bank', opening_balance: 1000, opening_balance_date: '2025-01-01' }];
+  const transactions = [
+    { account_id: 'bank', date: '2025-01-10', amount: 300, is_transfer: false },
+    { account_id: 'bank', date: '2025-02-10', amount: -100, is_transfer: false },
+    { account_id: 'bank', date: '2025-02-15', amount: -500, is_transfer: true },
+    { account_id: 'bank', date: '2025-12-10', amount: 50, is_transfer: false },
+  ];
+
+  it('uses January bank balance as the implicit yearly starting point', () => {
+    expect(computeMonthlyPreviousBalance(accounts, transactions, [], 2025, 1).displayed).toBe(1000);
+    expect(computeMonthlyPreviousBalance(accounts, transactions, [], 2025, 3).displayed).toBe(1200);
+  });
+
+  it('chains across the year boundary and ignores transfers after a manual anchor', () => {
+    const result = computeMonthlyPreviousBalance(accounts, transactions, [anchor(2025, 1, 2000)], 2026, 1);
+    expect(result.displayed).toBe(2250);
+  });
+
+  it('uses a saved value in its own month and preserves the calculated restoration value', () => {
+    const result = computeMonthlyPreviousBalance(
+      accounts,
+      transactions,
+      [anchor(2025, 3, 5000), anchor(2025, 1, 2000)],
+      2025,
+      3,
+    );
+    expect(result).toEqual({ calculated: 2200, displayed: 5000, hasSavedValue: true });
   });
 });
 

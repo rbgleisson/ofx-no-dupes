@@ -1,5 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
-import { round2 } from '@/lib/accountBalances';
+import { round2, type CashBalanceAccount } from '@/lib/accountBalances';
 
 export interface MonthlyOpeningAnchor {
   id: string;
@@ -10,9 +10,16 @@ export interface MonthlyOpeningAnchor {
 }
 
 export interface ChainedTransaction {
+  account_id?: string | null;
   date: string;
   amount: number;
   is_transfer?: boolean | null;
+}
+
+export interface MonthlyPreviousBalanceResult {
+  calculated: number;
+  displayed: number;
+  hasSavedValue: boolean;
 }
 
 const periodKey = (year: number, month: number) => year * 12 + month;
@@ -84,6 +91,67 @@ export function computeChainedPreviousBalance(
     return sum + Number(transaction.amount || 0);
   }, 0);
   return round2(anchor.amount + movement);
+}
+
+/**
+ * Shared monthly opening-balance rule used by the dashboard, summary and Excel.
+ * A saved value is the source of truth for its month. Without one, later months
+ * inherit the latest manual anchor, or January's bank balance when no anchor exists.
+ */
+export function computeMonthlyPreviousBalance(
+  accounts: CashBalanceAccount[],
+  transactionsBeforePeriod: ChainedTransaction[],
+  anchors: MonthlyOpeningAnchor[],
+  year: number,
+  month: number,
+): MonthlyPreviousBalanceResult {
+  const periodStart = periodStartFor(year, month);
+  const yearStart = periodStartFor(year, 1);
+  const currentAnchor = anchors.find(item => isSameOpeningPeriod(item, year, month)) || null;
+  const priorAnchor = anchors.find(item => !isSameOpeningPeriod(item, year, month)) || null;
+  const chainAnchor = currentAnchor ? priorAnchor : anchors[0] || null;
+
+  const accountOpeningDates = new Map(
+    accounts.map(account => [account.id, account.opening_balance_date || null]),
+  );
+  const implicitYearOpening = round2(
+    accounts.reduce((sum, account) => {
+      const openingDate = account.opening_balance_date;
+      return !openingDate || openingDate <= yearStart
+        ? sum + Number(account.opening_balance || 0)
+        : sum;
+    }, 0) + transactionsBeforePeriod.reduce((sum, transaction) => {
+      if (transaction.date >= yearStart || !transaction.account_id || !accountOpeningDates.has(transaction.account_id)) return sum;
+      const openingDate = accountOpeningDates.get(transaction.account_id);
+      if (openingDate && transaction.date < openingDate) return sum;
+      return sum + Number(transaction.amount || 0);
+    }, 0),
+  );
+
+  const calculated = chainAnchor
+    ? computeChainedPreviousBalance(chainAnchor, transactionsBeforePeriod, periodStart, implicitYearOpening)
+    : round2(
+      implicitYearOpening
+      + accounts.reduce((sum, account) => {
+        const openingDate = account.opening_balance_date;
+        return openingDate && openingDate > yearStart && openingDate <= periodStart
+          ? sum + Number(account.opening_balance || 0)
+          : sum;
+      }, 0)
+      + transactionsBeforePeriod.reduce((sum, transaction) => {
+        if (transaction.is_transfer || transaction.date < yearStart || transaction.date >= periodStart) return sum;
+        if (!transaction.account_id || !accountOpeningDates.has(transaction.account_id)) return sum;
+        const openingDate = accountOpeningDates.get(transaction.account_id);
+        if (openingDate && transaction.date < openingDate) return sum;
+        return sum + Number(transaction.amount || 0);
+      }, 0),
+    );
+
+  return {
+    calculated,
+    displayed: currentAnchor ? round2(currentAnchor.amount) : calculated,
+    hasSavedValue: Boolean(currentAnchor),
+  };
 }
 
 export function isSameOpeningPeriod(
