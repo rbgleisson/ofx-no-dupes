@@ -54,6 +54,7 @@ import { exportCategoriesAndChartAccounts, importCategoriesAndChartAccounts } fr
 import { toast } from 'sonner';
 import { exportMonthlySummary } from '@/lib/monthlySummaryExport';
 import { computeMonthlyPreviousBalance, fetchOpeningAnchors } from '@/lib/monthlyOpeningBalance';
+import { fetchAllRows } from '@/lib/fetchAllRows';
 import MonthlySummaryDialog from '@/components/MonthlySummaryDialog';
 import SendToAccountantDialog from '@/components/SendToAccountantDialog';
 
@@ -141,10 +142,17 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
 
       try {
         const [history, openingAnchors] = await Promise.all([
-          fetchTransactions(
-            { account_id: filters.account_id },
-            organizationId,
-          ),
+          organizationId
+            ? fetchAllRows<Transaction>(() => {
+              let query = supabase
+                .from('transactions')
+                .select('*')
+                .eq('organization_id', organizationId)
+                .lt('date', periodStart);
+              if (filters.account_id) query = query.eq('account_id', filters.account_id);
+              return query;
+            })
+            : Promise.resolve([]),
           organizationId && !filters.account_id && !filters.day
             ? fetchOpeningAnchors(organizationId, filters.year, month)
             : Promise.resolve([]),
