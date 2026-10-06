@@ -87,7 +87,7 @@ export function computeChainedPreviousBalance(
   if (anchorStart === periodStart) return round2(anchor.amount);
 
   const movement = transactionsBeforePeriod.reduce((sum, transaction) => {
-    if (transaction.is_transfer || transaction.date < anchorStart || transaction.date >= periodStart) return sum;
+    if (!transaction.account_id || transaction.is_transfer || transaction.date < anchorStart || transaction.date >= periodStart) return sum;
     return sum + Number(transaction.amount || 0);
   }, 0);
   return round2(anchor.amount + movement);
