@@ -75,6 +75,51 @@ export type Database = {
           },
         ]
       }
+      account_statement_balances: {
+        Row: {
+          account_id: string
+          balance: number
+          balance_date: string
+          created_at: string
+          id: string
+          organization_id: string
+          source: string
+        }
+        Insert: {
+          account_id: string
+          balance: number
+          balance_date: string
+          created_at?: string
+          id?: string
+          organization_id: string
+          source?: string
+        }
+        Update: {
+          account_id?: string
+          balance?: number
+          balance_date?: string
+          created_at?: string
+          id?: string
+          organization_id?: string
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "account_statement_balances_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "account_statement_balances_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       accounts: {
         Row: {
           color: string

@@ -15,6 +15,8 @@ export interface OFXData {
   accountId?: string;
   accountType?: string;
   currency?: string;
+  /** Saldo final do extrato (LEDGERBAL), quando presente. */
+  ledgerBalance?: { amount: number; date: string };
   transactions: OFXTransaction[];
 }
 
@@ -116,7 +118,17 @@ function parseOFXContent(content: string): OFXData {
     }
   }
 
-  return { bankId, accountId, accountType, currency, transactions };
+  let ledgerBalance: OFXData['ledgerBalance'];
+  const ledgerIdx = content.search(/<LEDGERBAL>/i);
+  if (ledgerIdx >= 0) {
+    const ledger = content.substring(ledgerIdx, ledgerIdx + 400);
+    const balAmt = extractTag(ledger, 'BALAMT');
+    const dtAsOf = extractTag(ledger, 'DTASOF');
+    const amount = parseFloat(balAmt.replace(',', '.'));
+    if (balAmt && dtAsOf && !isNaN(amount)) ledgerBalance = { amount, date: parseOFXDate(dtAsOf) };
+  }
+
+  return { bankId, accountId, accountType, currency, ledgerBalance, transactions };
 }
 
 export function parseOFX(content: string, legacyContent?: string): OFXData {
