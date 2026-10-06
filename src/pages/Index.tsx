@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { parseOFX, matchContactForOfxTx } from '@/lib/ofxParser';
+import { upsertStatementBalance, fetchStatementBalances, computeAnchoredBalance } from '@/lib/statementBalances';
 import { readOfxFile } from '@/lib/ofxFile';
 import ContactsManager, { fetchContacts } from '@/components/ContactsManager';
 import logoImg from '@/assets/logo.png';
@@ -75,6 +76,11 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [previousBalance, setPreviousBalance] = useState(0);
   const [monthTotals, setMonthTotals] = useState({ entries: 0, exits: 0 });
+  const [accountView, setAccountView] = useState<null | {
+    previous: number; credits: number; debits: number; final: number; hasAnchor: boolean;
+    statement?: { date: string; balance: number; diff: number };
+  }>(null);
+  const accountViewRequestRef = useRef(0);
   const [categories, setCategories] = useState<Category[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [chartAccounts, setChartAccounts] = useState<ChartAccount[]>([]);
@@ -206,6 +212,51 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
     };
 
     void loadPreviousBalance();
+  }, [accounts, filters.month, filters.year, filters.account_id, organizationId, transactions]);
+
+  // Saldo por conta ancorado no saldo do extrato (somente com filtro de conta).
+  useEffect(() => {
+    const accountId = filters.account_id || null;
+    const requestId = ++accountViewRequestRef.current;
+    const account = accounts.find(a => a.id === accountId);
+    if (!accountId || !account || !filters.year || !organizationId) { setAccountView(null); return; }
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const month = filters.month ?? 1;
+    const periodStart = `${filters.year}-${pad(month)}-01`;
+    const endYear = filters.month ? (month === 12 ? filters.year + 1 : filters.year) : filters.year + 1;
+    const endMonth = filters.month ? (month === 12 ? 1 : month + 1) : 1;
+    const periodEnd = `${endYear}-${pad(endMonth)}-01`;
+    (async () => {
+      try {
+        const [txs, statements] = await Promise.all([
+          fetchAllRows<{ id: string; amount: number; date: string; account_id: string }>(() =>
+            supabase.from('transactions').select('id, amount, date, account_id')
+              .eq('organization_id', organizationId).eq('account_id', accountId).lt('date', periodEnd) as any),
+          fetchStatementBalances(organizationId, accountId),
+        ]);
+        const prev = computeAnchoredBalance(account, statements, txs, periodStart);
+        let credits = 0, debits = 0;
+        for (const t of txs) {
+          if (t.date < periodStart) continue;
+          const a = Number(t.amount) || 0;
+          if (a >= 0) credits += a; else debits += Math.abs(a);
+        }
+        const r2 = (v: number) => Math.round((v + Number.EPSILON) * 100) / 100;
+        credits = r2(credits); debits = r2(debits);
+        const inMonth = statements.filter(s => s.balance_date >= periodStart && s.balance_date < periodEnd).pop();
+        let statement;
+        if (inMonth) {
+          const calc = computeAnchoredBalance(account, statements, txs, inMonth.balance_date, true).balance;
+          statement = { date: inMonth.balance_date, balance: inMonth.balance, diff: r2(calc - inMonth.balance) };
+        }
+        if (requestId === accountViewRequestRef.current) {
+          setAccountView({ previous: prev.balance, credits, debits, final: r2(prev.balance + credits - debits), hasAnchor: prev.hasAnchor, statement });
+        }
+      } catch (err) {
+        console.error('Erro ao calcular saldo da conta:', err);
+        if (requestId === accountViewRequestRef.current) setAccountView(null);
+      }
+    })();
   }, [accounts, filters.month, filters.year, filters.account_id, organizationId, transactions]);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [backupProgress, setBackupProgress] = useState<string | null>(null);
@@ -416,6 +467,21 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
             accountId = created.id;
             await fetchAccounts();
           }
+        }
+      }
+
+      // Saldo final do extrato (LEDGERBAL) vira âncora da conta, inclusive em reimportações.
+      if (accountId && data.ledgerBalance) {
+        try {
+          await upsertStatementBalance({
+            organization_id: orgIdData as string,
+            account_id: accountId,
+            balance_date: data.ledgerBalance.date,
+            balance: data.ledgerBalance.amount,
+            source: 'ofx',
+          });
+        } catch (err) {
+          console.error('Erro ao gravar saldo do extrato:', err);
         }
       }
 
@@ -999,6 +1065,43 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
           const saldo = Math.round((previousBalance + totalReceber - totalPagar + Number.EPSILON) * 100) / 100;
           const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
           const showScopeNotice = Boolean(filters.account_id || filters.day);
+          if (filters.account_id && accountView) {
+            const v = accountView;
+            const st = v.statement;
+            return (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-2">
+                  <div className="rounded-xl border p-4 bg-muted/40">
+                    <p className="text-xs font-medium text-muted-foreground mb-1">Saldo Anterior da conta</p>
+                    <p className="text-xl font-bold">{fmt(v.previous)}</p>
+                  </div>
+                  <div className="rounded-xl border p-4 bg-teal-50 dark:bg-teal-950/30 border-teal-200 dark:border-teal-800">
+                    <p className="text-xs font-medium text-muted-foreground mb-1">+ Créditos</p>
+                    <p className="text-xl font-bold text-teal-600">{fmt(v.credits)}</p>
+                  </div>
+                  <div className="rounded-xl border p-4 bg-rose-50 dark:bg-rose-950/30 border-rose-200 dark:border-rose-800">
+                    <p className="text-xs font-medium text-muted-foreground mb-1">− Débitos</p>
+                    <p className="text-xl font-bold text-rose-600">{fmt(v.debits)}</p>
+                  </div>
+                  <div className={`rounded-xl border p-4 ${v.final >= 0 ? 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800' : 'bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-800'}`}>
+                    <p className="text-xs font-medium text-muted-foreground mb-1">= Saldo final</p>
+                    <p className={`text-xl font-bold ${v.final >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>{fmt(v.final)}</p>
+                    {st && (
+                      <p className="text-[11px] mt-1">
+                        Extrato no dia {st.date.slice(8, 10)}/{st.date.slice(5, 7)}: {fmt(st.balance)} |{' '}
+                        {st.diff === 0
+                          ? <span className="text-emerald-600 font-semibold">Confere</span>
+                          : <span className="text-red-600 font-semibold">Diferença: {fmt(st.diff)}</span>}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <p className="text-[11px] text-muted-foreground mb-6 min-h-[1em]">
+                  {!v.hasAnchor ? 'Sem saldo do extrato como âncora' : ''}
+                </p>
+              </>
+            );
+          }
           return (
             <>
               <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-2">
