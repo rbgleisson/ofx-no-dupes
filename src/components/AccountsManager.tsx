@@ -21,6 +21,7 @@ import { useInvestmentPositions } from '@/hooks/useInvestmentPositions';
 import InvestmentPositionDialog from '@/components/InvestmentPositionDialog';
 import type { Transaction } from '@/lib/transactionStore';
 import type { Installment } from '@/lib/installmentStore';
+import { upsertStatementBalance } from '@/lib/statementBalances';
 
 export interface Account {
   id: string;
@@ -60,6 +61,8 @@ const AccountsManager = ({ accounts, onAccountsChange, transactions = [], instal
   const [editColor, setEditColor] = useState('');
   const [editOpening, setEditOpening] = useState<string>('0');
   const [editOpeningDate, setEditOpeningDate] = useState<string>('');
+  const [stmtDate, setStmtDate] = useState<string>('');
+  const [stmtValue, setStmtValue] = useState<string>('');
   const [positionAccount, setPositionAccount] = useState<Account | null>(null);
 
   const { balances: investmentBalances, reload: reloadPositions } = useInvestmentPositions();
@@ -139,6 +142,24 @@ const AccountsManager = ({ accounts, onAccountsChange, transactions = [], instal
       onAccountsChange();
     } else {
       toast.error('Erro ao atualizar: ' + error.message);
+    }
+  };
+
+  const handleSaveStatement = async (id: string) => {
+    if (!stmtDate || !stmtValue.trim()) { toast.error('Informe a data e o valor do saldo do extrato.'); return; }
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data: orgId } = await supabase.rpc('get_user_org_id', { _user_id: user.id });
+      await upsertStatementBalance({
+        organization_id: orgId as string, account_id: id, balance_date: stmtDate,
+        balance: parseAmount(stmtValue), source: 'manual',
+      });
+      toast.success('Saldo do extrato registrado.');
+      setStmtDate(''); setStmtValue('');
+      onAccountsChange();
+    } catch (e: any) {
+      toast.error('Erro ao salvar saldo do extrato: ' + (e?.message || e));
     }
   };
 
@@ -285,6 +306,14 @@ const AccountsManager = ({ accounts, onAccountsChange, transactions = [], instal
                     </div>
                     <button onClick={() => handleUpdate(acc.id)} className="text-[hsl(var(--success))]"><Check className="w-4 h-4" /></button>
                     <button onClick={() => setEditingId(null)} className="text-muted-foreground"><X className="w-4 h-4" /></button>
+                    {!isInvestmentAccount(acc) && (
+                      <div className="w-full flex flex-wrap items-center gap-2 mt-1 pt-2 border-t">
+                        <span className="text-xs text-muted-foreground">Saldo do extrato:</span>
+                        <Input type="date" value={stmtDate} onChange={e => setStmtDate(e.target.value)} className="w-36 h-8 text-sm" />
+                        <Input value={stmtValue} onChange={e => setStmtValue(e.target.value)} className="w-28 h-8 text-sm" placeholder="0,00" />
+                        <Button size="sm" variant="outline" className="h-8" onClick={() => handleSaveStatement(acc.id)}>Registrar</Button>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="flex items-center gap-3">

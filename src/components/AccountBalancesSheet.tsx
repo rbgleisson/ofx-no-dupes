@@ -11,6 +11,7 @@ import { Wallet, Loader2 } from 'lucide-react';
 import AccountBalanceCards from './AccountBalanceCards';
 import MonthlyBalancesTable from './MonthlyBalancesTable';
 import OpeningBalancesEditor from './OpeningBalancesEditor';
+import StatementConferenceTable from './StatementConferenceTable';
 import type { Account } from './AccountsManager';
 import { fetchTransactions, type Transaction } from '@/lib/transactionStore';
 import type { Installment } from '@/lib/installmentStore';
@@ -84,6 +85,7 @@ export default function AccountBalancesSheet({
           />
           <OpeningBalancesEditor accounts={accounts} onSaved={() => { onAccountsChange?.(); reload(); }} />
           <MonthlyBalancesTable accounts={accounts} transactions={allTx ?? transactions} />
+          {open && <StatementConferenceTable accounts={accounts} organizationId={organizationId} />}
         </div>
 
       </SheetContent>
