@@ -74,6 +74,7 @@ interface IndexProps {
 const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [previousBalance, setPreviousBalance] = useState(0);
+  const [monthTotals, setMonthTotals] = useState({ entries: 0, exits: 0 });
   const [categories, setCategories] = useState<Category[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [chartAccounts, setChartAccounts] = useState<ChartAccount[]>([]);
@@ -130,86 +131,72 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
   }, [organizationId]);
 
 
+  // Fechamento mensal: sempre o mês inteiro da organização (todas as contas,
+  // sem transferências), independente dos filtros da lista.
   useEffect(() => {
     const loadPreviousBalance = async () => {
       const requestId = ++previousBalanceRequestRef.current;
-      if (!filters.year) {
+      if (!filters.year || !organizationId) {
         setPreviousBalance(0);
+        setMonthTotals({ entries: 0, exits: 0 });
         return;
       }
 
       const month = filters.month ?? 1;
-      const day = filters.day ?? 1;
-      const periodStart = `${filters.year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      const pad = (n: number) => String(n).padStart(2, '0');
+      const periodStart = `${filters.year}-${pad(month)}-01`;
+      const endYear = filters.month ? (month === 12 ? filters.year + 1 : filters.year) : filters.year + 1;
+      const endMonth = filters.month ? (month === 12 ? 1 : month + 1) : 1;
+      const periodEnd = `${endYear}-${pad(endMonth)}-01`;
 
       try {
-        const [history, openingAnchors] = await Promise.all([
-          organizationId
-            ? fetchAllRows<Transaction>(() => {
-              let query = supabase
-                .from('transactions')
-                .select('*')
-                .eq('organization_id', organizationId)
-                .lt('date', periodStart);
-              if (filters.account_id) query = query.eq('account_id', filters.account_id);
-              return query;
-            })
-            : Promise.resolve([]),
-          organizationId && !filters.account_id && !filters.day
-            ? fetchOpeningAnchors(organizationId, filters.year, month)
-            : Promise.resolve([]),
+        const [history, openingAnchors, monthRows] = await Promise.all([
+          fetchAllRows<Transaction>(() => supabase
+            .from('transactions')
+            .select('*')
+            .eq('organization_id', organizationId)
+            .lt('date', periodStart)),
+          fetchOpeningAnchors(organizationId, filters.year, month),
+          fetchAllRows<{ amount: number; date: string; id: string }>(() => supabase
+            .from('transactions')
+            .select('id, amount, date')
+            .eq('organization_id', organizationId)
+            .eq('is_transfer', false)
+            .not('account_id', 'is', null)
+            .gte('date', periodStart)
+            .lt('date', periodEnd) as any),
         ]);
-        const selectedAccounts = filters.account_id
-          ? accounts.filter(account => account.id === filters.account_id)
-          : accounts;
-        const openingByAccount = new Map(
-          selectedAccounts.map(account => [account.id, account.opening_balance_date || null]),
+        const monthlyBalance = computeMonthlyPreviousBalance(
+          accounts,
+          history,
+          openingAnchors,
+          filters.year,
+          month,
         );
-        const opening = selectedAccounts.reduce((sum, account) => {
-          const openingDate = account.opening_balance_date;
-          return !openingDate || openingDate <= periodStart
-            ? sum + Number(account.opening_balance || 0)
-            : sum;
-        }, 0);
-        const movement = history.reduce((sum, transaction) => {
-          if (transaction.date >= periodStart) return sum;
-
-          // Só entram lançamentos vinculados a uma conta bancária conhecida:
-          // lançamentos sem conta não fazem parte de nenhum extrato e
-          // distorciam o saldo anterior quando "todas as contas" era usado.
-          if (!transaction.account_id || !openingByAccount.has(transaction.account_id)) return sum;
-
-          const openingDate = openingByAccount.get(transaction.account_id);
-          if (openingDate && transaction.date < openingDate) return sum;
-          return sum + Number(transaction.amount || 0);
-        }, 0);
-        const calculatedBankBalance = Math.round((opening + movement + Number.EPSILON) * 100) / 100;
-        if (organizationId && !filters.account_id && !filters.day) {
-          const monthlyBalance = computeMonthlyPreviousBalance(
-            selectedAccounts,
-            history,
-            openingAnchors,
-            filters.year,
-            month,
-          );
-          if (requestId === previousBalanceRequestRef.current) {
-            setPreviousBalance(monthlyBalance.displayed);
-          }
-          return;
+        let entries = 0;
+        let exits = 0;
+        for (const row of monthRows) {
+          const amt = Number(row.amount) || 0;
+          if (amt >= 0) entries += amt; else exits += Math.abs(amt);
         }
         if (requestId === previousBalanceRequestRef.current) {
-          setPreviousBalance(calculatedBankBalance);
+          setPreviousBalance(monthlyBalance.displayed);
+          setMonthTotals({
+            entries: Math.round((entries + Number.EPSILON) * 100) / 100,
+            exits: Math.round((exits + Number.EPSILON) * 100) / 100,
+          });
         }
       } catch (error) {
         console.error('Error loading previous balance:', error);
         if (requestId === previousBalanceRequestRef.current) {
           setPreviousBalance(0);
+          setMonthTotals({ entries: 0, exits: 0 });
         }
       }
     };
 
     void loadPreviousBalance();
-  }, [accounts, filters.account_id, filters.day, filters.month, filters.year, organizationId]);
+  }, [accounts, filters.month, filters.year, organizationId, transactions]);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [backupProgress, setBackupProgress] = useState<string | null>(null);
   const ofxInputRef = useRef<HTMLInputElement>(null);
@@ -997,32 +984,35 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
 
         {/* Summary Cards */}
         {permissions.can_view_totals && transactions.length > 0 && (() => {
-          const nonTransfer = effectiveTransactions.filter(t => !t.is_transfer);
-          const totalReceber = nonTransfer.filter(t => Number(t.amount) >= 0).reduce((s, t) => s + Number(t.amount), 0);
-          const totalPagar = nonTransfer.filter(t => Number(t.amount) < 0).reduce((s, t) => s + Math.abs(Number(t.amount)), 0);
-           const saldo = previousBalance + totalReceber - totalPagar;
+          const totalReceber = monthTotals.entries;
+          const totalPagar = monthTotals.exits;
+          const saldo = Math.round((previousBalance + totalReceber - totalPagar + Number.EPSILON) * 100) / 100;
           const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+          const showScopeNotice = Boolean(filters.account_id || filters.day);
           return (
             <>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-2">
+                <div className="rounded-xl border p-4 bg-muted/40">
+                  <p className="text-xs font-medium text-muted-foreground mb-1">Saldo Anterior</p>
+                  <p className="text-xl font-bold">{fmt(previousBalance)}</p>
+                </div>
                 <div className="rounded-xl border p-4 bg-teal-50 dark:bg-teal-950/30 border-teal-200 dark:border-teal-800">
-                  <p className="text-xs font-medium text-muted-foreground mb-1">Receitas Reais</p>
-                  <p className="text-lg font-bold text-teal-600">{fmt(totalReceber)}</p>
-                  <p className="text-[10px] text-muted-foreground mt-1">Sem aplicações, resgates e transferências</p>
+                  <p className="text-xs font-medium text-muted-foreground mb-1">+ Entradas</p>
+                  <p className="text-xl font-bold text-teal-600">{fmt(totalReceber)}</p>
                 </div>
                 <div className="rounded-xl border p-4 bg-rose-50 dark:bg-rose-950/30 border-rose-200 dark:border-rose-800">
-                  <p className="text-xs font-medium text-muted-foreground mb-1">Despesas Reais</p>
-                  <p className="text-lg font-bold text-rose-600">{fmt(-totalPagar)}</p>
-                  <p className="text-[10px] text-muted-foreground mt-1">Sem aplicações, resgates e transferências</p>
+                  <p className="text-xs font-medium text-muted-foreground mb-1">− Saídas</p>
+                  <p className="text-xl font-bold text-rose-600">{fmt(totalPagar)}</p>
                 </div>
                 <div className={`rounded-xl border p-4 ${saldo >= 0 ? 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800' : 'bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-800'}`}>
-                  <p className="text-xs font-medium text-muted-foreground mb-1">Saldo para o Próximo Mês</p>
-                  <p className={`text-lg font-bold ${saldo >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>{fmt(saldo)}</p>
-                  <p className="text-[10px] text-muted-foreground mt-1">
-                    Anterior: {fmt(previousBalance)} + Entradas − Saídas
-                  </p>
+                  <p className="text-xs font-medium text-muted-foreground mb-1">= Sub total</p>
+                  <p className={`text-xl font-bold ${saldo >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>{fmt(saldo)}</p>
                 </div>
               </div>
+              <p className="text-[11px] text-muted-foreground mb-6 min-h-[1em]">
+                {showScopeNotice ? 'Sub total considera o mês inteiro, todas as contas.' : ''}
+              </p>
+
 
               {(installmentSummary.countPayable > 0 || installmentSummary.countReceivable > 0) && (
                 <div className="hidden sm:grid grid-cols-2 gap-4 mb-6">

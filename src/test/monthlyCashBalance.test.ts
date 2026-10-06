@@ -15,10 +15,10 @@ describe('computeChainedPreviousBalance', () => {
     expect(computeChainedPreviousBalance(
       anchor(2026, 1, 1000),
       [
-        { date: '2025-12-31', amount: 900, is_transfer: false },
-        { date: '2026-01-05', amount: 250, is_transfer: false },
-        { date: '2026-01-10', amount: -75, is_transfer: false },
-        { date: '2026-01-15', amount: -500, is_transfer: true },
+        { account_id: 'bank', date: '2025-12-31', amount: 900, is_transfer: false },
+        { account_id: 'bank', date: '2026-01-05', amount: 250, is_transfer: false },
+        { account_id: 'bank', date: '2026-01-10', amount: -75, is_transfer: false },
+        { account_id: 'bank', date: '2026-01-15', amount: -500, is_transfer: true },
       ],
       '2026-02-01',
       0,
@@ -28,7 +28,7 @@ describe('computeChainedPreviousBalance', () => {
   it('uses the anchor amount unchanged in its own month', () => {
     expect(computeChainedPreviousBalance(
       anchor(2026, 1, 16113.96),
-      [{ date: '2026-01-05', amount: 500, is_transfer: false }],
+      [{ account_id: 'bank', date: '2026-01-05', amount: 500, is_transfer: false }],
       '2026-01-01',
       0,
     )).toBe(16113.96);
@@ -38,9 +38,9 @@ describe('computeChainedPreviousBalance', () => {
     expect(computeChainedPreviousBalance(
       anchor(2025, 12, 27278.61),
       [
-        { date: '2025-12-05', amount: 338487.57, is_transfer: false },
-        { date: '2025-12-20', amount: -347191.74, is_transfer: false },
-        { date: '2025-12-22', amount: 7834.30, is_transfer: true },
+        { account_id: 'bank', date: '2025-12-05', amount: 338487.57, is_transfer: false },
+        { account_id: 'bank', date: '2025-12-20', amount: -347191.74, is_transfer: false },
+        { account_id: 'bank', date: '2025-12-22', amount: 7834.30, is_transfer: true },
       ],
       '2026-01-01',
       0,
