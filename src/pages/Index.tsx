@@ -206,7 +206,7 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
     };
 
     void loadPreviousBalance();
-  }, [accounts, filters.month, filters.year, organizationId, transactions]);
+  }, [accounts, filters.month, filters.year, filters.account_id, organizationId, transactions]);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [backupProgress, setBackupProgress] = useState<string | null>(null);
   const ofxInputRef = useRef<HTMLInputElement>(null);
