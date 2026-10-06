@@ -131,8 +131,8 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
   }, [organizationId]);
 
 
-  // Fechamento mensal: sempre o mês inteiro da organização (todas as contas,
-  // sem transferências), independente dos filtros da lista.
+  // Fechamento mensal: sempre o mês inteiro da organização (sem transferências),
+  // respeitando o filtro de conta quando houver; ignora os demais filtros da lista.
   useEffect(() => {
     const loadPreviousBalance = async () => {
       const requestId = ++previousBalanceRequestRef.current;
@@ -143,6 +143,7 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
       }
 
       const month = filters.month ?? 1;
+      const accountId = filters.account_id || null;
       const pad = (n: number) => String(n).padStart(2, '0');
       const periodStart = `${filters.year}-${pad(month)}-01`;
       const endYear = filters.month ? (month === 12 ? filters.year + 1 : filters.year) : filters.year + 1;
@@ -151,23 +152,32 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
 
       try {
         const [history, openingAnchors, monthRows] = await Promise.all([
-          fetchAllRows<Transaction>(() => supabase
-            .from('transactions')
-            .select('*')
-            .eq('organization_id', organizationId)
-            .lt('date', periodStart)),
-          fetchOpeningAnchors(organizationId, filters.year, month),
-          fetchAllRows<{ amount: number; date: string; id: string }>(() => supabase
-            .from('transactions')
-            .select('id, amount, date')
-            .eq('organization_id', organizationId)
-            .eq('is_transfer', false)
-            .not('account_id', 'is', null)
-            .gte('date', periodStart)
-            .lt('date', periodEnd) as any),
+          fetchAllRows<Transaction>(() => {
+            let q = supabase
+              .from('transactions')
+              .select('*')
+              .eq('organization_id', organizationId)
+              .lt('date', periodStart);
+            if (accountId) q = q.eq('account_id', accountId);
+            return q;
+          }),
+          // Âncoras manuais são por organização; só valem quando não há filtro de conta.
+          accountId ? Promise.resolve([]) : fetchOpeningAnchors(organizationId, filters.year, month),
+          fetchAllRows<{ amount: number; date: string; id: string }>(() => {
+            let q = supabase
+              .from('transactions')
+              .select('id, amount, date')
+              .eq('organization_id', organizationId)
+              .eq('is_transfer', false)
+              .not('account_id', 'is', null)
+              .gte('date', periodStart)
+              .lt('date', periodEnd);
+            if (accountId) q = q.eq('account_id', accountId);
+            return q as any;
+          }),
         ]);
         const monthlyBalance = computeMonthlyPreviousBalance(
-          accounts,
+          accountId ? accounts.filter(a => a.id === accountId) : accounts,
           history,
           openingAnchors,
           filters.year,
