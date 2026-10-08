@@ -56,8 +56,6 @@ import { toast } from 'sonner';
 import { exportMonthlySummary } from '@/lib/monthlySummaryExport';
 import { computeMonthlyPreviousBalance, fetchOpeningAnchors } from '@/lib/monthlyOpeningBalance';
 import { fetchAllRows } from '@/lib/fetchAllRows';
-import { computeBankReconciliation } from '@/lib/bankReconciliation';
-import BankReconciliation, { type BankReconciliationResult } from '@/components/BankReconciliation';
 import MonthlySummaryDialog from '@/components/MonthlySummaryDialog';
 import SendToAccountantDialog from '@/components/SendToAccountantDialog';
 
@@ -78,11 +76,6 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [previousBalance, setPreviousBalance] = useState(0);
   const [monthTotals, setMonthTotals] = useState({ entries: 0, exits: 0 });
-  const [monthTotalsLoading, setMonthTotalsLoading] = useState(false);
-  const [bankData, setBankData] = useState<BankReconciliationResult | null>(null);
-  const [bankLoading, setBankLoading] = useState(false);
-  const [bankError, setBankError] = useState(false);
-  const bankRequestRef = useRef(0);
   const [accountView, setAccountView] = useState<null | {
     previous: number; credits: number; debits: number; final: number; hasAnchor: boolean;
     statement?: { date: string; balance: number; diff: number };
@@ -150,7 +143,6 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
     const loadPreviousBalance = async () => {
       const requestId = ++previousBalanceRequestRef.current;
       if (!filters.year || !organizationId) {
-        setMonthTotalsLoading(false);
         setPreviousBalance(0);
         setMonthTotals({ entries: 0, exits: 0 });
         return;
@@ -164,7 +156,6 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
       const endMonth = filters.month ? (month === 12 ? 1 : month + 1) : 1;
       const periodEnd = `${endYear}-${pad(endMonth)}-01`;
 
-      setMonthTotalsLoading(true);
       try {
         const [history, openingAnchors, monthRows] = await Promise.all([
           fetchAllRows<Transaction>(() => {
@@ -217,48 +208,10 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
           setPreviousBalance(0);
           setMonthTotals({ entries: 0, exits: 0 });
         }
-      } finally {
-        if (requestId === previousBalanceRequestRef.current) setMonthTotalsLoading(false);
       }
     };
 
     void loadPreviousBalance();
-  }, [accounts, filters.month, filters.year, filters.account_id, organizationId, transactions]);
-
-  // Conferência independente: todas as contas bancárias e todos os movimentos do período.
-  useEffect(() => {
-    const requestId = ++bankRequestRef.current;
-    setBankData(null);
-    setBankError(false);
-    if (!organizationId || !filters.year || filters.account_id) {
-      setBankLoading(false);
-      return;
-    }
-    const year = filters.year;
-    const month = filters.month ?? 1;
-    const periodStart = `${year}-${String(month).padStart(2, '0')}-01`;
-    const endYear = filters.month && month !== 12 ? year : year + 1;
-    const endMonth = filters.month && month !== 12 ? month + 1 : 1;
-    const periodEnd = `${endYear}-${String(endMonth).padStart(2, '0')}-01`;
-    setBankLoading(true);
-    void (async () => {
-      try {
-        const [rows, statements] = await Promise.all([
-          fetchAllRows<{ id: string; date: string; amount: number; account_id: string | null; is_transfer: boolean }>(() =>
-            supabase.from('transactions').select('id, date, amount, account_id, is_transfer')
-              .eq('organization_id', organizationId).not('account_id', 'is', null).lt('date', periodEnd)),
-          fetchStatementBalances(organizationId),
-        ]);
-        if (requestId !== bankRequestRef.current) return;
-        setBankData(computeBankReconciliation(accounts, statements, rows, periodStart, periodEnd));
-      } catch (error) {
-        console.error('Erro ao conferir saldos bancários:', error);
-        if (requestId === bankRequestRef.current) setBankError(true);
-      } finally {
-        if (requestId === bankRequestRef.current) setBankLoading(false);
-      }
-    })();
-    return () => { bankRequestRef.current++; };
   }, [accounts, filters.month, filters.year, filters.account_id, organizationId, transactions]);
 
   // Saldo por conta ancorado no saldo do extrato (somente com filtro de conta).
@@ -1172,10 +1125,7 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
               <p className="text-[11px] text-muted-foreground mb-6 min-h-[1em]">
                 {showScopeNotice ? 'Sub total considera o mês inteiro, todas as contas.' : ''}
               </p>
-              {!filters.account_id && <BankReconciliation
-                data={bankData} loading={bankLoading || monthTotalsLoading} error={bankError}
-                previousBalance={previousBalance} realMovement={totalReceber - totalPagar} subtotal={saldo}
-              />}
+
 
               {(installmentSummary.countPayable > 0 || installmentSummary.countReceivable > 0) && (
                 <div className="hidden sm:grid grid-cols-2 gap-4 mb-6">
