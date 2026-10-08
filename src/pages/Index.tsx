@@ -35,6 +35,7 @@ import { Trash2, FileText, CheckCircle2, AlertCircle, Plus, Upload, LogOut, Down
 import InstallmentsTab from '@/components/InstallmentsTab';
 import InvestmentsTab from '@/components/InvestmentsTab';
 import AccountBalancesSheet from '@/components/AccountBalancesSheet';
+import BankAvailableSummary from '@/components/BankAvailableSummary';
 import { fetchInstallments, getInstallmentSummary, Installment } from '@/lib/installmentStore';
 import {
   DropdownMenu,
@@ -1059,7 +1060,7 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
 
 
         {/* Summary Cards */}
-        {permissions.can_view_totals && transactions.length > 0 && (() => {
+        {permissions.can_view_totals && (() => {
           const totalReceber = monthTotals.entries;
           const totalPagar = monthTotals.exits;
           const saldo = Math.round((previousBalance + totalReceber - totalPagar + Number.EPSILON) * 100) / 100;
@@ -1125,7 +1126,10 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
               <p className="text-[11px] text-muted-foreground mb-6 min-h-[1em]">
                 {showScopeNotice ? 'Sub total considera o mês inteiro, todas as contas.' : ''}
               </p>
-
+              {!filters.account_id && <BankAvailableSummary
+                accounts={accounts} organizationId={organizationId} year={filters.year} month={filters.month}
+                subtotal={saldo} refreshKey={transactions}
+              />}
 
               {(installmentSummary.countPayable > 0 || installmentSummary.countReceivable > 0) && (
                 <div className="hidden sm:grid grid-cols-2 gap-4 mb-6">

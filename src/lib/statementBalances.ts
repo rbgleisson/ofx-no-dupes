@@ -25,15 +25,18 @@ export interface BalanceTx {
 const r2 = (v: number) => Math.round((v + Number.EPSILON) * 100) / 100;
 
 export async function fetchStatementBalances(organizationId: string, accountId?: string): Promise<StatementBalance[]> {
-  let q = supabase
-    .from('account_statement_balances')
-    .select('*')
-    .eq('organization_id', organizationId)
-    .order('balance_date', { ascending: true });
-  if (accountId) q = q.eq('account_id', accountId);
-  const { data, error } = await q;
-  if (error) throw error;
-  return (data || []).map((d: any) => ({ ...d, balance: Number(d.balance) }));
+  const rows: StatementBalance[] = [];
+  for (let from = 0; ; from += 1000) {
+    let q = supabase.from('account_statement_balances').select('*')
+      .eq('organization_id', organizationId)
+      .order('balance_date', { ascending: true }).order('id', { ascending: true });
+    if (accountId) q = q.eq('account_id', accountId);
+    const { data, error } = await q.range(from, from + 999);
+    if (error) throw error;
+    const page = (data || []).map(d => ({ ...d, source: d.source as StatementBalance['source'], balance: Number(d.balance) }));
+    rows.push(...page);
+    if (page.length < 1000) return rows;
+  }
 }
 
 export async function upsertStatementBalance(row: Omit<StatementBalance, 'id' | 'created_at'>) {
