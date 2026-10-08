@@ -78,6 +78,7 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [previousBalance, setPreviousBalance] = useState(0);
   const [monthTotals, setMonthTotals] = useState({ entries: 0, exits: 0 });
+  const [monthTotalsLoading, setMonthTotalsLoading] = useState(false);
   const [bankData, setBankData] = useState<BankReconciliationResult | null>(null);
   const [bankLoading, setBankLoading] = useState(false);
   const [bankError, setBankError] = useState(false);
@@ -149,6 +150,7 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
     const loadPreviousBalance = async () => {
       const requestId = ++previousBalanceRequestRef.current;
       if (!filters.year || !organizationId) {
+        setMonthTotalsLoading(false);
         setPreviousBalance(0);
         setMonthTotals({ entries: 0, exits: 0 });
         return;
@@ -162,6 +164,7 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
       const endMonth = filters.month ? (month === 12 ? 1 : month + 1) : 1;
       const periodEnd = `${endYear}-${pad(endMonth)}-01`;
 
+      setMonthTotalsLoading(true);
       try {
         const [history, openingAnchors, monthRows] = await Promise.all([
           fetchAllRows<Transaction>(() => {
@@ -214,6 +217,8 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
           setPreviousBalance(0);
           setMonthTotals({ entries: 0, exits: 0 });
         }
+      } finally {
+        if (requestId === previousBalanceRequestRef.current) setMonthTotalsLoading(false);
       }
     };
 
@@ -1168,7 +1173,7 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
                 {showScopeNotice ? 'Sub total considera o mês inteiro, todas as contas.' : ''}
               </p>
               {!filters.account_id && <BankReconciliation
-                data={bankData} loading={bankLoading} error={bankError}
+                data={bankData} loading={bankLoading || monthTotalsLoading} error={bankError}
                 previousBalance={previousBalance} realMovement={totalReceber - totalPagar} subtotal={saldo}
               />}
 
