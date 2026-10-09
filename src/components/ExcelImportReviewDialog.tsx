@@ -501,6 +501,12 @@ const ExcelImportReviewDialog = ({ open, onOpenChange, rows: initialRows, catego
                             {row._update_id ? '✓ Atualizar existente' : 'Atualizar existente'}
                           </button>
                         )}
+                        {row._review_reason && (
+                          <Badge variant="outline" title={row._review_reason} className="mb-1 text-[10px] px-1.5 py-0 whitespace-nowrap bg-amber-100 text-amber-800 border-amber-200 cursor-help">
+                            <AlertTriangle className="h-3 w-3 mr-0.5" />
+                            Revisar
+                          </Badge>
+                        )}
                         {match.isDuplicate ? (
                           <TooltipProvider>
                             <Tooltip>
