@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { parseOFX, matchContactForOfxTx } from '@/lib/ofxParser';
+import { parseOFX, matchContactForOfxTx, computeStatementCoherence } from '@/lib/ofxParser';
+import type { OfxImportSummary } from '@/components/ExcelImportReviewDialog';
 import { upsertStatementBalance, fetchStatementBalances, computeAnchoredBalance } from '@/lib/statementBalances';
 import { readOfxFile } from '@/lib/ofxFile';
 import ContactsManager, { fetchContacts } from '@/components/ContactsManager';
@@ -96,6 +97,7 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
   const [allInstallments, setAllInstallments] = useState<Installment[]>([]);
   const [notification, setNotification] = useState<{ type: 'success' | 'warning'; message: string } | null>(null);
   const [formOpen, setFormOpen] = useState(false);
+  const [ofxSummary, setOfxSummary] = useState<OfxImportSummary | null>(null);
 
 
 
@@ -554,6 +556,13 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
           _is_transfer: classification.is_transfer,
           _auto_identified: !!matched,
           _matched_contact_name: matched?.nome,
+          _review_reason: t.review
+            ? t.review.reason === 'same_fitid_base'
+              ? 'Mesmo identificador base do banco (FITID) de outro lançamento do arquivo'
+              : t.review.samePerson
+                ? 'Transação com valor e remetente duplicado detectada. Confirme se são dois pagamentos distintos'
+                : 'Mesma data, valor e tipo de outro lançamento do arquivo'
+            : undefined,
         };
       });
 
@@ -573,6 +582,14 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
         setImportExisting(null);
       }
 
+      setOfxSummary({
+        totalCredits: data.totalCredits,
+        totalDebits: data.totalDebits,
+        calculatedNet: data.calculatedNet,
+        ledgerBalance: data.ledgerBalance,
+        impliedOpeningBalance: computeStatementCoherence(data)?.impliedOpeningBalance,
+        exactDuplicatesRemoved: data.exactDuplicatesRemoved,
+      });
       setExcelRows(rows);
       setExcelReviewOpen(true);
 
@@ -1257,7 +1274,8 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
         {/* Excel Import Review Dialog */}
         <ExcelImportReviewDialog
           open={excelReviewOpen}
-          onOpenChange={setExcelReviewOpen}
+          onOpenChange={(o) => { setExcelReviewOpen(o); if (!o) setOfxSummary(null); }}
+          ofxSummary={ofxSummary}
           rows={excelRows}
           categories={categories}
           accounts={accounts}

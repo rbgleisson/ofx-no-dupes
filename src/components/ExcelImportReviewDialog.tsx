@@ -37,6 +37,15 @@ import {
 } from '@/components/ui/tooltip';
 import { Badge } from '@/components/ui/badge';
 
+export interface OfxImportSummary {
+  totalCredits: number;
+  totalDebits: number;
+  calculatedNet: number;
+  ledgerBalance?: { amount: number; date: string };
+  impliedOpeningBalance?: number;
+  exactDuplicatesRemoved: number;
+}
+
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -46,6 +55,7 @@ interface Props {
   chartAccounts: ChartAccount[];
   existingTransactions: Transaction[];
   onConfirm: (rows: ExcelRow[]) => Promise<void>;
+  ofxSummary?: OfxImportSummary | null;
 }
 
 interface DuplicateMatch {
@@ -140,7 +150,7 @@ const matchTypeLabels: Record<string, string> = {
   possible: 'Possível duplicata',
 };
 
-const ExcelImportReviewDialog = ({ open, onOpenChange, rows: initialRows, categories, accounts, chartAccounts, existingTransactions, onConfirm }: Props) => {
+const ExcelImportReviewDialog = ({ open, onOpenChange, rows: initialRows, categories, accounts, chartAccounts, existingTransactions, onConfirm, ofxSummary }: Props) => {
   const [rows, setRows] = useState<ExcelRow[]>(initialRows);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [openCatPopover, setOpenCatPopover] = useState<number | null>(null);
@@ -168,6 +178,8 @@ const ExcelImportReviewDialog = ({ open, onOpenChange, rows: initialRows, catego
   const exactCount = duplicateMatches.filter(m => m.matchType === 'exact').length;
   const probableCount = duplicateMatches.filter(m => m.matchType === 'probable').length;
   const possibleCount = duplicateMatches.filter(m => m.matchType === 'possible').length;
+  const reviewCount = rows.filter(r => r._review_reason).length;
+  const samePersonCount = rows.filter(r => r._review_reason?.startsWith('Transação com valor e remetente')).length;
 
   const toggleRow = (index: number) => {
     setSelected(prev => {
@@ -307,6 +319,38 @@ const ExcelImportReviewDialog = ({ open, onOpenChange, rows: initialRows, catego
           <DialogDescription>
             Confira as transações antes de importar. Duplicatas são detectadas automaticamente comparando data, valor e descrição com seus lançamentos existentes.
           </DialogDescription>
+          {ofxSummary && (
+            <div className="mt-2 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+              <div className="rounded-md border px-3 py-2"><p className="text-muted-foreground">Entradas do arquivo</p><p className="font-mono font-semibold text-emerald-600">{formatCurrency(ofxSummary.totalCredits)}</p></div>
+              <div className="rounded-md border px-3 py-2"><p className="text-muted-foreground">Saídas do arquivo</p><p className="font-mono font-semibold text-destructive">{formatCurrency(ofxSummary.totalDebits)}</p></div>
+              <div className="rounded-md border px-3 py-2"><p className="text-muted-foreground">Líquido</p><p className="font-mono font-semibold">{formatCurrency(ofxSummary.calculatedNet)}</p></div>
+              <div className="rounded-md border px-3 py-2">
+                <p className="text-muted-foreground">Saldo final do extrato</p>
+                {ofxSummary.ledgerBalance ? (
+                  <>
+                    <p className="font-mono font-semibold">{formatCurrency(ofxSummary.ledgerBalance.amount)} <span className="font-normal text-muted-foreground">em {formatDate(ofxSummary.ledgerBalance.date)}</span></p>
+                    {ofxSummary.impliedOpeningBalance !== undefined && (
+                      <p className="text-muted-foreground">Saldo inicial implícito: {formatCurrency(ofxSummary.impliedOpeningBalance)}</p>
+                    )}
+                  </>
+                ) : <p className="text-muted-foreground">Não informado no arquivo</p>}
+              </div>
+              {ofxSummary.exactDuplicatesRemoved > 0 && (
+                <p className="col-span-full text-muted-foreground">{ofxSummary.exactDuplicatesRemoved} lançamento(s) repetido(s) exatamente no arquivo foram ignorados.</p>
+              )}
+            </div>
+          )}
+          {reviewCount > 0 && (
+            <div className="flex items-center gap-2 mt-2 px-3 py-2 rounded-md bg-amber-50 border border-amber-200 text-amber-800 text-xs">
+              <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+              <span>
+                {samePersonCount > 0
+                  ? 'Transação com valor e remetente duplicado detectada. Confirme se são dois pagamentos distintos.'
+                  : 'Lançamentos com mesma data, valor e tipo (ou mesmo FITID base) detectados no arquivo. Confirme antes de importar.'}
+                {' '}({reviewCount} marcado(s) com "Revisar")
+              </span>
+            </div>
+          )}
           {duplicateCount > 0 && (
             <div className="flex flex-col gap-2 mt-2">
               <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-amber-50 border border-amber-200 text-amber-800 text-xs">
@@ -456,6 +500,12 @@ const ExcelImportReviewDialog = ({ open, onOpenChange, rows: initialRows, catego
                           >
                             {row._update_id ? '✓ Atualizar existente' : 'Atualizar existente'}
                           </button>
+                        )}
+                        {row._review_reason && (
+                          <Badge variant="outline" title={row._review_reason} className="mb-1 text-[10px] px-1.5 py-0 whitespace-nowrap bg-amber-100 text-amber-800 border-amber-200 cursor-help">
+                            <AlertTriangle className="h-3 w-3 mr-0.5" />
+                            Revisar
+                          </Badge>
                         )}
                         {match.isDuplicate ? (
                           <TooltipProvider>

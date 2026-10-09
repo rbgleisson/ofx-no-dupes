@@ -8,7 +8,25 @@ export interface OFXTransaction {
   memo?: string;
   /** Only digits found in description+memo (used for CPF/CNPJ matching). */
   descriptionDigits: string;
-  isPossibleDuplicate?: boolean;
+  /**
+   * Marcação de revisão quando outro lançamento do arquivo parece repetido.
+   * O lançamento NÃO é descartado: dois pagamentos idênticos podem ser reais.
+   */
+  review?: {
+    reason: 'same_fitid_base' | 'same_date_amount_type';
+    /** true quando também coincide a pessoa/descrição (ex.: dois Pix iguais). */
+    samePerson: boolean;
+    duplicateOfId: string;
+  };
+}
+
+export interface StatementCoherence {
+  ledgerBalance: number;
+  /** Saldo inicial implícito = LEDGERBAL − líquido do arquivo. */
+  impliedOpeningBalance: number;
+  /** Diferença entre LEDGERBAL e (saldo anterior informado + líquido), quando há saldo anterior. */
+  difference?: number;
+  isCoherent?: boolean;
 }
 
 export interface OFXData {
@@ -18,11 +36,17 @@ export interface OFXData {
   currency?: string;
   /** Saldo final do extrato (LEDGERBAL), quando presente. */
   ledgerBalance?: { amount: number; date: string };
-  /** Totais calculados das transações */
-  totalCredits: number;
-  totalDebits: number;
-  calculatedNet: number;
   transactions: OFXTransaction[];
+  /** Soma de todas as entradas (valores positivos). */
+  totalCredits: number;
+  /** Soma de todas as saídas, em valor absoluto. */
+  totalDebits: number;
+  /** totalCredits − totalDebits. */
+  calculatedNet: number;
+  /** Quantidade de lançamentos idênticos (mesmo FITID completo) removidos. */
+  exactDuplicatesRemoved: number;
+  /** Lançamentos marcados para revisão (não removidos). */
+  reviewCount: number;
 }
 
 /** Extracts a contiguous run of digits from a raw OFX text (description/memo). */
@@ -79,23 +103,80 @@ function extractTag(content: string, tag: string): string {
   return '';
 }
 
-/**
- * Normaliza e padroniza a descrição/memo removendo espaços duplicados e sufixos bancários genéricos.
- */
-function normalizeDescription(description: string): string {
-  return description
-    .replace(/recebimento\s+pix/i, '')
-    .replace(/pix\s+recebido/i, '')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .toLowerCase();
+function generateTransactionId(tx: { fitId: string; date: string; amount: number; description: string }): string {
+  return `${tx.fitId}_${tx.date}_${tx.amount}_${tx.description}`.replace(/\s+/g, '_').toLowerCase();
 }
 
-function generateTransactionId(tx: { fitId: string; date: string; amount: number; description: string }): string {
-  // Remove sufixos sequenciais que bancos geram ao final do FITID para a mesma transação
-  const baseFitId = tx.fitId.replace(/00\d+$/, '');
-  const normDesc = normalizeDescription(tx.description);
-  return `${baseFitId}_${tx.date}_${tx.amount}_${normDesc}`.replace(/\s+/g, '_').toLowerCase();
+/** FITID sem sufixo incremental do banco (ex.: "123-1", "123_02", "123.3" → "123"). */
+export function baseFitId(fitId: string): string {
+  return (fitId || '').trim().replace(/[-_.]\d{1,3}$/, '');
+}
+
+function normalizePerson(s: string): string {
+  return (s || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9]/g, '');
+}
+
+const round2 = (n: number) => Math.round(n * 100) / 100;
+
+/**
+ * Remove apenas cópias idênticas (mesmo id gerado) e marca para revisão os
+ * lançamentos que compartilham o FITID base ou mesma data+valor+tipo.
+ * Pagamentos semelhantes não são descartados para não distorcer o saldo.
+ */
+export function dedupeOfxTransactions(list: OFXTransaction[]): { transactions: OFXTransaction[]; exactRemoved: number } {
+  const seenIds = new Set<string>();
+  const byBase = new Map<string, OFXTransaction>();
+  const byKey = new Map<string, OFXTransaction[]>();
+  const result: OFXTransaction[] = [];
+  let exactRemoved = 0;
+
+  for (const tx of list) {
+    if (seenIds.has(tx.id)) { exactRemoved++; continue; }
+    seenIds.add(tx.id);
+
+    const item: OFXTransaction = { ...tx };
+    const base = baseFitId(tx.fitId);
+    const direction = tx.amount >= 0 ? 'C' : 'D';
+    const key = `${tx.date}|${round2(tx.amount).toFixed(2)}|${direction}`;
+    const person = normalizePerson(`${tx.description} ${tx.memo || ''}`);
+
+    const baseMatch = base ? byBase.get(base) : undefined;
+    const keyMatches = byKey.get(key) || [];
+    const samePersonMatch = keyMatches.find(o => normalizePerson(`${o.description} ${o.memo || ''}`) === person);
+
+    if (samePersonMatch || keyMatches.length > 0) {
+      const other = samePersonMatch || keyMatches[0];
+      item.review = { reason: 'same_date_amount_type', samePerson: !!samePersonMatch, duplicateOfId: other.id };
+    } else if (baseMatch && baseMatch.fitId !== tx.fitId) {
+      item.review = { reason: 'same_fitid_base', samePerson: false, duplicateOfId: baseMatch.id };
+    }
+
+    if (base && !byBase.has(base)) byBase.set(base, item);
+    byKey.set(key, [...keyMatches, item]);
+    result.push(item);
+  }
+  return { transactions: result, exactRemoved };
+}
+
+export function computeOfxTotals(transactions: OFXTransaction[]) {
+  let credits = 0;
+  let debits = 0;
+  for (const t of transactions) {
+    if (t.amount >= 0) credits += t.amount; else debits += -t.amount;
+  }
+  return { totalCredits: round2(credits), totalDebits: round2(debits), calculatedNet: round2(credits - debits) };
+}
+
+/** Coerência do extrato: LEDGERBAL deve ser saldo anterior + líquido do arquivo. */
+export function computeStatementCoherence(data: Pick<OFXData, 'ledgerBalance' | 'calculatedNet'>, previousBalance?: number): StatementCoherence | null {
+  if (!data.ledgerBalance) return null;
+  const ledger = data.ledgerBalance.amount;
+  const out: StatementCoherence = { ledgerBalance: ledger, impliedOpeningBalance: round2(ledger - data.calculatedNet) };
+  if (previousBalance !== undefined && previousBalance !== null) {
+    out.difference = round2(ledger - (previousBalance + data.calculatedNet));
+    out.isCoherent = Math.abs(out.difference) < 0.01;
+  }
+  return out;
 }
 
 function parseOFXContent(content: string): OFXData {
@@ -104,10 +185,7 @@ function parseOFXContent(content: string): OFXData {
   const accountType = extractTag(content, 'ACCTTYPE');
   const currency = extractTag(content, 'CURDEF');
 
-  const rawTransactions: OFXTransaction[] = [];
-  const seenIds = new Set<string>();
-
-  // Split by STMTTRN blocks
+  const raw: OFXTransaction[] = [];
   const txBlocks = content.split(/<STMTTRN>/i).slice(1);
 
   for (const block of txBlocks) {
@@ -125,14 +203,9 @@ function parseOFXContent(content: string): OFXData {
       const date = parseOFXDate(datePosted);
       const amount = parseFloat(amountStr.replace(',', '.'));
       const description = name || memo || 'Sem descrição';
-      const txId = generateTransactionId({ fitId, date, amount, description });
 
-      // Sinaliza possíveis duplicidades (mesma data, mesmo valor exato e descrição similar)
-      const isDuplicateInBatch = seenIds.has(txId);
-      seenIds.add(txId);
-
-      rawTransactions.push({
-        id: txId,
+      raw.push({
+        id: generateTransactionId({ fitId, date, amount, description }),
         fitId,
         type,
         date,
@@ -140,35 +213,9 @@ function parseOFXContent(content: string): OFXData {
         description,
         memo: memo && memo !== name ? memo : undefined,
         descriptionDigits: extractDigits(`${name || ''} ${memo || ''}`),
-        isPossibleDuplicate: isDuplicateInBatch,
       });
     }
   }
-
-  // Filtra/Desduplica mantendo apenas transações únicas ou marcando duplicadas
-  const transactions: OFXTransaction[] = [];
-  const deduplicatedSet = new Set<string>();
-
-  for (const tx of rawTransactions) {
-    if (!deduplicatedSet.has(tx.id)) {
-      deduplicatedSet.add(tx.id);
-      transactions.push(tx);
-    }
-  }
-
-  // Totais calculados
-  let totalCredits = 0;
-  let totalDebits = 0;
-
-  for (const tx of transactions) {
-    if (tx.amount > 0) {
-      totalCredits += tx.amount;
-    } else {
-      totalDebits += Math.abs(tx.amount);
-    }
-  }
-
-  const calculatedNet = totalCredits - totalDebits;
 
   let ledgerBalance: OFXData['ledgerBalance'];
   const ledgerIdx = content.search(/<LEDGERBAL>/i);
@@ -180,16 +227,12 @@ function parseOFXContent(content: string): OFXData {
     if (balAmt && dtAsOf && !isNaN(amount)) ledgerBalance = { amount, date: parseOFXDate(dtAsOf) };
   }
 
+  const { transactions, exactRemoved } = dedupeOfxTransactions(raw);
   return {
-    bankId,
-    accountId,
-    accountType,
-    currency,
-    ledgerBalance,
-    totalCredits: Math.round(totalCredits * 100) / 100,
-    totalDebits: Math.round(totalDebits * 100) / 100,
-    calculatedNet: Math.round(calculatedNet * 100) / 100,
-    transactions,
+    bankId, accountId, accountType, currency, ledgerBalance, transactions,
+    ...computeOfxTotals(transactions),
+    exactDuplicatesRemoved: exactRemoved,
+    reviewCount: transactions.filter(t => t.review).length,
   };
 }
 
@@ -200,11 +243,15 @@ export function parseOFX(content: string, legacyContent?: string): OFXData {
   const legacyParsed = parseOFXContent(legacyContent);
   if (legacyParsed.transactions.length !== parsed.transactions.length) return parsed;
 
+  const idMap = new Map(parsed.transactions.map((t, i) => [t.id, legacyParsed.transactions[i].id]));
   return {
     ...parsed,
     transactions: parsed.transactions.map((transaction, index) => ({
       ...transaction,
       id: legacyParsed.transactions[index].id,
+      review: transaction.review
+        ? { ...transaction.review, duplicateOfId: idMap.get(transaction.review.duplicateOfId) ?? transaction.review.duplicateOfId }
+        : undefined,
     })),
   };
 }
