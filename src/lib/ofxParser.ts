@@ -8,6 +8,7 @@ export interface OFXTransaction {
   memo?: string;
   /** Only digits found in description+memo (used for CPF/CNPJ matching). */
   descriptionDigits: string;
+  isPossibleDuplicate?: boolean;
 }
 
 export interface OFXData {
@@ -17,6 +18,10 @@ export interface OFXData {
   currency?: string;
   /** Saldo final do extrato (LEDGERBAL), quando presente. */
   ledgerBalance?: { amount: number; date: string };
+  /** Totais calculados das transações */
+  totalCredits: number;
+  totalDebits: number;
+  calculatedNet: number;
   transactions: OFXTransaction[];
 }
 
@@ -74,8 +79,23 @@ function extractTag(content: string, tag: string): string {
   return '';
 }
 
+/**
+ * Normaliza e padroniza a descrição/memo removendo espaços duplicados e sufixos bancários genéricos.
+ */
+function normalizeDescription(description: string): string {
+  return description
+    .replace(/recebimento\s+pix/i, '')
+    .replace(/pix\s+recebido/i, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
+
 function generateTransactionId(tx: { fitId: string; date: string; amount: number; description: string }): string {
-  return `${tx.fitId}_${tx.date}_${tx.amount}_${tx.description}`.replace(/\s+/g, '_').toLowerCase();
+  // Remove sufixos sequenciais que bancos geram ao final do FITID para a mesma transação
+  const baseFitId = tx.fitId.replace(/00\d+$/, '');
+  const normDesc = normalizeDescription(tx.description);
+  return `${baseFitId}_${tx.date}_${tx.amount}_${normDesc}`.replace(/\s+/g, '_').toLowerCase();
 }
 
 function parseOFXContent(content: string): OFXData {
@@ -84,7 +104,8 @@ function parseOFXContent(content: string): OFXData {
   const accountType = extractTag(content, 'ACCTTYPE');
   const currency = extractTag(content, 'CURDEF');
 
-  const transactions: OFXTransaction[] = [];
+  const rawTransactions: OFXTransaction[] = [];
+  const seenIds = new Set<string>();
 
   // Split by STMTTRN blocks
   const txBlocks = content.split(/<STMTTRN>/i).slice(1);
@@ -104,9 +125,14 @@ function parseOFXContent(content: string): OFXData {
       const date = parseOFXDate(datePosted);
       const amount = parseFloat(amountStr.replace(',', '.'));
       const description = name || memo || 'Sem descrição';
+      const txId = generateTransactionId({ fitId, date, amount, description });
 
-      transactions.push({
-        id: generateTransactionId({ fitId, date, amount, description }),
+      // Sinaliza possíveis duplicidades (mesma data, mesmo valor exato e descrição similar)
+      const isDuplicateInBatch = seenIds.has(txId);
+      seenIds.add(txId);
+
+      rawTransactions.push({
+        id: txId,
         fitId,
         type,
         date,
@@ -114,9 +140,35 @@ function parseOFXContent(content: string): OFXData {
         description,
         memo: memo && memo !== name ? memo : undefined,
         descriptionDigits: extractDigits(`${name || ''} ${memo || ''}`),
+        isPossibleDuplicate: isDuplicateInBatch,
       });
     }
   }
+
+  // Filtra/Desduplica mantendo apenas transações únicas ou marcando duplicadas
+  const transactions: OFXTransaction[] = [];
+  const deduplicatedSet = new Set<string>();
+
+  for (const tx of rawTransactions) {
+    if (!deduplicatedSet.has(tx.id)) {
+      deduplicatedSet.add(tx.id);
+      transactions.push(tx);
+    }
+  }
+
+  // Totais calculados
+  let totalCredits = 0;
+  let totalDebits = 0;
+
+  for (const tx of transactions) {
+    if (tx.amount > 0) {
+      totalCredits += tx.amount;
+    } else {
+      totalDebits += Math.abs(tx.amount);
+    }
+  }
+
+  const calculatedNet = totalCredits - totalDebits;
 
   let ledgerBalance: OFXData['ledgerBalance'];
   const ledgerIdx = content.search(/<LEDGERBAL>/i);
@@ -128,7 +180,17 @@ function parseOFXContent(content: string): OFXData {
     if (balAmt && dtAsOf && !isNaN(amount)) ledgerBalance = { amount, date: parseOFXDate(dtAsOf) };
   }
 
-  return { bankId, accountId, accountType, currency, ledgerBalance, transactions };
+  return {
+    bankId,
+    accountId,
+    accountType,
+    currency,
+    ledgerBalance,
+    totalCredits: Math.round(totalCredits * 100) / 100,
+    totalDebits: Math.round(totalDebits * 100) / 100,
+    calculatedNet: Math.round(calculatedNet * 100) / 100,
+    transactions,
+  };
 }
 
 export function parseOFX(content: string, legacyContent?: string): OFXData {
