@@ -87,12 +87,21 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [chartAccounts, setChartAccounts] = useState<ChartAccount[]>([]);
   const now = new Date();
-  const [filters, setFilters] = useState<TransactionFilters>({
-    year: now.getFullYear(),
-    month: now.getMonth() + 1,
-  });
+  // No celular o navegador descarta a página em segundo plano e recarrega ao voltar;
+  // guardamos filtros e aba na sessão da aba para restaurar a consulta.
+  const restoredView = useRef<{ filters?: TransactionFilters; mainTab?: string } | null>(
+    (() => { try { return JSON.parse(sessionStorage.getItem('coinonia:view') || 'null'); } catch { return null; } })()
+  );
+  const [filters, setFilters] = useState<TransactionFilters>(
+    restoredView.current?.filters ?? { year: now.getFullYear(), month: now.getMonth() + 1 }
+  );
   const [activeTab, setActiveTab] = useState<'payable' | 'receivable'>('payable');
-  const [mainTab, setMainTab] = useState<'transactions' | 'installments' | 'investments'>('transactions');
+  const [mainTab, setMainTab] = useState<'transactions' | 'installments' | 'investments'>(
+    (restoredView.current?.mainTab as any) ?? 'transactions'
+  );
+  useEffect(() => {
+    try { sessionStorage.setItem('coinonia:view', JSON.stringify({ filters, mainTab })); } catch { /* ignore */ }
+  }, [filters, mainTab]);
   const [installmentSummary, setInstallmentSummary] = useState({ totalPayable: 0, totalReceivable: 0, countPayable: 0, countReceivable: 0 });
   const [allInstallments, setAllInstallments] = useState<Installment[]>([]);
   const [notification, setNotification] = useState<{ type: 'success' | 'warning'; message: string } | null>(null);
@@ -110,7 +119,7 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
   const { permissions, isAdmin, isSuperAdmin, isOwner } = usePermissions();
   const { organization, organizationId } = useOrganization();
   const [userEmail, setUserEmail] = useState<string | null>(null);
-  const periodAutoAdjusted = useRef(false);
+  const periodAutoAdjusted = useRef(Boolean(restoredView.current?.filters));
   const previousBalanceRequestRef = useRef(0);
 
   useEffect(() => {
