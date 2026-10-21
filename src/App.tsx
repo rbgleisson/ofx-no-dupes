@@ -43,7 +43,7 @@ const AppRoutes = () => {
       }
       setSession(session);
       setLoading(false);
-      if (session && !isRecovery) {
+      if (event === 'SIGNED_IN' && session && !isRecovery && window.location.pathname !== '/app') {
         navigate('/app');
       }
     });
