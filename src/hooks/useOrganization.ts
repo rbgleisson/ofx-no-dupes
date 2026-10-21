@@ -1,4 +1,4 @@
-import { useState, useEffect, createContext, useContext } from 'react';
+import { useState, useEffect, useRef, createContext, useContext } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 export interface Organization {
@@ -48,11 +48,13 @@ export function useOrganizationLoader(): OrganizationContextValue {
   const [isOwner, setIsOwner] = useState(false);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
+  const loadedRef = useRef(false);
 
   const load = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
+        loadedRef.current = false;
         setOrganization(null);
         setProfile(null);
         setIsOwner(false);
@@ -84,6 +86,7 @@ export function useOrganizationLoader(): OrganizationContextValue {
 
         if (orgData) {
           setOrganization(orgData as Organization);
+          loadedRef.current = true;
           setIsOwner(orgData.owner_id === user.id);
         }
       }
@@ -102,7 +105,9 @@ export function useOrganizationLoader(): OrganizationContextValue {
     // ficava com organizationId nulo até dar F5.
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED') {
-        if (event === 'SIGNED_IN') setLoading(true);
+        // Ao voltar para a aba o login dispara SIGNED_IN de novo; só mostra
+        // carregamento se ainda não há organização, para não desmontar a tela.
+        if (event === 'SIGNED_IN' && !loadedRef.current) setLoading(true);
         load();
       }
     });
