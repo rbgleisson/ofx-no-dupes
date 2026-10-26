@@ -14,6 +14,7 @@ describe.skipIf(!databaseUrl || !sessionJson)('proteção mensal no banco', () =
     await sql`SELECT set_config('request.jwt.claim.sub', ${userId}, true)`;
     const [profile] = await sql`SELECT organization_id FROM public.profiles WHERE user_id=${userId}`;
     orgId = profile.organization_id;
+    await sql`SET LOCAL ROLE authenticated`;
     const [tx] = await sql`INSERT INTO public.transactions(organization_id,user_id,date,amount,description) VALUES (${orgId},${userId},'2098-02-10',1,'Teste transacional de fechamento') RETURNING id`;
     transactionId = tx.id;
     await sql`SELECT public.set_month_closed(${orgId},2098,2,true)`;
@@ -47,7 +48,9 @@ describe.skipIf(!databaseUrl || !sessionJson)('proteção mensal no banco', () =
   });
   it('bloqueia outro usuário de liberar, sem exceção administrativa', async () => {
     await sql`SAVEPOINT other_closer`;
+    await sql`RESET ROLE`;
     await sql`UPDATE public.month_closures SET closed_by='11111111-1111-1111-1111-111111111111' WHERE organization_id=${orgId} AND year=2098 AND month=2`;
+    await sql`SET LOCAL ROLE authenticated`;
     expect(await rejected(() => sql`SELECT public.set_month_closed(${orgId},2098,2,false)`)).toContain('Somente quem fechou');
     await sql`ROLLBACK TO SAVEPOINT other_closer`;
   });
