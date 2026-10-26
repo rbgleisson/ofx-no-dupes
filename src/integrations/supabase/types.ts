@@ -567,6 +567,38 @@ export type Database = {
         }
         Relationships: []
       }
+      month_closures: {
+        Row: {
+          closed_at: string
+          closed_by: string
+          month: number
+          organization_id: string
+          year: number
+        }
+        Insert: {
+          closed_at?: string
+          closed_by: string
+          month: number
+          organization_id: string
+          year: number
+        }
+        Update: {
+          closed_at?: string
+          closed_by?: string
+          month?: number
+          organization_id?: string
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "month_closures_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       monthly_opening_balances: {
         Row: {
           amount: number
@@ -859,6 +891,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      assert_financial_month_open: {
+        Args: { _date: string; _historical?: boolean; _org: string }
+        Returns: undefined
+      }
       can_access_transaction_doc: { Args: { _name: string }; Returns: boolean }
       can_upload_transaction_doc: { Args: { _name: string }; Returns: boolean }
       get_master_org_id: { Args: never; Returns: string }
@@ -892,6 +928,19 @@ export type Database = {
           email: string
           id: string
         }[]
+      }
+      set_installment_paid: {
+        Args: { _id: string; _paid: boolean }
+        Returns: undefined
+      }
+      set_month_closed: {
+        Args: {
+          _closed: boolean
+          _month: number
+          _organization_id: string
+          _year: number
+        }
+        Returns: undefined
       }
     }
     Enums: {
