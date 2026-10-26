@@ -1,4 +1,6 @@
 # Architecture Rules
+- Enforce month closure in database triggers for financial writes (both old and new periods) and use an organization-scoped RPC for closure/reopening; client controls are not security boundaries.
+- Pay and reverse installments atomically through an authenticated RPC so a closed month cannot leave an orphan payment or partially reversed installment.
 
 - Keep the bank-available closing separate from the org non-transfer subtotal; calculate only non-investment accounts with statement anchors through the selected period end and disclose statement/history differences rather than writing artificial adjustments — bank liquidity and operating cashflow are distinct.
 

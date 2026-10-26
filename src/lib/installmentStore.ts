@@ -112,42 +112,12 @@ export async function createInstallments(params: {
 }
 
 export async function payInstallment(installment: Installment): Promise<void> {
-  const { userId, orgId } = await getAuthInfo();
-
-  // Create transaction
-  const txData = {
-    date: new Date().toISOString().split('T')[0],
-    amount: installment.type === 'payable' ? -Math.abs(installment.amount) : Math.abs(installment.amount),
-    description: `${installment.description} (${installment.installment_number}/${installment.total_installments})`,
-    category_id: installment.category_id,
-    account_id: installment.account_id,
-    user_id: userId,
-    organization_id: orgId,
-    memo: installment.invoice_number ? `NF: ${installment.invoice_number}` : null,
-  };
-
-  const { data: tx, error: txError } = await supabase.from('transactions').insert(txData).select('id').single();
-  if (txError) throw txError;
-
-  // Mark as paid
-  const { error } = await supabase.from('installments').update({
-    is_paid: true,
-    paid_at: new Date().toISOString(),
-    transaction_id: tx.id,
-  }).eq('id', installment.id);
+  const { error } = await supabase.rpc('set_installment_paid', { _id: installment.id, _paid: true });
   if (error) throw error;
 }
 
 export async function unpayInstallment(installment: Installment): Promise<void> {
-  // Delete the linked transaction if exists
-  if (installment.transaction_id) {
-    await supabase.from('transactions').delete().eq('id', installment.transaction_id);
-  }
-  const { error } = await supabase.from('installments').update({
-    is_paid: false,
-    paid_at: null,
-    transaction_id: null,
-  }).eq('id', installment.id);
+  const { error } = await supabase.rpc('set_installment_paid', { _id: installment.id, _paid: false });
   if (error) throw error;
 }
 
