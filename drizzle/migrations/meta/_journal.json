@@ -29,6 +29,13 @@
       "when": 1791330864861,
       "tag": "0003_account_statement_balances",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793040464038,
+      "tag": "0004_protect_closed_financial_months",
+      "breakpoints": true
     }
   ]
 }

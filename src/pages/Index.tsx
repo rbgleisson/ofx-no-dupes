@@ -37,6 +37,7 @@ import InstallmentsTab from '@/components/InstallmentsTab';
 import InvestmentsTab from '@/components/InvestmentsTab';
 import AccountBalancesSheet from '@/components/AccountBalancesSheet';
 import BankAvailableSummary from '@/components/BankAvailableSummary';
+import MonthClosureControl from '@/components/MonthClosureControl';
 import { fetchInstallments, getInstallmentSummary, Installment } from '@/lib/installmentStore';
 import {
   DropdownMenu,
@@ -1084,6 +1085,8 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
         )}
 
 
+
+        <MonthClosureControl organizationId={organizationId} year={filters.year} month={filters.month} canClose={permissions.is_active && permissions.can_edit_transactions} />
 
         {/* Summary Cards */}
         {permissions.can_view_totals && (() => {

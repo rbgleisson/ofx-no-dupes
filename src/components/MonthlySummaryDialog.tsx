@@ -19,6 +19,7 @@ import {
   saveOpeningBalance,
 } from '@/lib/monthlyOpeningBalance';
 import { toast } from 'sonner';
+import { fetchMonthClosure } from '@/lib/monthClosure';
 
 const MONTHS = [
   'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -72,6 +73,7 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
   const [prevBalanceEdited, setPrevBalanceEdited] = useState(false);
   const [hasSavedPreviousBalance, setHasSavedPreviousBalance] = useState(false);
   const [savingPreviousBalance, setSavingPreviousBalance] = useState(false);
+  const [monthClosed, setMonthClosed] = useState(false);
 
   useEffect(() => {
     if (orgName && !headerName) setHeaderName(orgName);
@@ -90,7 +92,7 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
       const m = Number(month);
       const startDate = `${y}-${String(m).padStart(2, '0')}-01`;
       const endDate = m === 12 ? `${y + 1}-01-01` : `${y}-${String(m + 1).padStart(2, '0')}-01`;
-      const [data, prevData, accountsResult, invSummary, openingAnchors] = await Promise.all([
+      const [data, prevData, accountsResult, invSummary, openingAnchors, closure] = await Promise.all([
         fetchAllRows<Tx>(() => supabase
           .from('transactions')
           .select('id, date, amount, account_id, category_id, is_transfer')
@@ -108,10 +110,12 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
           .eq('organization_id', organizationId),
         fetchInvestmentSummary(organizationId, y, m),
         fetchOpeningAnchors(organizationId, y, m),
+        fetchMonthClosure(organizationId, y, m),
       ]);
       if (accountsResult.error) throw accountsResult.error;
       if (!cancelled) {
         setTxs(data);
+        setMonthClosed(Boolean(closure));
         setInvestmentBalance(invSummary.totalSaldo);
         setInvestmentYield(invSummary.totalRendimento);
         setInvestmentByAccount(invSummary.byAccount);
@@ -195,6 +199,7 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
   );
 
   const persistAppliedAmount = async (accountId: string) => {
+    if (monthClosed) return;
     const value = parseAmount(appliedInputs[accountId] || '0');
     setAppliedInputs(current => ({
       ...current,
@@ -215,6 +220,7 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
   };
 
   const persistPreviousBalance = async (inputValue = prevBalanceInput) => {
+    if (monthClosed) return;
     if (!organizationId) return;
     const value = parseAmount(inputValue);
     setPrevBalanceInput(value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
@@ -282,7 +288,7 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
   const handleExport = async () => {
     setExporting(true);
     try {
-      await Promise.all([
+      if (!monthClosed) await Promise.all([
         persistPreviousBalance(),
         ...investmentByAccount.map(account => persistAppliedAmount(account.accountId)),
       ]);
@@ -369,13 +375,14 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
 
           <div>
             <p className="text-[10px] font-medium text-cyan-300/70 uppercase tracking-wider mb-1 flex items-center gap-1.5">
-               <Wallet className="w-3 h-3" /> Saldo Anterior (editável)
+               <Wallet className="w-3 h-3" /> Saldo Anterior {monthClosed ? '(mês fechado)' : '(editável)'}
                <span className="text-[9px] text-slate-500 normal-case tracking-normal">
                  {hasSavedPreviousBalance ? '— definido por você (salvo)' : '— encadeado do mês anterior'}
                </span>
             </p>
             <Input
               value={prevBalanceInput}
+              disabled={monthClosed || loading}
               onChange={(e) => { setPrevBalanceInput(e.target.value); setPrevBalanceEdited(true); }}
               onBlur={(event) => { void persistPreviousBalance(event.currentTarget.value).catch(() => undefined); }}
               placeholder="0,00"
@@ -386,7 +393,7 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
               <button
                 type="button"
                 onClick={() => { void restorePreviousBalance(); }}
-                disabled={savingPreviousBalance}
+                disabled={savingPreviousBalance || monthClosed}
                 className="text-[10px] text-cyan-400 hover:text-cyan-300 mt-1"
               >
                 ↺ Restaurar valor calculado ({fmt(previousBalance)})
@@ -450,6 +457,7 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
                     <div className="relative">
                       <Input
                         id={`aplicado-${account.accountId}`}
+                        disabled={monthClosed}
                         inputMode="decimal"
                         value={appliedInputs[account.accountId] || '0,00'}
                         onChange={event => setAppliedInputs(current => ({ ...current, [account.accountId]: event.target.value }))}
@@ -466,6 +474,7 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
                     <label htmlFor="nova-aplicacao" className="mb-1 block text-xs text-slate-400">Nova aplicação</label>
                     <Input
                       id="nova-aplicacao"
+                      disabled={monthClosed}
                       value={newInvestmentName}
                       onChange={event => setNewInvestmentName(event.target.value)}
                       onKeyDown={event => {
@@ -483,7 +492,7 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
                     variant="outline"
                     size="sm"
                     onClick={() => void addInvestmentField()}
-                    disabled={!newInvestmentName.trim() || addingInvestment}
+                    disabled={monthClosed || !newInvestmentName.trim() || addingInvestment}
                     className="h-9 border-cyan-500/30 text-cyan-200 hover:bg-cyan-500/10"
                   >
                     {addingInvestment ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Plus className="mr-1.5 h-4 w-4" />}
