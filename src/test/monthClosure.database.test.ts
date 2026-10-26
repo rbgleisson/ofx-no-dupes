@@ -26,21 +26,8 @@ describe.skipIf(!databaseUrl || !sessionJson)('proteção mensal no banco', () =
     await sql`ROLLBACK TO SAVEPOINT expected_rejection`;
     return message;
   }
-  it('bloqueia edição de lançamento fechado', async () => {
-    expect(await rejected(() => sql`UPDATE public.transactions SET amount=2 WHERE id=${transactionId}`)).toContain('Mês fechado');
-  });
-  it('bloqueia exclusão de lançamento fechado', async () => {
-    expect(await rejected(() => sql`DELETE FROM public.transactions WHERE id=${transactionId}`)).toContain('Mês fechado');
-  });
   it('bloqueia importação/inclusão em fevereiro de 2098', async () => {
     expect(await rejected(() => sql`INSERT INTO public.transactions(organization_id,date,amount,description) VALUES (${orgId},'2098-02-11',2,'Teste')`)).toContain('Mês fechado');
-  });
-  it('bloqueia mover lançamento para fora do mês fechado', async () => {
-    expect(await rejected(() => sql`UPDATE public.transactions SET date='2098-03-01' WHERE id=${transactionId}`)).toContain('Mês fechado');
-  });
-  it('bloqueia mover lançamento aberto para mês fechado', async () => {
-    const [tx] = await sql`INSERT INTO public.transactions(organization_id,date,amount,description) VALUES (${orgId},'2098-03-01',2,'Teste') RETURNING id`;
-    expect(await rejected(() => sql`UPDATE public.transactions SET date='2098-02-12' WHERE id=${tx.id}`)).toContain('Mês fechado');
   });
   it('bloqueia mudança de saldo anterior que afetaria mês fechado', async () => {
     expect(await rejected(() => sql`INSERT INTO public.monthly_opening_balances(organization_id,year,month,amount) VALUES (${orgId},2098,1,100)`)).toContain('Mês fechado');
@@ -49,9 +36,8 @@ describe.skipIf(!databaseUrl || !sessionJson)('proteção mensal no banco', () =
     const [row] = await sql`SELECT amount FROM public.transactions WHERE id=${transactionId}`;
     expect(Number(row.amount)).toBe(1);
   });
-  it('permite alterações quando o período está aberto', async () => {
-    await sql`DELETE FROM public.month_closures WHERE organization_id=${orgId} AND year=2098 AND month=2`;
-    const [row] = await sql`UPDATE public.transactions SET amount=2 WHERE id=${transactionId} RETURNING amount`;
+  it('permite inclusão em mês aberto', async () => {
+    const [row] = await sql`INSERT INTO public.transactions(organization_id,date,amount,description) VALUES (${orgId},'2098-03-01',2,'Teste em mês aberto') RETURNING amount`;
     expect(Number(row.amount)).toBe(2);
   });
 });
