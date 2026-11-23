@@ -36,6 +36,13 @@
       "when": 1793040464038,
       "tag": "0004_protect_closed_financial_months",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1795444601593,
+      "tag": "0005_month_closure_snapshot",
+      "breakpoints": true
     }
   ]
 }

@@ -571,6 +571,8 @@ export type Database = {
         Row: {
           closed_at: string
           closed_by: string
+          closed_month_balance: number | null
+          closed_total_with_investments: number | null
           month: number
           organization_id: string
           year: number
@@ -578,6 +580,8 @@ export type Database = {
         Insert: {
           closed_at?: string
           closed_by: string
+          closed_month_balance?: number | null
+          closed_total_with_investments?: number | null
           month: number
           organization_id: string
           year: number
@@ -585,6 +589,8 @@ export type Database = {
         Update: {
           closed_at?: string
           closed_by?: string
+          closed_month_balance?: number | null
+          closed_total_with_investments?: number | null
           month?: number
           organization_id?: string
           year?: number
@@ -897,7 +903,18 @@ export type Database = {
       }
       can_access_transaction_doc: { Args: { _name: string }; Returns: boolean }
       can_upload_transaction_doc: { Args: { _name: string }; Returns: boolean }
+      close_month_with_snapshot: {
+        Args: {
+          _month: number
+          _month_balance: number
+          _organization_id: string
+          _total_with_investments: number
+          _year: number
+        }
+        Returns: undefined
+      }
       get_master_org_id: { Args: never; Returns: string }
+      get_org_member_label: { Args: { _user_id: string }; Returns: string }
       get_user_org_id: { Args: { _user_id: string }; Returns: string }
       get_user_permissions: { Args: { _user_id: string }; Returns: Json }
       has_role: {

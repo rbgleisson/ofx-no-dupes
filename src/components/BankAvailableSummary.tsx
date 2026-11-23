@@ -59,7 +59,7 @@ export default function BankAvailableSummary({ accounts, organizationId, year, m
           Conferir por conta<ChevronDown className={`ml-2 h-4 w-4 transition-transform ${expanded ? 'rotate-180' : ''}`} />
         </Button>}
       </div>
-      {result && <p className="text-sm text-muted-foreground mt-2">Diferença em relação ao Sub total: <span className="font-semibold text-foreground">{fmt(round2(result.final - subtotal))}</span></p>}
+      {result && <p className="text-sm text-muted-foreground mt-2">Diferença em relação ao Saldo do mês: <span className="font-semibold text-foreground">{fmt(round2(result.final - subtotal))}</span></p>}
       {expanded && result && <div className="mt-4">
         <dl className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm mb-4">
           <div><dt className="text-muted-foreground">Saldo bancário anterior</dt><dd className="font-semibold tabular-nums">{fmt(result.previous)}</dd></div>

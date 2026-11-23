@@ -38,6 +38,8 @@ import InvestmentsTab from '@/components/InvestmentsTab';
 import AccountBalancesSheet from '@/components/AccountBalancesSheet';
 import BankAvailableSummary from '@/components/BankAvailableSummary';
 import MonthClosureControl from '@/components/MonthClosureControl';
+import MonthCompositionButton from '@/components/MonthCompositionPanel';
+import { splitMonthCashflow, type CashflowRow } from '@/lib/monthComposition';
 import { fetchInstallments, getInstallmentSummary, Installment } from '@/lib/installmentStore';
 import {
   DropdownMenu,
@@ -182,13 +184,11 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
           }),
           // Âncoras manuais são por organização; só valem quando não há filtro de conta.
           accountId ? Promise.resolve([]) : fetchOpeningAnchors(organizationId, filters.year, month),
-          fetchAllRows<{ amount: number; date: string; id: string }>(() => {
+          fetchAllRows<CashflowRow>(() => {
             let q = supabase
               .from('transactions')
-              .select('id, amount, date')
+              .select('id, amount, date, account_id, is_transfer')
               .eq('organization_id', organizationId)
-              .eq('is_transfer', false)
-              .not('account_id', 'is', null)
               .gte('date', periodStart)
               .lt('date', periodEnd);
             if (accountId) q = q.eq('account_id', accountId);
@@ -202,12 +202,7 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
           filters.year,
           month,
         );
-        let entries = 0;
-        let exits = 0;
-        for (const row of monthRows) {
-          const amt = Number(row.amount) || 0;
-          if (amt >= 0) entries += amt; else exits += Math.abs(amt);
-        }
+        const { entries, exits } = splitMonthCashflow(monthRows);
         if (requestId === previousBalanceRequestRef.current) {
           setPreviousBalance(monthlyBalance.displayed);
           setMonthTotals({
@@ -1086,7 +1081,7 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
 
 
 
-        <MonthClosureControl organizationId={organizationId} year={filters.year} month={filters.month} canClose={permissions.is_active && permissions.can_edit_transactions} />
+        <MonthClosureControl organizationId={organizationId} year={filters.year} month={filters.month} refreshKey={transactions} canClose={permissions.is_active && permissions.can_edit_transactions} />
 
         {/* Summary Cards */}
         {permissions.can_view_totals && (() => {
@@ -1148,12 +1143,15 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
                   <p className="text-xl font-bold text-rose-600">{fmt(totalPagar)}</p>
                 </div>
                 <div className={`rounded-xl border p-4 ${saldo >= 0 ? 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800' : 'bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-800'}`}>
-                  <p className="text-xs font-medium text-muted-foreground mb-1">= Sub total</p>
+                  <div className="flex flex-wrap items-center justify-between gap-1 mb-1">
+                    <p className="text-xs font-medium text-muted-foreground">= Saldo do mês</p>
+                    {!filters.account_id && <MonthCompositionButton organizationId={organizationId} year={filters.year} month={filters.month} refreshKey={transactions} />}
+                  </div>
                   <p className={`text-xl font-bold ${saldo >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>{fmt(saldo)}</p>
                 </div>
               </div>
               <p className="text-[11px] text-muted-foreground mb-6 min-h-[1em]">
-                {showScopeNotice ? 'Sub total considera o mês inteiro, todas as contas.' : ''}
+                {showScopeNotice ? 'Saldo do mês considera o mês inteiro, todas as contas.' : ''}
               </p>
               {!filters.account_id && <BankAvailableSummary
                 accounts={accounts} organizationId={organizationId} year={filters.year} month={filters.month}

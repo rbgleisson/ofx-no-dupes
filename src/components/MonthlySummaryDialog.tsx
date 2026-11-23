@@ -20,6 +20,8 @@ import {
 } from '@/lib/monthlyOpeningBalance';
 import { toast } from 'sonner';
 import { fetchMonthClosure } from '@/lib/monthClosure';
+import { splitMonthCashflow } from '@/lib/monthComposition';
+import { MonthCompositionDetails } from '@/components/MonthCompositionPanel';
 
 const MONTHS = [
   'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -155,19 +157,13 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
   const stats = useMemo(() => {
     const entriesByCat = new Map<string, number>();
     const exitsByCat = new Map<string, number>();
-    let totalEntries = 0;
-    let totalExits = 0;
-    for (const tx of txs) {
-      if (tx.is_transfer) continue;
+    const cashflow = splitMonthCashflow(txs);
+    const totalEntries = cashflow.entries;
+    const totalExits = cashflow.exits;
+    for (const tx of cashflow.included) {
       const catKey = tx.category_id || '__none__';
-      if (tx.amount >= 0) {
-        entriesByCat.set(catKey, (entriesByCat.get(catKey) || 0) + tx.amount);
-        totalEntries += tx.amount;
-      } else {
-        const abs = Math.abs(tx.amount);
-        exitsByCat.set(catKey, (exitsByCat.get(catKey) || 0) + abs);
-        totalExits += abs;
-      }
+      if (tx.amount >= 0) entriesByCat.set(catKey, (entriesByCat.get(catKey) || 0) + tx.amount);
+      else exitsByCat.set(catKey, (exitsByCat.get(catKey) || 0) + Math.abs(tx.amount));
     }
     const toList = (map: Map<string, number>) =>
       [...map.entries()]
@@ -444,10 +440,10 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
             <div className="relative overflow-hidden rounded-xl border border-cyan-400/30 bg-gradient-to-br from-cyan-950/60 via-slate-900 to-blue-950/40 p-5">
               <div className="relative space-y-2 text-sm">
                 <ClosingLine label="Saldo Anterior" value={parsedPrevBalance} />
-                <ClosingLine label="(+) Entradas Reais" value={stats.totalEntries} valueClass="text-emerald-300" />
-                <ClosingLine label="(–) Saídas Reais" value={stats.totalExits} valueClass="text-rose-300" />
+                <ClosingLine label="(+) Entradas" value={stats.totalEntries} valueClass="text-emerald-300" />
+                <ClosingLine label="(–) Saídas" value={stats.totalExits} valueClass="text-rose-300" />
                 <div className="border-t border-cyan-500/20 pt-2">
-                  <ClosingLine label="(=) Subtotal" value={closing.subtotal} strong />
+                  <ClosingLine label="(=) Saldo do mês" value={closing.subtotal} strong />
                 </div>
                 {investmentByAccount.map(account => (
                   <div key={account.accountId} className="grid grid-cols-1 sm:grid-cols-[1fr_180px] items-center gap-2 border-t border-cyan-500/10 pt-2">
@@ -500,13 +496,20 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
                   </Button>
                 </div>
                 <div className="border-t border-cyan-400/30 pt-3 mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                  <span className="font-semibold uppercase text-cyan-200">(=) Total Geral</span>
+                  <span className="font-semibold uppercase text-cyan-200">(=) Total com aplicações</span>
                   <span className={cn('text-2xl md:text-3xl font-bold tabular-nums', closing.totalGeral >= 0 ? 'text-cyan-200' : 'text-amber-300')}>
                     {fmt(closing.totalGeral)}
                   </span>
                 </div>
               </div>
             </div>
+
+            <details className="rounded-xl border border-cyan-500/20 bg-slate-900/60 p-4">
+              <summary className="cursor-pointer text-sm font-medium text-cyan-200">Como foi calculado? (valores salvos)</summary>
+              <div className="pt-3">
+                <MonthCompositionDetails organizationId={organizationId} year={Number(year)} month={Number(month)} refreshKey={`${hasSavedPreviousBalance}-${monthClosed}-${investmentByAccount.map(a => a.aplicado).join(',')}`} />
+              </div>
+            </details>
 
             {/* Saldo e rendimento consolidados das aplicações */}
             <div className="rounded-xl border border-slate-700/60 bg-slate-900/60 p-4 space-y-2">

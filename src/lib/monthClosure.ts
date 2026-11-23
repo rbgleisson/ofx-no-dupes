@@ -6,6 +6,8 @@ export interface MonthClosure {
   month: number;
   closed_by: string;
   closed_at: string;
+  closed_month_balance?: number | null;
+  closed_total_with_investments?: number | null;
 }
 
 export function canReopenMonth(closure: MonthClosure | null, userId: string | null): boolean {
@@ -22,6 +24,14 @@ export async function fetchMonthClosure(organizationId: string, year: number, mo
 export async function setMonthClosed(organizationId: string, year: number, month: number, closed: boolean) {
   const { error } = await supabase.rpc('set_month_closed', {
     _organization_id: organizationId, _year: year, _month: month, _closed: closed,
+  });
+  if (error) throw error;
+}
+
+export async function closeMonthWithSnapshot(organizationId: string, year: number, month: number, monthBalance: number, totalWithInvestments: number) {
+  const { error } = await supabase.rpc('close_month_with_snapshot', {
+    _organization_id: organizationId, _year: year, _month: month,
+    _month_balance: monthBalance, _total_with_investments: totalWithInvestments,
   });
   if (error) throw error;
 }

@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { LockKeyhole, LockKeyholeOpen } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { canReopenMonth, fetchMonthClosure, setMonthClosed, type MonthClosure } from '@/lib/monthClosure';
+import { canReopenMonth, closeMonthWithSnapshot, fetchMonthClosure, setMonthClosed, type MonthClosure } from '@/lib/monthClosure';
+import { fetchMemberLabel, fetchMonthComposition } from '@/lib/monthComposition';
 import { Button } from '@/components/ui/button';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
@@ -11,9 +12,12 @@ interface Props {
   year?: number;
   month?: number;
   canClose: boolean;
+  refreshKey?: unknown;
 }
 
-export default function MonthClosureControl({ organizationId, year, month, canClose }: Props) {
+const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+export default function MonthClosureControl({ organizationId, year, month, canClose, refreshKey }: Props) {
   const [closure, setClosure] = useState<MonthClosure | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -21,6 +25,21 @@ export default function MonthClosureControl({ organizationId, year, month, canCl
   const [busy, setBusy] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [refresh, setRefresh] = useState(0);
+  const [closerLabel, setCloserLabel] = useState<string | null>(null);
+  const [current, setCurrent] = useState<{ balance: number; total: number } | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setCloserLabel(null); setCurrent(null);
+    if (!closure || !organizationId || !year || !month) return;
+    fetchMemberLabel(closure.closed_by).then(label => { if (!cancelled) setCloserLabel(label); }).catch(() => undefined);
+    if (closure.closed_month_balance != null) {
+      fetchMonthComposition(organizationId, year, month)
+        .then(c => { if (!cancelled) setCurrent({ balance: c.monthBalance, total: c.totalWithInvestments }); })
+        .catch(() => undefined);
+    }
+    return () => { cancelled = true; };
+  }, [closure, organizationId, year, month, refreshKey]);
 
   useEffect(() => {
     let cancelled = false;
@@ -44,7 +63,11 @@ export default function MonthClosureControl({ organizationId, year, month, canCl
   const change = async () => {
     setBusy(true);
     try {
-      await setMonthClosed(organizationId, year, month, !closure);
+      if (closure) await setMonthClosed(organizationId, year, month, false);
+      else {
+        const snapshot = await fetchMonthComposition(organizationId, year, month);
+        await closeMonthWithSnapshot(organizationId, year, month, snapshot.monthBalance, snapshot.totalWithInvestments);
+      }
       setConfirmOpen(false);
       setRefresh(value => value + 1);
       toast.success(closure ? 'Mês liberado para alterações.' : 'Mês fechado com a contabilidade.');
@@ -60,7 +83,21 @@ export default function MonthClosureControl({ organizationId, year, month, canCl
         {closure ? <LockKeyhole className="w-4 h-4 mt-1 shrink-0 text-primary" /> : <LockKeyholeOpen className="w-4 h-4 mt-1 shrink-0 text-muted-foreground" />}
         <div>
           <p className="text-sm font-medium">{period} · {loading ? 'Consultando fechamento…' : error ? 'Fechamento indisponível' : closure ? 'Fechado com a contabilidade' : 'Aberto'}</p>
-          {closure && <p className="text-xs text-muted-foreground">Fechado em {new Date(closure.closed_at).toLocaleDateString('pt-BR')}{canReopen ? ' · por você' : ' · liberação exclusiva de quem fechou'}</p>}
+          {closure && (
+            <div className="text-xs space-y-0.5">
+              <p className="font-medium text-primary" role="status">Mês fechado por {closerLabel || (canReopen ? 'você' : 'outro usuário')} em {new Date(closure.closed_at).toLocaleDateString('pt-BR')}. Lançamentos bloqueados.</p>
+              <p className="text-muted-foreground">{canReopen ? 'Somente você pode liberar.' : 'Liberação exclusiva de quem fechou.'}</p>
+              {closure.closed_month_balance != null && (
+                <p className="text-muted-foreground">Gravado no fechamento: Saldo do mês {fmt(Number(closure.closed_month_balance))} · Total com aplicações {fmt(Number(closure.closed_total_with_investments ?? 0))}</p>
+              )}
+              {current && closure.closed_month_balance != null && (() => {
+                const db = Math.round((current.balance - Number(closure.closed_month_balance)) * 100) / 100;
+                const dt = Math.round((current.total - Number(closure.closed_total_with_investments ?? 0)) * 100) / 100;
+                if (db === 0 && dt === 0) return null;
+                return <p className="text-destructive font-medium">Atenção: o cálculo atual difere do gravado (Saldo do mês {fmt(db)}; Total com aplicações {fmt(dt)}).</p>;
+              })()}
+            </div>
+          )}
         </div>
       </div>
       {error ? <Button variant="outline" size="sm" onClick={() => setRefresh(value => value + 1)}>Tentar novamente</Button> : (closure ? canReopen : canClose) && (

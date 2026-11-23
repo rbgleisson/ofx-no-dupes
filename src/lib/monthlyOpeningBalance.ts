@@ -7,6 +7,8 @@ export interface MonthlyOpeningAnchor {
   year: number;
   month: number;
   amount: number;
+  updated_by?: string | null;
+  updated_at?: string | null;
 }
 
 export interface ChainedTransaction {
@@ -33,7 +35,7 @@ export async function fetchOpeningAnchors(
 ): Promise<MonthlyOpeningAnchor[]> {
   const { data, error } = await supabase
     .from('monthly_opening_balances')
-    .select('id, organization_id, year, month, amount')
+    .select('id, organization_id, year, month, amount, updated_by, updated_at')
     .eq('organization_id', organizationId)
     .or(`year.lt.${year},and(year.eq.${year},month.lte.${month})`)
     .order('year', { ascending: false })
