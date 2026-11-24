@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Plus, Pencil, Trash2, Check, X, Tag, Search } from 'lucide-react';
+import { toast } from 'sonner';
 import { filterCatalog } from '@/lib/catalogSearch';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -55,7 +56,8 @@ const CategoriesManager = ({ categories, onCategoriesChange }: CategoriesManager
       user_id: user.id,
       organization_id: orgId,
     });
-    if (!error) {
+    if (error) { toast.error('Erro ao adicionar: ' + error.message); return; }
+    {
       setNewCode('');
       setNewName('');
       setNewColor(PRESET_COLORS[0]);
@@ -70,7 +72,8 @@ const CategoriesManager = ({ categories, onCategoriesChange }: CategoriesManager
       color: editColor,
       code: editCode.trim() || null,
     }).eq('id', id);
-    if (!error) {
+    if (error) { toast.error('Erro ao salvar: ' + error.message); return; }
+    {
       setEditingId(null);
       onCategoriesChange();
     }
@@ -78,7 +81,8 @@ const CategoriesManager = ({ categories, onCategoriesChange }: CategoriesManager
 
   const handleDelete = async (id: string) => {
     const { error } = await supabase.from('categories').delete().eq('id', id);
-    if (!error) onCategoriesChange();
+    if (error) { toast.error('Erro ao excluir: ' + error.message); return; }
+    onCategoriesChange();
   };
 
   const startEdit = (cat: Category) => {
