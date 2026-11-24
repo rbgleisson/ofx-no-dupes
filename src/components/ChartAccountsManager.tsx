@@ -69,7 +69,11 @@ const ChartAccountsManager = ({ chartAccounts, onChartAccountsChange }: ChartAcc
 
   const handleDelete = async (id: string) => {
     // First, unlink any transactions using this chart account
-    await supabase.from('transactions').update({ chart_account_id: null }).eq('chart_account_id', id);
+    const { error: unlinkError } = await supabase.from('transactions').update({ chart_account_id: null }).eq('chart_account_id', id);
+    if (unlinkError) {
+      toast.error('Erro ao excluir: ' + unlinkError.message);
+      return;
+    }
     
     const { error } = await supabase.from('chart_accounts').delete().eq('id', id);
     if (error) {

@@ -165,7 +165,8 @@ const AccountsManager = ({ accounts, onAccountsChange, transactions = [], instal
 
   const handleDelete = async (id: string) => {
     const { error } = await supabase.from('accounts').delete().eq('id', id);
-    if (!error) onAccountsChange();
+    if (error) { toast.error('Erro ao excluir conta: ' + error.message); return; }
+    onAccountsChange();
   };
 
   const startEdit = (acc: Account) => {
