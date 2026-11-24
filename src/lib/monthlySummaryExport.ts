@@ -90,6 +90,23 @@ function addSignatureBlock(sheet: ExcelJS.Worksheet, startRow: number, firstCol 
   return row;
 }
 
+// Compact signature row: three signatures side by side (one per column), fits a page footer.
+function addSignatureRow(sheet: ExcelJS.Worksheet, startRow: number, cols: number[]): number {
+  const cargos = ['Pastor Presidente', 'Tesoureiro', 'Comissão de Contas'];
+  const line = startRow + 1;
+  sheet.getRow(line).height = 34;
+  sheet.getRow(line + 1).height = 16;
+  cargos.forEach((cargo, i) => {
+    const c = cols[i];
+    sheet.getCell(line, c).border = { bottom: { style: 'thin', color: { argb: 'FF0F172A' } } };
+    const lbl = sheet.getCell(line + 1, c);
+    lbl.value = cargo;
+    lbl.font = { name: 'Calibri', size: 9, bold: true, color: { argb: 'FF334155' } };
+    lbl.alignment = { horizontal: 'center', vertical: 'top' };
+  });
+  return line + 2;
+}
+
 export async function exportMonthlySummary(
   categories: Category[],
   organizationId: string | null,
@@ -98,6 +115,7 @@ export async function exportMonthlySummary(
   chartAccounts: ChartAccount[] = [],
   headerName: string = '',
   previousBalanceOverride?: number | null,
+  format: 'xlsx' | 'pdf' = 'xlsx',
 ) {
   const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
   const endDate = month === 12
@@ -167,6 +185,23 @@ export async function exportMonthlySummary(
     investmentSummary.byAccount.map(account => account.aplicado),
   );
   const monthName = MONTHS[month - 1];
+
+  if (format === 'pdf') {
+    const { buildMonthlySummaryPdf } = await import('@/lib/monthlySummaryPdf');
+    const nameOf = (id: string) => catMap.get(id)?.name || 'Sem Categoria';
+    const toRows = (m: Map<string, number>) => [...m.entries()].map(([id, v]) => ({ name: nameOf(id), value: v })).sort((a, b) => b.value - a.value);
+    const toChart = (m: Map<string, number>) => [...m.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([k, v]) => { const [code, name] = k.split('||'); return { code, name, value: v }; });
+    const blob = buildMonthlySummaryPdf({
+      title: headerName || 'Resumo Financeiro', monthName, year, closing,
+      investments: investmentSummary.byAccount.map(a => ({ name: a.name, value: a.aplicado })),
+      entries: toRows(entriesByCategory), exits: toRows(exitsByCategory),
+      chartEntries: chartAccounts.length ? toChart(entriesByChart) : [], chartExits: chartAccounts.length ? toChart(exitsByChart) : [],
+      countTx,
+    });
+    const safe = (headerName || 'resumo').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+    triggerDownload(blob, `${safe || 'resumo'}_${monthName.toLowerCase()}_${year}.pdf`);
+    return;
+  }
 
   const wb = new ExcelJS.Workbook();
   wb.creator = 'Coinonia';
@@ -593,7 +628,7 @@ export async function exportMonthlySummary(
     renderChart('▼  SAÍDAS POR CONTA CONTÁBIL', exitsByChart, totalExits, C_RED);
 
     // Signature block + print area
-    const nextRow = addSignatureBlock(sh2, (sh2.lastRow?.number || 1) + 1, 2, 4);
+    const nextRow = addSignatureRow(sh2, (sh2.lastRow?.number || 1) + 1, [2, 3, 4]);
     sh2.pageSetup.printArea = `A1:E${nextRow - 1}`;
     sh2.headerFooter.oddFooter = '&C&8Página &P de &N';
   }

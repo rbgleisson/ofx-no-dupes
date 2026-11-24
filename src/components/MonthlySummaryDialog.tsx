@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowDownCircle, ArrowUpCircle, BarChart3, Download, Loader2, Plus, TrendingUp, Wallet, Building2 } from 'lucide-react';
+import { ArrowDownCircle, ArrowUpCircle, BarChart3, Download, Loader2, Plus, TrendingUp, Wallet, Building2, FileText } from 'lucide-react';
 import { Category } from '@/components/CategoriesManager';
 import { exportMonthlySummary, fetchInvestmentSummary } from '@/lib/monthlySummaryExport';
 import { supabase } from '@/integrations/supabase/client';
@@ -280,7 +280,7 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
     }
   };
 
-  const handleExport = async () => {
+  const handleExport = async (format: 'xlsx' | 'pdf' = 'xlsx') => {
     setExporting(true);
     try {
       if (!monthClosed) await Promise.all([
@@ -295,6 +295,7 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
         chartAccounts,
         (headerName || orgName || '').trim(),
         parsedPrevBalance,
+        format,
       );
       onSuccess?.();
     } catch {
@@ -359,7 +360,16 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
               </Select>
             </div>
             <Button
-              onClick={handleExport}
+              variant="outline"
+              onClick={() => void handleExport('pdf')}
+              disabled={exporting || loading}
+              className="h-9 border-cyan-500/30 text-cyan-200"
+            >
+              {exporting ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <FileText className="w-4 h-4 mr-1.5" />}
+              Exportar PDF
+            </Button>
+            <Button
+              onClick={() => void handleExport('xlsx')}
               disabled={exporting || loading}
               className="h-9 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white border-0 shadow-lg shadow-cyan-500/20"
             >
