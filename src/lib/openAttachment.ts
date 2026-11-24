@@ -37,13 +37,8 @@ export async function openAttachment(url: string): Promise<void> {
   }
 
   const blobUrl = URL.createObjectURL(data);
-  attachmentWindow.document.body.textContent = '';
-  attachmentWindow.document.body.style.margin = '0';
-  const viewer = attachmentWindow.document.createElement('iframe');
-  viewer.src = blobUrl;
-  viewer.title = 'Anexo';
-  viewer.style.width = '100vw';
-  viewer.style.height = '100vh';
-  viewer.style.border = '0';
-  attachmentWindow.document.body.appendChild(viewer);
+  // Navigate the tab straight to the file: mobile browsers do not render
+  // PDFs/images inside an iframe written into a blank popup.
+  attachmentWindow.location.href = blobUrl;
+  setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
 }
