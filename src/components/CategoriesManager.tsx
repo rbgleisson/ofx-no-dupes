@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Plus, Pencil, Trash2, Check, X, Tag } from 'lucide-react';
+import { Plus, Pencil, Trash2, Check, X, Tag, Search } from 'lucide-react';
+import { filterCatalog } from '@/lib/catalogSearch';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -38,6 +39,9 @@ const CategoriesManager = ({ categories, onCategoriesChange }: CategoriesManager
   const [editCode, setEditCode] = useState('');
   const [editName, setEditName] = useState('');
   const [editColor, setEditColor] = useState('');
+  const [query, setQuery] = useState('');
+
+  const visible = filterCatalog(categories, query, cat => [cat.name, cat.code]);
 
   const handleAdd = async () => {
     if (!newName.trim()) return;
@@ -85,7 +89,16 @@ const CategoriesManager = ({ categories, onCategoriesChange }: CategoriesManager
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={next => {
+        setOpen(next);
+        if (!next) {
+          setQuery('');
+          setEditingId(null);
+        }
+      }}
+    >
       <DialogTrigger asChild>
         <Button size="sm" className="bg-violet-600 hover:bg-violet-700 text-white border-0">
           <Tag className="w-4 h-4 mr-1.5" />
@@ -98,7 +111,7 @@ const CategoriesManager = ({ categories, onCategoriesChange }: CategoriesManager
         </DialogHeader>
 
         {/* Add new */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Input
             placeholder="Código"
             value={newCode}
@@ -111,9 +124,9 @@ const CategoriesManager = ({ categories, onCategoriesChange }: CategoriesManager
             value={newName}
             onChange={e => setNewName(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleAdd()}
-            className="flex-1"
+            className="flex-1 min-w-[9rem]"
           />
-          <div className="flex gap-1">
+          <div className="flex gap-1 flex-shrink-0">
             {PRESET_COLORS.map(c => (
               <button
                 key={c}
@@ -128,12 +141,36 @@ const CategoriesManager = ({ categories, onCategoriesChange }: CategoriesManager
           </Button>
         </div>
 
+        {/* Search */}
+        <div className="relative">
+          <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+          <Input
+            placeholder="Buscar categoria por nome ou código..."
+            value={query}
+            onChange={e => {
+              setQuery(e.target.value);
+              setEditingId(null);
+            }}
+            className="h-8 text-xs pl-7"
+          />
+        </div>
+
         {/* List */}
         <div className="space-y-2 max-h-64 overflow-y-auto">
           {categories.length === 0 && (
             <p className="text-sm text-muted-foreground text-center py-4">Nenhuma categoria cadastrada.</p>
           )}
-          {categories.map(cat => (
+          {categories.length > 0 && visible.length === 0 && (
+            <p className="text-sm text-muted-foreground text-center py-4">
+              Nenhuma categoria encontrada para "{query.trim()}".
+            </p>
+          )}
+          {query.trim() && categories.length > 0 && (
+            <p className="text-xs text-muted-foreground">
+              {visible.length} de {categories.length} categoria{categories.length === 1 ? '' : 's'}
+            </p>
+          )}
+          {visible.map(cat => (
             <div key={cat.id} className="flex items-center gap-2 rounded-lg border px-3 py-2">
               {editingId === cat.id ? (
                 <>

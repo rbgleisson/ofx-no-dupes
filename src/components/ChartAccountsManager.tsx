@@ -3,7 +3,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Pencil, Trash2, Check, X, BookOpen } from 'lucide-react';
+import { Pencil, Trash2, Check, X, BookOpen, Search } from 'lucide-react';
+import { filterCatalog } from '@/lib/catalogSearch';
 import {
   Dialog,
   DialogContent,
@@ -30,6 +31,10 @@ const ChartAccountsManager = ({ chartAccounts, onChartAccountsChange }: ChartAcc
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editCode, setEditCode] = useState('');
   const [editName, setEditName] = useState('');
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+
+  const visible = filterCatalog(chartAccounts, query, ca => [ca.name, ca.code]);
 
   const handleAdd = async () => {
     if (!code.trim() || !name.trim()) return;
@@ -82,7 +87,16 @@ const ChartAccountsManager = ({ chartAccounts, onChartAccountsChange }: ChartAcc
   };
 
   return (
-    <Dialog>
+    <Dialog
+      open={open}
+      onOpenChange={next => {
+        setOpen(next);
+        if (!next) {
+          setQuery('');
+          setEditingId(null);
+        }
+      }}
+    >
       <DialogTrigger asChild>
         <Button size="sm" className="bg-amber-600 hover:bg-amber-700 text-white border-0">
           <BookOpen className="w-4 h-4 mr-1.5" />
@@ -113,12 +127,36 @@ const ChartAccountsManager = ({ chartAccounts, onChartAccountsChange }: ChartAcc
             <Button size="sm" onClick={handleAdd} disabled={!code.trim() || !name.trim()}>Adicionar</Button>
           </div>
 
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+            <Input
+              placeholder="Buscar conta por nome ou código..."
+              value={query}
+              onChange={e => {
+                setQuery(e.target.value);
+                setEditingId(null);
+              }}
+              className="h-8 text-xs pl-7"
+            />
+          </div>
+
           {/* List */}
           <div className="space-y-1 max-h-72 overflow-y-auto">
             {chartAccounts.length === 0 && (
               <p className="text-sm text-muted-foreground text-center py-4">Nenhuma conta contábil cadastrada.</p>
             )}
-            {chartAccounts.map(ca => (
+            {chartAccounts.length > 0 && visible.length === 0 && (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                Nenhuma conta encontrada para "{query.trim()}".
+              </p>
+            )}
+            {query.trim() && chartAccounts.length > 0 && (
+              <p className="text-xs text-muted-foreground px-2">
+                {visible.length} de {chartAccounts.length} conta{chartAccounts.length === 1 ? '' : 's'}
+              </p>
+            )}
+            {visible.map(ca => (
               <div key={ca.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-muted/50 group">
                 {editingId === ca.id ? (
                   <>
