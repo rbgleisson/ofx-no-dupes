@@ -66,8 +66,15 @@ export function MonthCompositionDetails({ organizationId, year, month, refreshKe
       </div>
       <div className="flex justify-between gap-3"><span>(+) Entradas <span className="text-xs text-muted-foreground">({cf.entriesCount} lançamentos)</span></span><span className="tabular-nums">{fmt(cf.entries)}</span></div>
       <div className="flex justify-between gap-3"><span>(−) Saídas <span className="text-xs text-muted-foreground">({cf.exitsCount} lançamentos)</span></span><span className="tabular-nums">{fmt(cf.exits)}</span></div>
-      <div className="flex justify-between gap-3 border-t pt-2 font-semibold"><span>(=) Saldo do mês</span><span className="tabular-nums">{fmt(data.monthBalance)}</span></div>
-      <div className="flex justify-between gap-3 text-xs text-muted-foreground"><span>Total com aplicações (Saldo do mês + {fmt(data.totalApplied)} aplicados)</span><span className="tabular-nums">{fmt(data.totalWithInvestments)}</span></div>
+      <div className="flex justify-between gap-3 border-t pt-2"><span>(=) Resultado do mês (Entradas − Saídas)</span><span className="tabular-nums">{fmt(data.reconciliation.monthResult)}</span></div>
+      <div className="flex justify-between gap-3 font-semibold"><span>Saldo do mês (Saldo Anterior + Resultado)</span><span className="tabular-nums">{fmt(data.monthBalance)}</span></div>
+      <div className="flex justify-between gap-3"><span>(+/−) Aplicações, resgates e transferências (líquido)</span><span className="tabular-nums">{fmt(data.reconciliation.internalNet)}</span></div>
+      {data.reconciliation.otherDifferences !== 0 && (
+        <div className="flex justify-between gap-3"><span>(+/−) Outras diferenças <span className="text-xs text-muted-foreground">(saldo anterior diferente, contas de aplicação, extrato)</span></span><span className="tabular-nums">{fmt(data.reconciliation.otherDifferences)}</span></div>
+      )}
+      <div className="flex justify-between gap-3 border-t pt-2 font-semibold"><span>(=) Saldo disponível nos bancos no fim do mês</span><span className="tabular-nums">{fmt(data.reconciliation.bankFinal)}</span></div>
+      <div className="flex justify-between gap-3"><span>(+) Saldo das aplicações</span><span className="tabular-nums">{fmt(data.totalApplied)}</span></div>
+      <div className="flex justify-between gap-3 border-t pt-2 font-semibold"><span>(=) Total com aplicações</span><span className="tabular-nums">{fmt(data.totalWithInvestments)}</span></div>
 
       <div className="rounded-md border p-3 space-y-2">
         <p className="text-xs font-medium">Ficou de fora do cálculo</p>

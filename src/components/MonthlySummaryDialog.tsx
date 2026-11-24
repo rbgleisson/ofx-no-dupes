@@ -9,7 +9,8 @@ import { exportMonthlySummary, fetchInvestmentSummary } from '@/lib/monthlySumma
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { fetchAllRows } from '@/lib/fetchAllRows';
-import { computeMonthlyClosing, type CashBalanceAccount } from '@/lib/accountBalances';
+import { type CashBalanceAccount } from '@/lib/accountBalances';
+import { buildMonthReconciliation, fetchBankMonthReconciliation } from '@/lib/monthReconciliation';
 import { saveAppliedAmount } from '@/lib/investmentPositions';
 import { createInvestmentAccount } from '@/lib/transfers';
 import {
@@ -57,6 +58,7 @@ const fmt = (v: number) =>
 const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, orgName, onSuccess, onError, trigger }: Props) => {
   const now = new Date();
   const [open, setOpen] = useState(false);
+  const [bankRecState, setBankRecState] = useState({ internalNet: 0, final: 0 });
   const [month, setMonth] = useState<string>(String(now.getMonth() + 1));
   const [year, setYear] = useState<string>(String(now.getFullYear()));
   const [headerName, setHeaderName] = useState<string>(orgName || '');
@@ -94,7 +96,7 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
       const m = Number(month);
       const startDate = `${y}-${String(m).padStart(2, '0')}-01`;
       const endDate = m === 12 ? `${y + 1}-01-01` : `${y}-${String(m + 1).padStart(2, '0')}-01`;
-      const [data, prevData, accountsResult, invSummary, openingAnchors, closure] = await Promise.all([
+      const [data, prevData, accountsResult, invSummary, openingAnchors, closure, bankRec] = await Promise.all([
         fetchAllRows<Tx>(() => supabase
           .from('transactions')
           .select('id, date, amount, account_id, category_id, is_transfer')
@@ -113,11 +115,13 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
         fetchInvestmentSummary(organizationId, y, m),
         fetchOpeningAnchors(organizationId, y, m),
         fetchMonthClosure(organizationId, y, m),
+        fetchBankMonthReconciliation(organizationId, y, m),
       ]);
       if (accountsResult.error) throw accountsResult.error;
       if (!cancelled) {
         setTxs(data);
         setMonthClosed(Boolean(closure));
+        setBankRecState({ internalNet: bankRec.internalNet, final: bankRec.final });
         setInvestmentBalance(invSummary.totalSaldo);
         setInvestmentYield(invSummary.totalRendimento);
         setInvestmentByAccount(invSummary.byAccount);
@@ -185,8 +189,8 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
     [investmentByAccount, appliedInputs],
   );
   const closing = useMemo(
-    () => computeMonthlyClosing(parsedPrevBalance, stats.totalEntries, stats.totalExits, appliedAmounts),
-    [parsedPrevBalance, stats.totalEntries, stats.totalExits, appliedAmounts],
+    () => buildMonthReconciliation(parsedPrevBalance, stats.totalEntries, stats.totalExits, bankRecState, appliedAmounts),
+    [parsedPrevBalance, stats.totalEntries, stats.totalExits, appliedAmounts, bankRecState],
   );
 
   const persistAppliedAmount = async (accountId: string) => {
@@ -438,7 +442,15 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
                 <ClosingLine label="(+) Entradas" value={stats.totalEntries} valueClass="text-emerald-300" />
                 <ClosingLine label="(–) Saídas" value={stats.totalExits} valueClass="text-rose-300" />
                 <div className="border-t border-cyan-500/20 pt-2">
-                  <ClosingLine label="(=) Saldo do mês" value={closing.subtotal} strong />
+                  <ClosingLine label="(=) Resultado do mês (Entradas − Saídas)" value={closing.monthResult} />
+                </div>
+                <ClosingLine label="Saldo do mês (Saldo Anterior + Resultado)" value={closing.monthBalance} strong />
+                <ClosingLine label="(+/−) Aplicações, resgates e transferências (líquido)" value={closing.internalNet} />
+                {closing.otherDifferences !== 0 && (
+                  <ClosingLine label="(+/−) Outras diferenças (saldo anterior diferente, contas de aplicação, extrato)" value={closing.otherDifferences} valueClass="text-amber-300" />
+                )}
+                <div className="border-t border-cyan-500/20 pt-2">
+                  <ClosingLine label="(=) Saldo disponível nos bancos no fim do mês" value={closing.bankFinal} strong />
                 </div>
                 {investmentByAccount.map(account => (
                   <div key={account.accountId} className="grid grid-cols-1 sm:grid-cols-[1fr_180px] items-center gap-2 border-t border-cyan-500/10 pt-2">
@@ -492,8 +504,8 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
                 </div>
                 <div className="border-t border-cyan-400/30 pt-3 mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                   <span className="font-semibold uppercase text-cyan-200">(=) Total com aplicações</span>
-                  <span className={cn('text-2xl md:text-3xl font-bold tabular-nums', closing.totalGeral >= 0 ? 'text-cyan-200' : 'text-amber-300')}>
-                    {fmt(closing.totalGeral)}
+                  <span className={cn('text-2xl md:text-3xl font-bold tabular-nums', closing.totalWithInvestments >= 0 ? 'text-cyan-200' : 'text-amber-300')}>
+                    {fmt(closing.totalWithInvestments)}
                   </span>
                 </div>
               </div>

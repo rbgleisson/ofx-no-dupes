@@ -1,8 +1,9 @@
 import { supabase } from '@/integrations/supabase/client';
 import { fetchAllRows } from '@/lib/fetchAllRows';
-import { computeMonthlyClosing, round2, type CashBalanceAccount } from '@/lib/accountBalances';
+import { round2, type CashBalanceAccount } from '@/lib/accountBalances';
 import { fetchMonthlyOpeningBalance, fetchOpeningAnchors, isSameOpeningPeriod } from '@/lib/monthlyOpeningBalance';
 import { fetchInvestmentSummary } from '@/lib/investmentPositions';
+import { buildMonthReconciliation, fetchBankMonthReconciliation, type MonthReconciliation } from '@/lib/monthReconciliation';
 
 export interface CashflowRow {
   id?: string;
@@ -63,6 +64,7 @@ export interface MonthComposition {
   monthBalance: number;
   totalApplied: number;
   totalWithInvestments: number;
+  reconciliation: MonthReconciliation;
 }
 
 const labelCache = new Map<string, string | null>();
@@ -90,15 +92,17 @@ export async function fetchMonthComposition(organizationId: string, year: number
     fetchOpeningAnchors(organizationId, year, month),
     fetchInvestmentSummary(organizationId, year, month),
   ]);
+  const bank = await fetchBankMonthReconciliation(organizationId, year, month);
   if (accountsResult.error) throw accountsResult.error;
   const previous = await fetchMonthlyOpeningBalance(organizationId, year, month);
   const current = anchors.find(a => isSameOpeningPeriod(a, year, month));
   let origin: PreviousBalanceOrigin = { kind: 'calculated' };
   if (current) origin = { kind: 'manual', userLabel: await fetchMemberLabel(current.updated_by), savedAt: current.updated_at ?? null };
   const cashflow = splitMonthCashflow(monthRows);
-  const closing = computeMonthlyClosing(previous.displayed, cashflow.entries, cashflow.exits, investments.byAccount.map(a => a.aplicado));
+  const rec = buildMonthReconciliation(previous.displayed, cashflow.entries, cashflow.exits, bank, investments.byAccount.map(a => a.aplicado));
   return {
     previousBalance: previous.displayed, origin, cashflow,
-    monthBalance: closing.subtotal, totalApplied: closing.totalApplied, totalWithInvestments: closing.totalGeral,
+    monthBalance: rec.monthBalance, totalApplied: rec.totalApplied, totalWithInvestments: rec.totalWithInvestments,
+    reconciliation: rec,
   };
 }

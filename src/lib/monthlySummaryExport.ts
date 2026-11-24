@@ -2,7 +2,8 @@ import ExcelJS from 'exceljs';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchInvestmentSummary, type InvestmentSummary } from '@/lib/investmentPositions';
 import { fetchAllRows } from '@/lib/fetchAllRows';
-import { computeMonthlyClosing, type CashBalanceAccount } from '@/lib/accountBalances';
+import { type CashBalanceAccount } from '@/lib/accountBalances';
+import { buildMonthReconciliation, fetchBankMonthReconciliation } from '@/lib/monthReconciliation';
 import { fetchMonthlyOpeningBalance, fetchOpeningAnchors } from '@/lib/monthlyOpeningBalance';
 
 export { fetchInvestmentSummary };
@@ -157,10 +158,12 @@ export async function exportMonthlySummary(
     }
   }
 
-  const closing = computeMonthlyClosing(
+  const bankRec = await fetchBankMonthReconciliation(organizationId, year, month);
+  const closing = buildMonthReconciliation(
     previousBalance,
     totalEntries,
     totalExits,
+    bankRec,
     investmentSummary.byAccount.map(account => account.aplicado),
   );
   const monthName = MONTHS[month - 1];
@@ -418,7 +421,11 @@ export async function exportMonthlySummary(
   closingLine('SALDO ANTERIOR', previousBalance);
   closingLine('(+) ENTRADAS REAIS', totalEntries, C_GREEN);
   closingLine('(–) SAÍDAS REAIS', totalExits, C_RED);
-  closingLine('(=) SUBTOTAL', closing.subtotal, C_PRIMARY_DARK);
+  closingLine('(=) RESULTADO DO MÊS (ENTRADAS − SAÍDAS)', closing.monthResult, C_PRIMARY_DARK);
+  closingLine('SALDO DO MÊS (SALDO ANTERIOR + RESULTADO)', closing.monthBalance, C_PRIMARY_DARK);
+  closingLine('(+/−) APLICAÇÕES, RESGATES E TRANSFERÊNCIAS (LÍQUIDO)', closing.internalNet);
+  if (closing.otherDifferences !== 0) closingLine('(+/−) OUTRAS DIFERENÇAS (SALDO ANTERIOR, APLICAÇÕES, EXTRATO)', closing.otherDifferences, C_RED);
+  closingLine('(=) SALDO DISPONÍVEL NOS BANCOS NO FIM DO MÊS', closing.bankFinal, C_PRIMARY_DARK);
   for (const account of investmentSummary.byAccount) {
     closingLine(`(+) SALDO DE APLICAÇÃO ${account.name}`, account.aplicado, C_GREEN, false);
   }
@@ -435,13 +442,13 @@ export async function exportMonthlySummary(
 
   sheet.mergeCells(row, 2, row, 5);
   const bigSaldo = sheet.getCell(row, 2);
-  bigSaldo.value = closing.totalGeral;
+  bigSaldo.value = closing.totalWithInvestments;
   bigSaldo.numFmt = '"R$" #,##0.00';
   bigSaldo.font = {
     name: 'Calibri',
     size: 28,
     bold: true,
-    color: { argb: closing.totalGeral >= 0 ? C_PRIMARY_DARK : C_RED },
+    color: { argb: closing.totalWithInvestments >= 0 ? C_PRIMARY_DARK : C_RED },
   };
   bigSaldo.alignment = { horizontal: 'center', vertical: 'middle' };
   bigSaldo.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C_BLUE_BG } };
