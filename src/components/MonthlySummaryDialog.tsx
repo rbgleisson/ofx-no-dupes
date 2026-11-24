@@ -13,7 +13,7 @@ import { computeMonthlyClosing, type CashBalanceAccount } from '@/lib/accountBal
 import { saveAppliedAmount } from '@/lib/investmentPositions';
 import { createInvestmentAccount } from '@/lib/transfers';
 import {
-  computeMonthlyPreviousBalance,
+  fetchMonthlyOpeningBalance,
   deleteOpeningBalance,
   fetchOpeningAnchors,
   saveOpeningBalance,
@@ -125,13 +125,8 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
           account.accountId,
           account.aplicado.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
         ])));
-        const monthlyBalance = computeMonthlyPreviousBalance(
-          (accountsResult.data || []) as CashBalanceAccount[],
-          prevData,
-          openingAnchors,
-          y,
-          m,
-        );
+        const monthlyBalance = await fetchMonthlyOpeningBalance(organizationId, y, m);
+        if (cancelled) return;
         setPreviousBalance(monthlyBalance.calculated);
         setPrevBalanceInput(monthlyBalance.displayed.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
         setHasSavedPreviousBalance(monthlyBalance.hasSavedValue);
@@ -373,7 +368,7 @@ const MonthlySummaryDialog = ({ categories, chartAccounts = [], organizationId, 
             <p className="text-[10px] font-medium text-cyan-300/70 uppercase tracking-wider mb-1 flex items-center gap-1.5">
                <Wallet className="w-3 h-3" /> Saldo Anterior {monthClosed ? '(mês fechado)' : '(editável)'}
                <span className="text-[9px] text-slate-500 normal-case tracking-normal">
-                 {hasSavedPreviousBalance ? '— definido por você (salvo)' : '— encadeado do mês anterior'}
+                 {hasSavedPreviousBalance ? '— definido por você (salvo)' : '— calculado a partir dos saldos das contas no fim do mês anterior'}
                </span>
             </p>
             <Input

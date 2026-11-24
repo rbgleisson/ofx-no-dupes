@@ -1,5 +1,8 @@
 import { supabase } from '@/integrations/supabase/client';
 import { round2, type CashBalanceAccount } from '@/lib/accountBalances';
+import { computeBankReconciliation } from '@/lib/bankReconciliation';
+import { fetchStatementBalances, type StatementBalance } from '@/lib/statementBalances';
+import { fetchAllRows } from '@/lib/fetchAllRows';
 
 export interface MonthlyOpeningAnchor {
   id: string;
@@ -162,4 +165,58 @@ export function isSameOpeningPeriod(
   month: number,
 ): boolean {
   return periodKey(anchor.year, anchor.month) === periodKey(year, month);
+}
+export interface BankOpeningAccount {
+  id: string;
+  name: string;
+  kind?: string | null;
+  opening_balance?: number | null;
+  opening_balance_date?: string | null;
+}
+
+/**
+ * Default Saldo Anterior: a saved value for the month wins; otherwise the bank
+ * balance (non-investment accounts) at the end of the previous month — the same
+ * `previous` shown in "Saldo bancário anterior".
+ */
+export function resolveMonthlyOpeningBalance(
+  accounts: BankOpeningAccount[],
+  statements: StatementBalance[],
+  transactions: (ChainedTransaction & { account_id?: string | null })[],
+  anchors: MonthlyOpeningAnchor[],
+  year: number,
+  month: number,
+): MonthlyPreviousBalanceResult {
+  const start = periodStartFor(year, month);
+  const bankTxs = transactions
+    .filter(tx => tx.account_id && tx.date < start)
+    .map(tx => ({ account_id: tx.account_id, date: tx.date, amount: Number(tx.amount) || 0, is_transfer: tx.is_transfer }));
+  const calculated = computeBankReconciliation(accounts, statements, bankTxs, start, start).previous;
+  const current = anchors.find(item => isSameOpeningPeriod(item, year, month)) || null;
+  return { calculated, displayed: current ? round2(current.amount) : calculated, hasSavedValue: Boolean(current) };
+}
+
+/** Fetches everything needed and applies resolveMonthlyOpeningBalance. Used by screen, summary and Excel. */
+export async function fetchMonthlyOpeningBalance(
+  organizationId: string,
+  year: number,
+  month: number,
+  accountId?: string | null,
+): Promise<MonthlyPreviousBalanceResult & { anchors: MonthlyOpeningAnchor[] }> {
+  const start = periodStartFor(year, month);
+  const [accountsResult, statements, history, anchors] = await Promise.all([
+    supabase.from('accounts').select('id, name, kind, opening_balance, opening_balance_date').eq('organization_id', organizationId),
+    fetchStatementBalances(organizationId, accountId || undefined),
+    fetchAllRows<ChainedTransaction>(() => {
+      let q = supabase.from('transactions').select('id, account_id, date, amount, is_transfer')
+        .eq('organization_id', organizationId).not('account_id', 'is', null).lt('date', start);
+      if (accountId) q = q.eq('account_id', accountId);
+      return q as any;
+    }),
+    // Saved values are organization-wide; they only apply without an account filter.
+    accountId ? Promise.resolve([] as MonthlyOpeningAnchor[]) : fetchOpeningAnchors(organizationId, year, month),
+  ]);
+  if (accountsResult.error) throw accountsResult.error;
+  const accounts = ((accountsResult.data || []) as BankOpeningAccount[]).filter(a => !accountId || a.id === accountId);
+  return { ...resolveMonthlyOpeningBalance(accounts, statements, history, anchors, year, month), anchors };
 }

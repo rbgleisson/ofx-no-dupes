@@ -59,7 +59,7 @@ import {
 import { exportCategoriesAndChartAccounts, importCategoriesAndChartAccounts } from '@/lib/catalogExportImport';
 import { toast } from 'sonner';
 import { exportMonthlySummary } from '@/lib/monthlySummaryExport';
-import { computeMonthlyPreviousBalance, fetchOpeningAnchors } from '@/lib/monthlyOpeningBalance';
+import { fetchMonthlyOpeningBalance } from '@/lib/monthlyOpeningBalance';
 import { fetchAllRows } from '@/lib/fetchAllRows';
 import MonthlySummaryDialog from '@/components/MonthlySummaryDialog';
 import SendToAccountantDialog from '@/components/SendToAccountantDialog';
@@ -172,18 +172,8 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
       const periodEnd = `${endYear}-${pad(endMonth)}-01`;
 
       try {
-        const [history, openingAnchors, monthRows] = await Promise.all([
-          fetchAllRows<Transaction>(() => {
-            let q = supabase
-              .from('transactions')
-              .select('*')
-              .eq('organization_id', organizationId)
-              .lt('date', periodStart);
-            if (accountId) q = q.eq('account_id', accountId);
-            return q;
-          }),
-          // Âncoras manuais são por organização; só valem quando não há filtro de conta.
-          accountId ? Promise.resolve([]) : fetchOpeningAnchors(organizationId, filters.year, month),
+        const [monthlyBalance, monthRows] = await Promise.all([
+          fetchMonthlyOpeningBalance(organizationId, filters.year, month, accountId),
           fetchAllRows<CashflowRow>(() => {
             let q = supabase
               .from('transactions')
@@ -195,13 +185,6 @@ const Index = ({ onOpenAdmin, onOpenOrgSettings }: IndexProps) => {
             return q as any;
           }),
         ]);
-        const monthlyBalance = computeMonthlyPreviousBalance(
-          accountId ? accounts.filter(a => a.id === accountId) : accounts,
-          history,
-          openingAnchors,
-          filters.year,
-          month,
-        );
         const { entries, exits } = splitMonthCashflow(monthRows);
         if (requestId === previousBalanceRequestRef.current) {
           setPreviousBalance(monthlyBalance.displayed);

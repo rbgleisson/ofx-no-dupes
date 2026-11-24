@@ -15,7 +15,7 @@ export function originText(c: MonthComposition): string {
   const o = c.origin;
   if (o.kind === 'manual') return `Salvo manualmente por ${o.userLabel || 'usuário não identificado'} em ${fmtDate(o.savedAt)}.`;
   if (o.kind === 'chained') return `Encadeado a partir do valor salvo manualmente em ${String(o.month).padStart(2, '0')}/${o.year} por ${o.userLabel || 'usuário não identificado'} em ${fmtDate(o.savedAt)}, somando os meses seguintes.`;
-  return 'Calculado a partir dos saldos iniciais das contas.';
+  return 'Calculado a partir dos saldos das contas no fim do mês anterior.';
 }
 
 function ExcludedList({ items }: { items: CashflowRow[] }) {

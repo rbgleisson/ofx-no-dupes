@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { fetchInvestmentSummary, type InvestmentSummary } from '@/lib/investmentPositions';
 import { fetchAllRows } from '@/lib/fetchAllRows';
 import { computeMonthlyClosing, type CashBalanceAccount } from '@/lib/accountBalances';
-import { computeMonthlyPreviousBalance, fetchOpeningAnchors } from '@/lib/monthlyOpeningBalance';
+import { fetchMonthlyOpeningBalance, fetchOpeningAnchors } from '@/lib/monthlyOpeningBalance';
 
 export { fetchInvestmentSummary };
 
@@ -126,13 +126,7 @@ export async function exportMonthlySummary(
   ]);
   if (accountsResult.error) throw accountsResult.error;
   const investmentBalance = investmentSummary.totalSaldo;
-  const previousBalance = previousBalanceOverride ?? computeMonthlyPreviousBalance(
-    (accountsResult.data || []) as CashBalanceAccount[],
-    previousTransactions,
-    openingAnchors,
-    year,
-    month,
-  ).displayed;
+  const previousBalance = previousBalanceOverride ?? (await fetchMonthlyOpeningBalance(organizationId, year, month)).displayed;
 
   const catMap = new Map(categories.map(c => [c.id, c]));
   const chartMap = new Map(chartAccounts.map(c => [c.id, c]));

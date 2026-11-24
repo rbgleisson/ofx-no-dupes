@@ -1,7 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { fetchAllRows } from '@/lib/fetchAllRows';
 import { computeMonthlyClosing, round2, type CashBalanceAccount } from '@/lib/accountBalances';
-import { computeMonthlyPreviousBalance, fetchOpeningAnchors, isSameOpeningPeriod } from '@/lib/monthlyOpeningBalance';
+import { fetchMonthlyOpeningBalance, fetchOpeningAnchors, isSameOpeningPeriod } from '@/lib/monthlyOpeningBalance';
 import { fetchInvestmentSummary } from '@/lib/investmentPositions';
 
 export interface CashflowRow {
@@ -91,12 +91,10 @@ export async function fetchMonthComposition(organizationId: string, year: number
     fetchInvestmentSummary(organizationId, year, month),
   ]);
   if (accountsResult.error) throw accountsResult.error;
-  const previous = computeMonthlyPreviousBalance((accountsResult.data || []) as CashBalanceAccount[], history, anchors, year, month);
+  const previous = await fetchMonthlyOpeningBalance(organizationId, year, month);
   const current = anchors.find(a => isSameOpeningPeriod(a, year, month));
-  const chain = current ? null : anchors[0];
   let origin: PreviousBalanceOrigin = { kind: 'calculated' };
   if (current) origin = { kind: 'manual', userLabel: await fetchMemberLabel(current.updated_by), savedAt: current.updated_at ?? null };
-  else if (chain) origin = { kind: 'chained', userLabel: await fetchMemberLabel(chain.updated_by), savedAt: chain.updated_at ?? null, year: chain.year, month: chain.month };
   const cashflow = splitMonthCashflow(monthRows);
   const closing = computeMonthlyClosing(previous.displayed, cashflow.entries, cashflow.exits, investments.byAccount.map(a => a.aplicado));
   return {
